@@ -8,27 +8,36 @@ open Std
 open Std.HashMap
 open Nat
 
-abbrev ExprDist := HashMap Expr Nat
+def ExprDist := HashMap Expr Nat
 
-structure Bounds where
-  depth: Nat
-  card : Nat 
+def ExprDist.min (fst: ExprDist)(snd: ExprDist) := Id.run do
+  let mut min := fst
+  for (key, val) in snd.toArray do
+    match min.find? key with
+    | some v =>
+      if val < v then
+        min := min.insert key val
+    | none => 
+        min := min.insert key val
+  return min
 
 structure GenDist where
-  depth: Nat
+  weight: Nat
   card : Nat
   exprDist : ExprDist
 
-def Evolution : Type := (init: ExprDist) → Bounds → (memo: List GenDist) → GenDist
+-- same signature for full evolution and single step, with ExprDist being initial state or accumulated state and the wieght bound that for the result or the accumulated state
+def Evolution : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist  → (memo: List GenDist) → ExprDist
 
-def trivialEvolution : Evolution := fun init bds _ => GenDist.mk bds.depth bds.card  init
+def initEvolution : Evolution := fun _ _ init _ => init
 
-def RecEvolver : Type := (init: ExprDist) → Bounds → (memo: List GenDist) → (evo: Evolution) → GenDist
+-- can again play two roles; and is allowed to depend on a generator; diagonal should only be used for full generation, not for single step.
+def RecEvolver : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist → (memo: List GenDist) → (evo: Evolution) → ExprDist
 
-instance : Inhabited Evolution := ⟨trivialEvolution⟩
+instance : Inhabited Evolution := ⟨initEvolution⟩
 
 partial def RecEvolver.diag(recEv: RecEvolver) : Evolution :=
-        fun init bds memo => recEv init bds memo (diag recEv)
+        fun d c init memo => recEv d c init  memo (diag recEv)
 
 -- Auxiliary functions mainly from lean source for subexpressions
 
