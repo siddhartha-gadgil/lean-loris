@@ -1,0 +1,10 @@
+/build
+perf*
+.vscode/
+/lean_packages
+tmp//build
+/lean_packages
+/build
+/lean_packages
+/build
+/lean_packages
