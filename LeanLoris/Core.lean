@@ -98,6 +98,27 @@ def prodGen{α β γ : Type}[Hashable α][DecidableEq α][Hashable β][Decidable
             | none => ()
     return w
 
+def prodGenTermElab{α β γ : Type}[Hashable α][DecidableEq α][Hashable β][DecidableEq β]
+    [Hashable γ][DecidableEq γ](fst: HashMap α Nat)(snd: HashMap β Nat)
+    (maxWeight card: Nat)(compose: α → β → TermElabM (Option γ))
+    (newPair: α × β → Bool) : TermElabM (HashMap γ  Nat) := do 
+    let mut w := HashMap.empty
+    if maxWeight > 0 then
+      let fstBdd := boundDist fst (maxWeight - 1) card
+      let fstCount := cumulWeightCount fstBdd
+      let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 0 
+      for (key, val) in fstBdd.toArray do
+        let fstNum := (fstCount.getOp val).getD fstTop
+        let sndCard := card / fstNum
+        let sndBdd := boundDist snd (maxWeight - val - 1) sndCard
+        for (key2, val2) in sndBdd.toArray do
+          if newPair (key, key2) then
+            match ← compose key key2 with
+            | some key3 =>
+                w := distUpdate w key3 (val + val2 + 1)
+            | none => ()
+    return w
+
 def tripleProdGen{α β γ δ : Type}[Hashable α][DecidableEq α][Hashable β][DecidableEq β]
     [Hashable γ][DecidableEq γ][Hashable δ][DecidableEq δ]
     (fst: HashMap α Nat)(snd: HashMap β Nat)(third : HashMap γ Nat)
@@ -126,22 +147,50 @@ def tripleProdGen{α β γ δ : Type}[Hashable α][DecidableEq α][Hashable β][
               | none => ()
     return w
 
+def tripleProdGenTermElab{α β γ δ : Type}[Hashable α][DecidableEq α][Hashable β][DecidableEq β]
+    [Hashable γ][DecidableEq γ][Hashable δ][DecidableEq δ]
+    (fst: HashMap α Nat)(snd: HashMap β Nat)(third : HashMap γ Nat)
+    (maxWeight card: Nat)(compose: α → β → γ  → TermElabM (Option δ))
+    (newPair: α × β × γ  → Bool) : TermElabM <| HashMap δ Nat := do 
+    let mut w := HashMap.empty
+    if maxWeight > 0 then
+      let fstBdd := boundDist fst (maxWeight - 1) card
+      let fstCount := cumulWeightCount fstBdd
+      let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 0 
+      for (key, val) in fstBdd.toArray do
+        let fstNum := (fstCount.getOp val).getD fstTop
+        let sndCard := card / fstNum
+        let sndBdd := boundDist snd (maxWeight - val - 1) sndCard
+        let sndCount := cumulWeightCount sndBdd
+        let sndTop := (sndCount.toList.map (fun (k, v) => v)).maximum?.getD 0 
+        for (key2, val2) in sndBdd.toArray do
+          let sndNum := (sndCount.getOp val2).getD sndTop
+          let thirdCard := sndCard / sndNum
+          let thirdBdd := boundDist third (maxWeight - val - val2 - 1) thirdCard
+          for (key3, val3) in thirdBdd.toArray do
+            if newPair (key, key2, key3) then
+              match ← compose key key2 key3 with
+              | some key3 =>
+                  w := distUpdate w key3 (val + val2 + val3 + 1)
+              | none => ()
+    return w
+
 structure GenDist where
   weight: Nat
   card : Nat
   exprDist : ExprDist
 
 -- same signature for full evolution and single step, with ExprDist being initial state or accumulated state and the wieght bound that for the result or the accumulated state
-def Evolution : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist  → (memo: List GenDist) → ExprDist
+def Evolution(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist  → (initData: D) → ExprDist
 
-def initEvolution : Evolution := fun _ _ init _ => init
+def initEvolution(D: Type) : Evolution D := fun _ _ init _ => init
 
 -- can again play two roles; and is allowed to depend on a generator; diagonal should only be used for full generation, not for single step.
-def RecEvolver : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist → (memo: List GenDist) → (evo: Evolution) → ExprDist
+def RecEvolver(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist → (initData: D) → (evo: Evolution D) → ExprDist
 
-instance : Inhabited Evolution := ⟨initEvolution⟩
+instance{D: Type} : Inhabited <| Evolution D := ⟨initEvolution D⟩
 
-partial def RecEvolver.diag(recEv: RecEvolver) : Evolution :=
+partial def RecEvolver.diag{D: Type}(recEv: RecEvolver D) : Evolution D :=
         fun d c init memo => recEv d c init  memo (diag recEv)
 
 -- Auxiliary functions mainly from lean source for subexpressions
