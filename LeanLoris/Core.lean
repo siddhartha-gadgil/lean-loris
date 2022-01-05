@@ -71,6 +71,61 @@ def zeroLevelDist{α : Type}[Hashable α][DecidableEq α]
     w := w.insert x 0
   return w
 
+def distUpdate{α : Type}[Hashable α][DecidableEq α] 
+    (m: HashMap α Nat) (x: α) (d: Nat) : HashMap α Nat := 
+  match m.find? x with
+  | some v => if d < v then m.insert x d else m
+  | none => m.insert x d
+
+def prodGen{α β γ : Type}[Hashable α][DecidableEq α][Hashable β][DecidableEq β]
+    [Hashable γ][DecidableEq γ](fst: HashMap α Nat)(snd: HashMap β Nat)
+    (maxWeight card: Nat)(compose: α → β → Option γ)
+    (newPair: α × β → Bool) : HashMap γ  Nat := Id.run do 
+    let mut w := HashMap.empty
+    if maxWeight > 0 then
+      let fstBdd := boundDist fst (maxWeight - 1) card
+      let fstCount := cumulWeightCount fstBdd
+      let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 0 
+      for (key, val) in fstBdd.toArray do
+        let fstNum := (fstCount.getOp val).getD fstTop
+        let sndCard := card / fstNum
+        let sndBdd := boundDist snd (maxWeight - val - 1) sndCard
+        for (key2, val2) in sndBdd.toArray do
+          if newPair (key, key2) then
+            match compose key key2 with
+            | some key3 =>
+                w := distUpdate w key3 (val + val2 + 1)
+            | none => ()
+    return w
+
+def tripleProdGen{α β γ δ : Type}[Hashable α][DecidableEq α][Hashable β][DecidableEq β]
+    [Hashable γ][DecidableEq γ][Hashable δ][DecidableEq δ]
+    (fst: HashMap α Nat)(snd: HashMap β Nat)(third : HashMap γ Nat)
+    (maxWeight card: Nat)(compose: α → β → γ  → Option δ)
+    (newPair: α × β × γ  → Bool) : HashMap δ Nat := Id.run do 
+    let mut w := HashMap.empty
+    if maxWeight > 0 then
+      let fstBdd := boundDist fst (maxWeight - 1) card
+      let fstCount := cumulWeightCount fstBdd
+      let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 0 
+      for (key, val) in fstBdd.toArray do
+        let fstNum := (fstCount.getOp val).getD fstTop
+        let sndCard := card / fstNum
+        let sndBdd := boundDist snd (maxWeight - val - 1) sndCard
+        let sndCount := cumulWeightCount sndBdd
+        let sndTop := (sndCount.toList.map (fun (k, v) => v)).maximum?.getD 0 
+        for (key2, val2) in sndBdd.toArray do
+          let sndNum := (sndCount.getOp val2).getD sndTop
+          let thirdCard := sndCard / sndNum
+          let thirdBdd := boundDist third (maxWeight - val - val2 - 1) thirdCard
+          for (key3, val3) in thirdBdd.toArray do
+            if newPair (key, key2, key3) then
+              match compose key key2 key3 with
+              | some key3 =>
+                  w := distUpdate w key3 (val + val2 + val3 + 1)
+              | none => ()
+    return w
+
 structure GenDist where
   weight: Nat
   card : Nat
