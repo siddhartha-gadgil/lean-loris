@@ -10,7 +10,8 @@ open Nat
 
 def ExprDist := HashMap Expr Nat
 
-def ExprDist.min (fst: ExprDist)(snd: ExprDist) := Id.run do
+def minDist{α : Type}[Hashable α][DecidableEq α] 
+    (fst: HashMap α Nat)(snd: HashMap α Nat)  := Id.run do
   let mut min := fst
   for (key, val) in snd.toArray do
     match min.find? key with
@@ -20,6 +21,55 @@ def ExprDist.min (fst: ExprDist)(snd: ExprDist) := Id.run do
     | none => 
         min := min.insert key val
   return min
+
+def weightCount{α : Type}[Hashable α][DecidableEq α] 
+    (m: HashMap α Nat) : HashMap Nat Nat := Id.run do
+      let mut w := HashMap.empty
+      for (key, val) in m.toArray do
+        match w.find? val with
+        | some v =>
+          w := w.insert val (v + 1)
+        | none => 
+          w := w.insert val 1
+      return w
+
+def cumulWeightCount{α : Type}[Hashable α][DecidableEq α] 
+    (m: HashMap α  Nat) : HashMap Nat Nat := Id.run do
+      let base := weightCount m
+      let mut w := base
+      for (key, val) in base.toArray do
+        for j in [0:key] do
+          match w.find? j with
+          | some v =>
+            w := w.insert j (v + val)
+          | none => 
+            w := w.insert j val
+      return w
+
+def filterDist{α : Type}[Hashable α][DecidableEq α] 
+    (m: HashMap α Nat) (p: α → Bool) : HashMap α Nat := Id.run do
+  let mut w := HashMap.empty
+  for (key, val) in m.toArray do
+    if p key then
+      w := w.insert key val
+  return w
+
+def boundDist{α : Type}[Hashable α][DecidableEq α] 
+    (m: HashMap α Nat) (maxWeight card: Nat)  : HashMap α Nat := Id.run do
+  let mut w := HashMap.empty
+  let cumul := cumulWeightCount m
+  let top := (cumul.toList.map (fun (k, v) => v)).maximum?.getD 0 
+  for (key, val) in m.toArray do
+    if val ≤ maxWeight && ((cumul.getOp val).getD top ≤ card) then
+      w := w.insert key val
+  return w
+
+def zeroLevelDist{α : Type}[Hashable α][DecidableEq α] 
+    (arr: Array α) : HashMap α Nat := Id.run do
+  let mut w := HashMap.empty
+  for x in arr  do
+    w := w.insert x 0
+  return w
 
 structure GenDist where
   weight: Nat
