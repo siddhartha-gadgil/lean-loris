@@ -8,9 +8,9 @@ open Std
 open Std.HashMap
 open Nat
 
-def ExprDist := HashMap Expr Nat
+abbrev ExprDist := HashMap Expr Nat
 
-def minDist{α : Type}[Hashable α][DecidableEq α] 
+def mergeDist{α : Type}[Hashable α][BEq α] 
     (fst: HashMap α Nat)(snd: HashMap α Nat)  := Id.run do
   let mut min := fst
   for (key, val) in snd.toArray do
@@ -22,7 +22,31 @@ def minDist{α : Type}[Hashable α][DecidableEq α]
         min := min.insert key val
   return min
 
-def weightCount{α : Type}[Hashable α][DecidableEq α] 
+def mapDist{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
+    (dist: HashMap α Nat)(f: α → β )  := Id.run do
+  let mut map := HashMap.empty
+  for (key, val) in dist.toArray do
+    let y := f key
+    match map.find? <| y with
+    | some v =>
+      map := map.insert y (min v val)
+    | none => 
+        map := map.insert y val
+  return map
+
+def mapDistM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
+    (dist: HashMap α Nat)(f: α → TermElabM β ) : TermElabM <| HashMap β Nat  := do
+  let mut map := HashMap.empty
+  for (key, val) in dist.toArray do
+    let y : β  ←  f key
+    match map.find? <| y with
+    | some v =>
+      map := map.insert y (min v val)
+    | none => 
+        map := map.insert y val
+  return map
+
+def weightCount{α : Type}[Hashable α][BEq α] 
     (m: HashMap α Nat) : HashMap Nat Nat := Id.run do
       let mut w := HashMap.empty
       for (key, val) in m.toArray do
@@ -33,7 +57,7 @@ def weightCount{α : Type}[Hashable α][DecidableEq α]
           w := w.insert val 1
       return w
 
-def cumulWeightCount{α : Type}[Hashable α][DecidableEq α] 
+def cumulWeightCount{α : Type}[Hashable α][BEq α] 
     (m: HashMap α  Nat) : HashMap Nat Nat := Id.run do
       let base := weightCount m
       let mut w := base
@@ -46,7 +70,7 @@ def cumulWeightCount{α : Type}[Hashable α][DecidableEq α]
             w := w.insert j val
       return w
 
-def filterDist{α : Type}[Hashable α][DecidableEq α] 
+def filterDist{α : Type}[Hashable α][BEq α] 
     (m: HashMap α Nat) (p: α → Bool) : HashMap α Nat := Id.run do
   let mut w := HashMap.empty
   for (key, val) in m.toArray do
@@ -54,7 +78,15 @@ def filterDist{α : Type}[Hashable α][DecidableEq α]
       w := w.insert key val
   return w
 
-def boundDist{α : Type}[Hashable α][DecidableEq α] 
+def filterDistM{α : Type}[Hashable α][BEq α]
+    (m: HashMap α Nat) (p: α  → TermElabM Bool) : TermElabM <| HashMap α Nat := do
+  let mut w := HashMap.empty
+  for (key, val) in m.toArray do
+    if ← p key then
+      w := w.insert key val
+  return w
+
+def boundDist{α : Type}[Hashable α][BEq α] 
     (m: HashMap α Nat) (maxWeight card: Nat)  : HashMap α Nat := Id.run do
   let mut w := HashMap.empty
   let cumul := cumulWeightCount m
@@ -64,21 +96,21 @@ def boundDist{α : Type}[Hashable α][DecidableEq α]
       w := w.insert key val
   return w
 
-def zeroLevelDist{α : Type}[Hashable α][DecidableEq α] 
+def zeroLevelDist{α : Type}[Hashable α][BEq α] 
     (arr: Array α) : HashMap α Nat := Id.run do
   let mut w := HashMap.empty
   for x in arr  do
     w := w.insert x 0
   return w
 
-def distUpdate{α : Type}[Hashable α][DecidableEq α] 
+def distUpdate{α : Type}[Hashable α][BEq α] 
     (m: HashMap α Nat) (x: α) (d: Nat) : HashMap α Nat := 
   match m.find? x with
   | some v => if d < v then m.insert x d else m
   | none => m.insert x d
 
-def prodGen{α β γ : Type}[Hashable α][DecidableEq α][Hashable β][DecidableEq β]
-    [Hashable γ][DecidableEq γ](fst: HashMap α Nat)(snd: HashMap β Nat)
+def prodGen{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
+    [Hashable γ][BEq γ](fst: HashMap α Nat)(snd: HashMap β Nat)
     (maxWeight card: Nat)(compose: α → β → Option γ)
     (newPair: α × β → Bool) : HashMap γ  Nat := Id.run do 
     let mut w := HashMap.empty
@@ -98,8 +130,8 @@ def prodGen{α β γ : Type}[Hashable α][DecidableEq α][Hashable β][Decidable
             | none => ()
     return w
 
-def prodGenTermElab{α β γ : Type}[Hashable α][DecidableEq α][Hashable β][DecidableEq β]
-    [Hashable γ][DecidableEq γ](fst: HashMap α Nat)(snd: HashMap β Nat)
+def prodGenTermElab{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
+    [Hashable γ][BEq γ](fst: HashMap α Nat)(snd: HashMap β Nat)
     (maxWeight card: Nat)(compose: α → β → TermElabM (Option γ))
     (newPair: α × β → Bool) : TermElabM (HashMap γ  Nat) := do 
     let mut w := HashMap.empty
@@ -119,8 +151,8 @@ def prodGenTermElab{α β γ : Type}[Hashable α][DecidableEq α][Hashable β][D
             | none => ()
     return w
 
-def tripleProdGen{α β γ δ : Type}[Hashable α][DecidableEq α][Hashable β][DecidableEq β]
-    [Hashable γ][DecidableEq γ][Hashable δ][DecidableEq δ]
+def tripleProdGen{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
+    [Hashable γ][BEq γ][Hashable δ][BEq δ]
     (fst: HashMap α Nat)(snd: HashMap β Nat)(third : HashMap γ Nat)
     (maxWeight card: Nat)(compose: α → β → γ  → Option δ)
     (newPair: α × β × γ  → Bool) : HashMap δ Nat := Id.run do 
@@ -147,8 +179,8 @@ def tripleProdGen{α β γ δ : Type}[Hashable α][DecidableEq α][Hashable β][
               | none => ()
     return w
 
-def tripleProdGenTermElab{α β γ δ : Type}[Hashable α][DecidableEq α][Hashable β][DecidableEq β]
-    [Hashable γ][DecidableEq γ][Hashable δ][DecidableEq δ]
+def tripleProdGenTermElab{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
+    [Hashable γ][BEq γ][Hashable δ][BEq δ]
     (fst: HashMap α Nat)(snd: HashMap β Nat)(third : HashMap γ Nat)
     (maxWeight card: Nat)(compose: α → β → γ  → TermElabM (Option δ))
     (newPair: α × β × γ  → Bool) : TermElabM <| HashMap δ Nat := do 
@@ -192,6 +224,42 @@ instance{D: Type} : Inhabited <| Evolution D := ⟨initEvolution D⟩
 
 partial def RecEvolver.diag{D: Type}(recEv: RecEvolver D) : Evolution D :=
         fun d c init memo => recEv d c init  memo (diag recEv)
+
+-- same signature for full evolution and single step, with ExprDist being initial state or accumulated state and the wieght bound that for the result or the accumulated state
+def EvolutionM(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist  → (initData: D) → TermElabM ExprDist
+
+def initEvolutionM(D: Type) : EvolutionM D := fun _ _ init _ => pure init
+
+-- can again play two roles; and is allowed to depend on a generator; diagonal should only be used for full generation, not for single step.
+def RecEvolverM(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist → (initData: D) → (evo: EvolutionM D) → TermElabM ExprDist
+
+instance{D: Type} : Inhabited <| EvolutionM D := ⟨initEvolutionM D⟩
+
+partial def RecEvolverM.diag{D: Type}(recEv: RecEvolverM D) : EvolutionM D :=
+        fun d c init memo => recEv d c init memo (diag recEv)
+
+def isleM {D: Type}(type: Expr)(recEv : RecEvolverM D)(weightBound: Nat)(cardBound: Nat)
+      (init : ExprDist)(initData: D)(evolve : EvolutionM D)(includePi : Bool := true)(excludeProofs: Bool := false): TermElabM (ExprDist) := 
+    withLocalDecl Name.anonymous BinderInfo.default (type)  $ fun x => 
+        do
+          let dist := init.insert x 0
+          -- logInfo m!"initial in isle: {l}"
+          let evb ← recEv weightBound cardBound dist initData evolve
+          let evc ← recEv weightBound cardBound init initData evolve
+          let mut evl : ExprDist := HashMap.empty
+          for (y, w) in evb.toArray do
+            unless excludeProofs && ((← inferType y).isProp) do
+            let inEvc : Bool := 
+              match evc.getOp y with
+              | some w2 => w2 < w
+              | none => false
+            unless inEvc do 
+              evl := distUpdate evl y w
+          let evt ← filterDistM evl (fun x => liftMetaM (isType x))
+          let exported ← mapDistM evl (fun e => mkLambdaFVars #[x] e)
+          let exportedPi ← mapDistM evt (fun e => mkForallFVars #[x] e)
+          let res := if includePi then mergeDist exported  exportedPi else exported
+          return res
 
 -- Auxiliary functions mainly from lean source for subexpressions
 
