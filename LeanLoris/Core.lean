@@ -134,9 +134,9 @@ def prodGen{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     return w
 
 def prodGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
-    [Hashable γ][BEq γ](fst: HashMap α Nat)(snd: HashMap β Nat)
-    (maxWeight card: Nat)(compose: α → β → TermElabM (Option γ))
-    (newPair: α × β → Bool) : TermElabM (HashMap γ  Nat) := do 
+    [Hashable γ][BEq γ](compose: α → β → TermElabM (Option γ))
+    (maxWeight card: Nat)(fst: HashMap α Nat)(snd: HashMap β Nat)
+    (newPair: α × β → Bool := fun _ => true) : TermElabM (HashMap γ  Nat) := do 
     let mut w := HashMap.empty
     if maxWeight > 0 then
       let fstBdd := boundDist fst (maxWeight - 1) card
@@ -155,10 +155,10 @@ def prodGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     return w
 
 def tripleProdGen{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
-    [Hashable γ][BEq γ][Hashable δ][BEq δ]
+    [Hashable γ][BEq γ][Hashable δ][BEq δ](compose: α → β → γ  → Option δ)
+    (maxWeight card: Nat)
     (fst: HashMap α Nat)(snd: HashMap β Nat)(third : HashMap γ Nat)
-    (maxWeight card: Nat)(compose: α → β → γ  → Option δ)
-    (newPair: α × β × γ  → Bool) : HashMap δ Nat := Id.run do 
+    (newPair: α × β × γ  → Bool := fun _ => true) : HashMap δ Nat := Id.run do 
     let mut w := HashMap.empty
     if maxWeight > 0 then
       let fstBdd := boundDist fst (maxWeight - 1) card
@@ -315,7 +315,8 @@ def applyOpt (f x : Expr) : TermElabM (Option Expr) :=
     try
       let expr ← elabAppArgs f #[] #[Arg.expr x] none (explicit := false) (ellipsis := false)
       let exprType ← inferType expr
-      if (← isTypeCorrect expr) &&  (← isTypeCorrect exprType)  then return some expr
+      if (← isTypeCorrect expr) &&  (← isTypeCorrect exprType)  then 
+        return some <| ← whnf expr
       else return none
     catch e =>
       return none
@@ -413,3 +414,8 @@ def eqCongrOpt (f: Expr)(eq : Expr) : MetaM (Option Expr) :=
         return none
     catch e => 
       return none 
+
+-- Some evolution cases 
+
+def applyEvolver{D: Type} : EvolutionM D := fun wb c init _ => 
+  prodGenM applyOpt wb c init init
