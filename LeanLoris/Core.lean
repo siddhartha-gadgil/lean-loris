@@ -241,7 +241,7 @@ namespace EvolutionM
 
 def init(D: Type) : EvolutionM D := fun _ _ init _ => pure init
 
-def tautRec(D: Type)(ev: EvolutionM D) : RecEvolverM D := 
+def tautRec{D: Type}(ev: EvolutionM D) : RecEvolverM D := 
         fun wb cb init d _ => ev wb cb init d
 
 end EvolutionM
@@ -268,6 +268,9 @@ def iterate{D: Type}(stepEv : RecEvolverM D): RecEvolverM D :=
         iterateAux stepEv wb 0 cb initDist data evo
 
 end RecEvolverM
+
+def EvolutionM.evolve{D: Type}(ev: EvolutionM D) : EvolutionM D :=
+        ev.tautRec.iterate.diag
 
 def isleM {D: Type}(type: Expr)(recEv : RecEvolverM D)(weightBound: Nat)(cardBound: Nat)
       (init : ExprDist)(initData: D)(evolve : EvolutionM D)(includePi : Bool := true)(excludeProofs: Bool := false): TermElabM (ExprDist) := 
@@ -417,5 +420,5 @@ def eqCongrOpt (f: Expr)(eq : Expr) : MetaM (Option Expr) :=
 
 -- Some evolution cases 
 
-def applyEvolver{D: Type} : EvolutionM D := fun wb c init _ => 
-  prodGenM applyOpt wb c init init
+def applyEvolver(D: Type) : EvolutionM D := fun wb c init _ => do 
+  return mergeDist (← prodGenM applyOpt wb c init init) init
