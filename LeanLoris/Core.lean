@@ -96,6 +96,12 @@ def boundDist{α : Type}[Hashable α][BEq α]
       w := w.insert key val
   return w
 
+def inDist{α : Type}[Hashable α][BEq α] 
+    (m: HashMap α Nat) (elem: α)(weight: Nat) :=
+    match m.find? elem with
+    | some v => v ≤ weight
+    | none => false
+
 def zeroLevelDist{α : Type}[Hashable α][BEq α] 
     (arr: Array α) : HashMap α Nat := Id.run do
   let mut w := HashMap.empty
@@ -217,6 +223,8 @@ def Evolution(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  Ex
 
 def initEvolution(D: Type) : Evolution D := fun _ _ init _ => init
 
+
+
 -- can again play two roles; and is allowed to depend on a generator; diagonal should only be used for full generation, not for single step.
 def RecEvolver(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist → (initData: D) → (evo: Evolution D) → ExprDist
 
@@ -228,15 +236,41 @@ partial def RecEvolver.diag{D: Type}(recEv: RecEvolver D) : Evolution D :=
 -- same signature for full evolution and single step, with ExprDist being initial state or accumulated state and the wieght bound that for the result or the accumulated state
 def EvolutionM(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist  → (initData: D) → TermElabM ExprDist
 
-def initEvolutionM(D: Type) : EvolutionM D := fun _ _ init _ => pure init
 
 -- can again play two roles; and is allowed to depend on a generator; diagonal should only be used for full generation, not for single step.
 def RecEvolverM(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist → (initData: D) → (evo: EvolutionM D) → TermElabM ExprDist
 
-instance{D: Type} : Inhabited <| EvolutionM D := ⟨initEvolutionM D⟩
+namespace EvolutionM
 
-partial def RecEvolverM.diag{D: Type}(recEv: RecEvolverM D) : EvolutionM D :=
+def init(D: Type) : EvolutionM D := fun _ _ init _ => pure init
+
+def tautRec(D: Type)(ev: EvolutionM D) : RecEvolverM D := 
+        fun wb cb init d _ => ev wb cb init d
+
+end EvolutionM
+
+
+instance{D: Type} : Inhabited <| EvolutionM D := ⟨EvolutionM.init D⟩
+
+namespace RecEvolverM
+
+partial def diag{D: Type}(recEv: RecEvolverM D) : EvolutionM D :=
         fun d c init memo => recEv d c init memo (diag recEv)
+
+def iterateAux{D: Type}(stepEv : RecEvolverM D)(incWt accumWt cardBound: Nat) : 
+                     ExprDist → (initData: D) → (evo: EvolutionM D) → TermElabM ExprDist := 
+                     match incWt with
+                     | 0 => fun initDist _ _ => return initDist
+                     | m + 1 => fun initDist d evo => 
+                      do
+                        let newDist ←  stepEv (accumWt + 1) cardBound initDist d evo
+                        iterateAux stepEv m (accumWt + 1) cardBound newDist d evo
+
+def iterate{D: Type}(stepEv : RecEvolverM D): RecEvolverM D := 
+      fun wb cb initDist data evo => 
+        iterateAux stepEv wb 0 cb initDist data evo
+
+end RecEvolverM
 
 def isleM {D: Type}(type: Expr)(recEv : RecEvolverM D)(weightBound: Nat)(cardBound: Nat)
       (init : ExprDist)(initData: D)(evolve : EvolutionM D)(includePi : Bool := true)(excludeProofs: Bool := false): TermElabM (ExprDist) := 
@@ -245,15 +279,9 @@ def isleM {D: Type}(type: Expr)(recEv : RecEvolverM D)(weightBound: Nat)(cardBou
           let dist := init.insert x 0
           -- logInfo m!"initial in isle: {l}"
           let evb ← recEv weightBound cardBound dist initData evolve
-          let evc ← recEv weightBound cardBound init initData evolve
           let mut evl : ExprDist := HashMap.empty
           for (y, w) in evb.toArray do
             unless excludeProofs && ((← inferType y).isProp) do
-            let inEvc : Bool := 
-              match evc.getOp y with
-              | some w2 => w2 < w
-              | none => false
-            unless inEvc do 
               evl := distUpdate evl y w
           let evt ← filterDistM evl (fun x => liftMetaM (isType x))
           let exported ← mapDistM evl (fun e => mkLambdaFVars #[x] e)
