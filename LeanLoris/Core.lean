@@ -3,6 +3,7 @@ import Lean.Elab
 import Std
 open Lean
 open Meta
+open Elab
 open Lean.Elab.Term
 open Std
 open Std.HashMap
@@ -436,3 +437,4 @@ def applyEvolver(D: Type) : EvolutionM D := fun wb c init _ => do
 
 def egEvolver : EvolutionM Unit := 
   ((applyEvolver Unit).tautRec ++ (RecEvolverM.init Unit)).diag
+
