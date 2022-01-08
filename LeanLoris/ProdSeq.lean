@@ -206,21 +206,15 @@ infixr:65 ":::" => PProd.mk
 
 #eval terms! "hello" ::: (rfl : 1 = 1) ::: "this" ::: 4 ::: 3 ::: ()
 
-end ProdSeq
-
-open ProdSeq
-
 declare_syntax_cat expr_dist 
 
 syntax keyVal := term " :> " num
 syntax inlineTable := "#{" keyVal,* "}"
 syntax inlineTable : expr_dist
 
-syntax (name:= exprpack) "pack!" expr_dist : term
-@[termElab exprpack] def exprpackImpl : TermElab := fun stx _ =>
-    match stx with 
-    | `(pack! #{$[$xs:keyVal],*}) => 
-        do
+def getMap : Syntax → TermElabM (Array (Expr × Nat))
+  | `(expr_dist|#{$[$xs:keyVal],*}) =>
+    do
           let m : Array (Expr × Nat) ←  xs.mapM (fun s => do
               match s with 
               | `(keyVal|$x:term :> $n:numLit) => 
@@ -229,7 +223,18 @@ syntax (name:= exprpack) "pack!" expr_dist : term
               | _ =>
                 throwError m!"{s} is not a valid keyVal"
               )
+          m
+  | _ => throwIllFormedSyntax
+
+syntax (name:= exprpack) "pack!" expr_dist : term
+@[termElab exprpack] def exprpackImpl : TermElab := fun stx _ =>
+    match stx with 
+    | `(pack! $s:expr_dist) => 
+        do
+          let m : Array (Expr × Nat) ←  getMap s
           packWeighted m.toList
     | _ => throwIllFormedSyntax
 
 #eval pack! #{1 :> 2, "Hello" :> 4}
+
+end ProdSeq
