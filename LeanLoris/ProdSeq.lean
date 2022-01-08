@@ -208,20 +208,20 @@ infixr:65 ":::" => PProd.mk
 
 declare_syntax_cat expr_dist 
 
-syntax keyVal := term " :> " num
-syntax inlineTable := "#{" keyVal,* "}"
-syntax inlineTable : expr_dist
+syntax exprWt := term " :> " num
+syntax exprWtList := "#{" exprWt,* "}"
+syntax exprWtList : expr_dist
 
-def getMap : Syntax → TermElabM (Array (Expr × Nat))
-  | `(expr_dist|#{$[$xs:keyVal],*}) =>
+def parseExprMap : Syntax → TermElabM (Array (Expr × Nat))
+  | `(expr_dist|#{$[$xs:exprWt],*}) =>
     do
           let m : Array (Expr × Nat) ←  xs.mapM (fun s => do
               match s with 
-              | `(keyVal|$x:term :> $n:numLit) => 
+              | `(exprWt|$x:term :> $n:numLit) => 
                   let expr ← elabTerm x none
                   return (expr, (Syntax.isNatLit? n).get!)
               | _ =>
-                throwError m!"{s} is not a valid keyVal"
+                throwError m!"{s} is not a valid exprWt"
               )
           m
   | _ => throwIllFormedSyntax
@@ -231,10 +231,43 @@ syntax (name:= exprpack) "pack!" expr_dist : term
     match stx with 
     | `(pack! $s:expr_dist) => 
         do
-          let m : Array (Expr × Nat) ←  getMap s
+          let m : Array (Expr × Nat) ←  parseExprMap s
           packWeighted m.toList
     | _ => throwIllFormedSyntax
 
 #eval pack! #{1 :> 2, "Hello" :> 4}
+
+#reduce (fun x y : Nat => pack! #{1 :> 2, "Hello" :> 4, x + 1 + y :> 3}) 4 7
+
+declare_syntax_cat name_dist 
+
+syntax nameWt := ident " :> " num
+syntax nameWtList := "#[" exprWt,* "]"
+syntax nameWtList : name_dist
+
+def parseNameMap : Syntax → TermElabM (Array (Name × Nat))
+  | `(name_dist|#[$[$xs:exprWt],*]) =>
+    do
+          let m : Array (Name × Nat) ←  xs.mapM (fun s => do
+              match s with 
+              | `(exprWt|$x:ident :> $n:numLit) =>                  
+                  return (x.getId, (Syntax.isNatLit? n).get!)
+              | _ =>
+                throwError m!"{s} is not a valid nameWt"
+              )
+          m
+  | _ => throwIllFormedSyntax
+
+syntax (name:= constpack) "const!" name_dist : term
+@[termElab constpack] def constpackImpl : TermElab := fun stx _ =>
+    match stx with 
+    | `(const! $s:name_dist) => 
+        do
+          let m : Array (Name × Nat) ←  parseNameMap s
+          let c := m.map (fun (n, w) => (mkConst n, w))
+          packWeighted c.toList
+    | _ => throwIllFormedSyntax
+
+#check const! #[Nat.add :> 2, Nat.zero :> 4]
 
 end ProdSeq
