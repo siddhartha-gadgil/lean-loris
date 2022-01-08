@@ -251,6 +251,8 @@ instance{D: Type} : Inhabited <| EvolutionM D := ⟨EvolutionM.init D⟩
 
 namespace RecEvolverM
 
+def init(D: Type) := (EvolutionM.init D).tautRec
+
 partial def diag{D: Type}(recEv: RecEvolverM D) : EvolutionM D :=
         fun d c init memo => recEv d c init memo (diag recEv)
 
@@ -267,7 +269,16 @@ def iterate{D: Type}(stepEv : RecEvolverM D): RecEvolverM D :=
       fun wb cb initDist data evo => 
         iterateAux stepEv wb 0 cb initDist data evo
 
+def merge{D: Type}(fst: RecEvolverM D)(snd: RecEvolverM D) : RecEvolverM D := 
+      fun wb cb initDist data evo => 
+        do
+          let fstDist ← fst wb cb initDist data evo
+          let sndDist ← snd wb cb initDist data evo
+          return mergeDist fstDist sndDist
+
 end RecEvolverM
+
+instance {D: Type}: Append <| RecEvolverM D := ⟨fun fst snd => fst.merge snd⟩
 
 def EvolutionM.evolve{D: Type}(ev: EvolutionM D) : EvolutionM D :=
         ev.tautRec.iterate.diag
@@ -421,4 +432,7 @@ def eqCongrOpt (f: Expr)(eq : Expr) : MetaM (Option Expr) :=
 -- Some evolution cases 
 
 def applyEvolver(D: Type) : EvolutionM D := fun wb c init _ => do 
-  return mergeDist (← prodGenM applyOpt wb c init init) init
+  return ← prodGenM applyOpt wb c init init
+
+def egEvolver : EvolutionM Unit := 
+  ((applyEvolver Unit).tautRec ++ (RecEvolverM.init Unit)).diag

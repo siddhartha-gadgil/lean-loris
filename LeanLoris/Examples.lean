@@ -18,11 +18,11 @@ syntax (name:=genOne) "gen1!" term : term
       let m1 ← prodGenM  applyOpt 4 100 m m
       for (x, w) in m1.toArray do
         logInfo m!"{x} : {w}" 
-      let m2 ← applyEvolver Unit 4 100 m ()
+      let m2 ← egEvolver  4 100 m ()
       for (x, w) in m2.toArray do
         logInfo m!"{x} : {w}" 
       logInfo "Evolved state"
-      let m3 ← (applyEvolver Unit).evolve 12 100 m ()
+      let m3 ← (egEvolver).evolve 12 100 m ()
       for (x, w) in m3.toArray do
         logInfo m!"{x} : {w}" 
       return x
