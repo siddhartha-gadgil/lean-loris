@@ -93,6 +93,28 @@ def ppackWeighted : List (Expr × Nat) →  TermElabM Expr
       let expr ← mkAppM `PProd.mk #[h, t]
       return expr
 
+def lambdaPack : List Expr →  MetaM Expr 
+  | [] => return mkConst ``Unit.unit
+  | x :: ys => 
+    do
+      let t ← lambdaPack ys
+      let tail ← mkLambdaFVars #[x] t
+      let expr ← mkAppM `PProd.mk #[x, tail]
+      return expr
+
+partial def lambdaUnpack (expr: Expr) : TermElabM (List Expr) :=
+    do
+      match (← split? expr) with
+      | some (h, t) =>
+        let tt ← whnf <| mkApp t h
+        let tail ←  lambdaUnpack tt
+        h :: tail
+      | none =>
+        do 
+        unless (← isDefEq expr (mkConst `Unit.unit))
+          do throwError m!"{expr} is neither product nor unit" 
+        return []
+
 syntax (name:= roundtripWtd) "roundtrip-weighted!" term : term
 @[termElab roundtripWtd] def roundtripWtdImpl : TermElab := fun stx expectedType =>
   match stx with
