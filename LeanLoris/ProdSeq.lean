@@ -1,6 +1,8 @@
 import Lean.Meta
 import Lean.Elab
-open Lean Meta Elab Term
+import Std
+import LeanLoris.Core
+open Lean Meta Elab Term Std
 
 open Nat
 
@@ -132,6 +134,7 @@ syntax (name:= roundtripWtd) "roundtrip-weighted!" term : term
   | _ => throwIllFormedSyntax
 
 #eval roundtrip-weighted! (((), 9), (2, 7), ("Hello", 12), ())
+
 
 -- Code from earlier
 
@@ -293,3 +296,29 @@ syntax (name:= constpack) "const!" name_dist : term
 #check const! #[Nat.add :> 2, Nat.zero :> 4]
 
 end ProdSeq
+
+initialize exprDistCache : IO.Ref (HashMap Name (Expr × ExprDist)) 
+                          ← IO.mkRef (HashMap.empty)
+
+def saveExprDist (name: Name)(es: ExprDist) : TermElabM (Unit) := do
+  let lctx ← getLCtx
+  let fvarIds ← lctx.getFVarIds
+  let fvIds ← fvarIds.filterM $ fun fid => whiteListed ((lctx.get! fid).userName) 
+  let fvars := fvIds.map mkFVar
+  Term.synthesizeSyntheticMVarsNoPostponing 
+  let espair ← mapDistM es (fun e => do Term.levelMVarToParam (← instantiateMVars e))
+  let es ← mapDistM espair (fun (e, _) => do whnf <| ←  mkLambdaFVars fvars e)
+  logInfo m!"saving relative to: {fvars}"
+  let varPack ← ProdSeq.lambdaPack fvars.toList
+  let cache ← exprDistCache.get
+  exprDistCache.set (cache.insert name (varPack, es))
+  return ()
+
+def loadExprArr (name: Name) : TermElabM (ExprDist) := do
+  let cache ← exprDistCache.get
+  match cache.find? name with
+  | some (varPack, es) =>
+        let fvars ← ProdSeq.lambdaUnpack varPack
+        logInfo m!"loading relative to: {fvars}"
+        mapDistM es $ fun e => reduce (mkAppN e fvars.toArray)
+  | none => throwError m!"no cached expression distribution for {name}"

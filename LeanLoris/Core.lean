@@ -322,6 +322,10 @@ def isWhiteListed (env: Environment)(declName : Name) : IO Bool := do
   let bl ← isBlackListed env declName
   return !bl
 
+def whiteListed (n: Name) : TermElabM Bool := do
+  let b ← isWhiteListed (← getEnv) n
+  return b
+
 -- Basic functions for generation
 
 -- (optional) function application with unification
