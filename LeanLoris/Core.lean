@@ -159,7 +159,7 @@ def tripleProdGen{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     [Hashable γ][BEq γ][Hashable δ][BEq δ](compose: α → β → γ  → Option δ)
     (maxWeight card: Nat)
     (fst: HashMap α Nat)(snd: HashMap β Nat)(third : HashMap γ Nat)
-    (newTriple: Nat → Nat →  α × β × γ  → Bool) : HashMap δ Nat := Id.run do 
+    (newTriple: Nat → Nat →  α × β × γ → Nat × Nat × Nat  → Bool) : HashMap δ Nat := Id.run do 
     let mut w := HashMap.empty
     if maxWeight > 0 then
       let fstBdd := boundDist fst (maxWeight - 1) card
@@ -176,7 +176,7 @@ def tripleProdGen{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
           let thirdCard := sndCard / sndNum
           let thirdBdd := boundDist third (maxWeight - val - val2 - 1) thirdCard
           for (key3, val3) in thirdBdd.toArray do
-            if newTriple maxWeight card (key, key2, key3) then
+            if newTriple maxWeight card (key, key2, key3) (val, val2, val3) then
               match compose key key2 key3 with
               | some key3 =>
                   w := distUpdate w key3 (val + val2 + val3 + 1)
@@ -185,9 +185,10 @@ def tripleProdGen{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
 
 def tripleProdGenM{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     [Hashable γ][BEq γ][Hashable δ][BEq δ]
+    (compose: α → β → γ  → TermElabM (Option δ))
+    (maxWeight card: Nat)
     (fst: HashMap α Nat)(snd: HashMap β Nat)(third : HashMap γ Nat)
-    (maxWeight card: Nat)(compose: α → β → γ  → TermElabM (Option δ))
-    (newPair: α × β × γ  → Bool) : TermElabM <| HashMap δ Nat := do 
+    (newTriple: Nat → Nat →  α × β × γ → Nat × Nat × Nat → Bool) : TermElabM <| HashMap δ Nat := do 
     let mut w := HashMap.empty
     if maxWeight > 0 then
       let fstBdd := boundDist fst (maxWeight - 1) card
@@ -204,7 +205,7 @@ def tripleProdGenM{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
           let thirdCard := sndCard / sndNum
           let thirdBdd := boundDist third (maxWeight - val - val2 - 1) thirdCard
           for (key3, val3) in thirdBdd.toArray do
-            if newPair (key, key2, key3) then
+            if newTriple maxWeight card (key, key2, key3) (val, val2, val3) then
               match ← compose key key2 key3 with
               | some key3 =>
                   w := distUpdate w key3 (val + val2 + val3 + 1)
@@ -487,6 +488,15 @@ def nameApplyEvolver(D: Type)[IsNew D][NameDist D]: EvolutionM D := fun wb c ini
     prodGenM nameApplyOpt wb c names init (
           fun wb c (_, e) (_, we) => 
             isNew d wb c e we)
+    
+
+def nameApplyPairEvolver(D: Type)[IsNew D][NameDist D]: EvolutionM D := fun wb c init d =>
+  do
+    let names := nameDist d
+    tripleProdGenM nameApplyPairOpt wb c names init init (
+          fun wb c (_, x, y) (_, wx, wy) => 
+            newPair? d wb c (x, y) (wx, wy))
+    
 
 def rewriteEvolver(flip: Bool)(D: Type)[IsNew D] : EvolutionM D := fun wb c init d => 
   do
