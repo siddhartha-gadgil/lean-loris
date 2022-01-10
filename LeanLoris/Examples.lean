@@ -15,7 +15,7 @@ syntax (name:=genOne) "gen1!" term : term
       let m := mapFromList l
       for (x, w) in m.toArray do
         logInfo m!"{x} : {w}" 
-      let m1 ← prodGenM  applyOpt 4 100 m m
+      let m1 ← prodGenM  applyOpt 4 100 m m (fun _ _ _ _ => true)
       for (x, w) in m1.toArray do
         logInfo m!"{x} : {w}" 
       let m2 ← egEvolver  4 100 m ()

@@ -98,7 +98,7 @@ def boundDist{α : Type}[Hashable α][BEq α]
   return w
 
 def inDist{α : Type}[Hashable α][BEq α] 
-    (m: HashMap α Nat) (elem: α)(weight: Nat) :=
+    (m: HashMap α Nat) (elem: α)(weight: Nat) : Bool :=
     match m.find? elem with
     | some v => v ≤ weight
     | none => false
@@ -137,7 +137,7 @@ def prodGen{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
 def prodGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     [Hashable γ][BEq γ](compose: α → β → TermElabM (Option γ))
     (maxWeight card: Nat)(fst: HashMap α Nat)(snd: HashMap β Nat)
-    (newPair: α × β → Bool := fun _ => true) : TermElabM (HashMap γ  Nat) := do 
+    (newPair: Nat → Nat →  α × β → Nat × Nat → Bool) : TermElabM (HashMap γ  Nat) := do 
     let mut w := HashMap.empty
     if maxWeight > 0 then
       let fstBdd := boundDist fst (maxWeight - 1) card
@@ -148,7 +148,7 @@ def prodGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
         let sndCard := card / fstNum
         let sndBdd := boundDist snd (maxWeight - val - 1) sndCard
         for (key2, val2) in sndBdd.toArray do
-          if newPair (key, key2) then
+          if newPair maxWeight card (key, key2) (val, val2) then
             match ← compose key key2 with
             | some key3 =>
                 w := distUpdate w key3 (val + val2 + 1)
@@ -159,7 +159,7 @@ def tripleProdGen{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     [Hashable γ][BEq γ][Hashable δ][BEq δ](compose: α → β → γ  → Option δ)
     (maxWeight card: Nat)
     (fst: HashMap α Nat)(snd: HashMap β Nat)(third : HashMap γ Nat)
-    (newPair: α × β × γ  → Bool := fun _ => true) : HashMap δ Nat := Id.run do 
+    (newTriple: Nat → Nat →  α × β × γ  → Bool) : HashMap δ Nat := Id.run do 
     let mut w := HashMap.empty
     if maxWeight > 0 then
       let fstBdd := boundDist fst (maxWeight - 1) card
@@ -176,7 +176,7 @@ def tripleProdGen{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
           let thirdCard := sndCard / sndNum
           let thirdBdd := boundDist third (maxWeight - val - val2 - 1) thirdCard
           for (key3, val3) in thirdBdd.toArray do
-            if newPair (key, key2, key3) then
+            if newTriple maxWeight card (key, key2, key3) then
               match compose key key2 key3 with
               | some key3 =>
                   w := distUpdate w key3 (val + val2 + val3 + 1)
@@ -216,12 +216,51 @@ structure GenDist where
   card : Nat
   exprDist : ExprDist
 
+class DataUpdate (D: Type) where
+  update: ExprDist → D → D
+
+def dataUpdate{D: Type}[du : DataUpdate D](d: ExprDist) : D → D :=
+  du.update d
+
+def idUpate{D: Type} : DataUpdate D :=
+  ⟨fun _ d => d⟩
+
+instance : DataUpdate Unit := idUpate 
+
+class IsNew (D: Type) where
+  isNew: D → Nat → Nat →  Expr → Nat →  Bool
+
+def isNew{D: Type}[c: IsNew D] : D → Nat → Nat →   Expr  → Nat  → Bool :=
+  c.isNew
+
+def allNew{D: Type} : IsNew D :=
+  ⟨fun d _ _ e _ => true⟩
+
+instance : IsNew Unit := allNew
+
+def newPair?{D: Type}[c: IsNew D] : D → Nat → Nat →  (Expr ×   Expr) → (Nat × Nat)  → Bool :=
+  fun d wb cb (e1, e2) (w1, w2) => isNew d wb cb e1 w1 || isNew d wb cb e2 w2
+
+class NameDist (D: Type) where
+  nameDist: D → HashMap Name Nat
+
+def nameDist{D: Type}[c: NameDist D] : D  → HashMap Name Nat :=
+  c.nameDist
+
+class DistHist (D: Type) where
+  distHist: D → List GenDist
+
+def newFromHistory {D: Type}[cl: DistHist D] : IsNew D :=
+  ⟨fun d wb c e w =>
+    let hist := (cl.distHist d).filter <| fun gd => wb ≤ gd.weight  && c ≤  gd.card  
+    hist.any <| fun dist =>  inDist dist.exprDist e w⟩
+
+instance {D: Type}[cl: DistHist D] : IsNew D := newFromHistory 
+
 -- same signature for full evolution and single step, with ExprDist being initial state or accumulated state and the wieght bound that for the result or the accumulated state
 def Evolution(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist  → (initData: D) → ExprDist
 
 def initEvolution(D: Type) : Evolution D := fun _ _ init _ => init
-
-
 
 -- can again play two roles; and is allowed to depend on a generator; diagonal should only be used for full generation, not for single step.
 def RecEvolver(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist → (initData: D) → (evo: Evolution D) → ExprDist
@@ -257,16 +296,17 @@ def init(D: Type) := (EvolutionM.init D).tautRec
 partial def diag{D: Type}(recEv: RecEvolverM D) : EvolutionM D :=
         fun d c init memo => recEv d c init memo (diag recEv)
 
-def iterateAux{D: Type}(stepEv : RecEvolverM D)(incWt accumWt cardBound: Nat) : 
+def iterateAux{D: Type}[DataUpdate D](stepEv : RecEvolverM D)(incWt accumWt cardBound: Nat) : 
                      ExprDist → (initData: D) → (evo: EvolutionM D) → TermElabM ExprDist := 
                      match incWt with
                      | 0 => fun initDist _ _ => return initDist
                      | m + 1 => fun initDist d evo => 
                       do
                         let newDist ←  stepEv (accumWt + 1) cardBound initDist d evo
-                        iterateAux stepEv m (accumWt + 1) cardBound newDist d evo
+                        let newData := dataUpdate newDist d
+                        iterateAux stepEv m (accumWt + 1) cardBound newDist newData evo
 
-def iterate{D: Type}(stepEv : RecEvolverM D): RecEvolverM D := 
+def iterate{D: Type}[DataUpdate D](stepEv : RecEvolverM D): RecEvolverM D := 
       fun wb cb initDist data evo => 
         iterateAux stepEv wb 0 cb initDist data evo
 
@@ -281,7 +321,7 @@ end RecEvolverM
 
 instance {D: Type}: Append <| RecEvolverM D := ⟨fun fst snd => fst.merge snd⟩
 
-def EvolutionM.evolve{D: Type}(ev: EvolutionM D) : EvolutionM D :=
+def EvolutionM.evolve{D: Type}[DataUpdate D](ev: EvolutionM D) : EvolutionM D :=
         ev.tautRec.iterate.diag
 
 def isleM {D: Type}(type: Expr)(recEv : RecEvolverM D)(weightBound: Nat)(cardBound: Nat)
@@ -405,8 +445,7 @@ def rewriteProof (e: Expr) (heq : Expr) (symm : Bool := false) : MetaM (Option E
     return some eqPrf
 
 -- transports a term using equlity if its type can be rewritten
-def rwPushOpt(e : Expr) (heq : Expr) 
-      (symm : Bool := false): MetaM (Option Expr) :=
+def rwPushOpt(symm : Bool)(e : Expr) (heq : Expr) : TermElabM (Option Expr) :=
   do
     let t ← inferType e
     let pfOpt ← rewriteProof t heq symm
@@ -423,7 +462,7 @@ def rwPushOpt(e : Expr) (heq : Expr)
         return none
 
 -- (optional) congrArg for an equality
-def eqCongrOpt (f: Expr)(eq : Expr) : MetaM (Option Expr) :=
+def eqCongrOpt (f: Expr)(eq : Expr) : TermElabM (Option Expr) :=
   do
     try
       let expr ← mkAppM ``congrArg #[f, eq]
@@ -434,10 +473,34 @@ def eqCongrOpt (f: Expr)(eq : Expr) : MetaM (Option Expr) :=
     catch e => 
       return none 
 
--- Some evolution cases 
+-- Some evolution cases; just one step (so update not needed)
 
-def applyEvolver(D: Type) : EvolutionM D := fun wb c init _ => do 
-  return ← prodGenM applyOpt wb c init init
+def applyEvolver(D: Type)[IsNew D] : EvolutionM D := fun wb c init d => 
+  do
+    let funcs ←   filterDistM init $ fun e => 
+       do Expr.isForall <| ← inferType e
+    prodGenM applyOpt wb c funcs init (newPair? d)
+
+def nameApplyEvolver(D: Type)[IsNew D][NameDist D]: EvolutionM D := fun wb c init d =>
+  do
+    let names := nameDist d
+    prodGenM nameApplyOpt wb c names init (
+          fun wb c (_, e) (_, we) => 
+            isNew d wb c e we)
+
+def rewriteEvolver(flip: Bool)(D: Type)[IsNew D] : EvolutionM D := fun wb c init d => 
+  do
+    let eqls ←   filterDistM init $ fun e => 
+       do Expr.isEq <| ← inferType e
+    prodGenM (rwPushOpt flip) wb c init eqls (newPair? d)
+
+def congrEvolver(D: Type)[IsNew D] : EvolutionM D := fun wb c init d => 
+  do
+    let funcs ←   filterDistM init $ fun e => 
+       do Expr.isForall <| ← inferType e
+    let eqls ←   filterDistM init $ fun e => 
+       do Expr.isEq <| ← inferType e
+    prodGenM eqCongrOpt wb c funcs eqls (newPair? d)
 
 def egEvolver : EvolutionM Unit := 
   ((applyEvolver Unit).tautRec ++ (RecEvolverM.init Unit)).diag
