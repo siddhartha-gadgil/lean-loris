@@ -11,6 +11,8 @@ open Nat
 
 abbrev ExprDist := HashMap Expr Nat
 
+abbrev NameDist := HashMap Name Nat
+
 def mapFromList{α : Type}[Hashable α][BEq α] (l : List (α  × Nat)) : HashMap α Nat :=
   l.foldl (fun m (a, n) => m.insert a n) HashMap.empty
 
@@ -218,15 +220,17 @@ structure GenDist where
   exprDist : ExprDist
 
 class DataUpdate (D: Type) where
-  update: ExprDist → D → D
+  update: ExprDist → Nat → Nat → D → D
 
-def dataUpdate{D: Type}[du : DataUpdate D](d: ExprDist) : D → D :=
-  du.update d
+def dataUpdate{D: Type}[du : DataUpdate D](d: ExprDist)(wb card: Nat) : D → D :=
+  du.update d wb card
 
 def idUpate{D: Type} : DataUpdate D :=
-  ⟨fun _ d => d⟩
+  ⟨fun _ _ _ d => d⟩
 
 instance : DataUpdate Unit := idUpate 
+
+instance : DataUpdate NameDist := idUpate
 
 class IsNew (D: Type) where
   isNew: D → Nat → Nat →  Expr → Nat →  Bool
@@ -242,11 +246,15 @@ instance : IsNew Unit := allNew
 def newPair?{D: Type}[c: IsNew D] : D → Nat → Nat →  (Expr ×   Expr) → (Nat × Nat)  → Bool :=
   fun d wb cb (e1, e2) (w1, w2) => isNew d wb cb e1 w1 || isNew d wb cb e2 w2
 
-class NameDist (D: Type) where
-  nameDist: D → HashMap Name Nat
+class GetNameDist (D: Type) where
+  nameDist: D → NameDist
 
-def nameDist{D: Type}[c: NameDist D] : D  → HashMap Name Nat :=
+def nameDist{D: Type}[c: GetNameDist D] : D  → NameDist :=
   c.nameDist
+
+instance : GetNameDist NameDist := ⟨fun nd => nd⟩
+
+instance : GetNameDist Unit := ⟨fun _ => HashMap.empty⟩
 
 class DistHist (D: Type) where
   distHist: D → List GenDist
@@ -257,6 +265,14 @@ def newFromHistory {D: Type}[cl: DistHist D] : IsNew D :=
     hist.any <| fun dist =>  inDist dist.exprDist e w⟩
 
 instance {D: Type}[cl: DistHist D] : IsNew D := newFromHistory 
+
+abbrev FullData := NameDist × (List GenDist)
+
+instance : DistHist FullData := ⟨fun (nd, hist) => hist⟩
+
+instance : GetNameDist FullData := ⟨fun (nd, _) => nd⟩
+
+instance : DataUpdate FullData := ⟨fun d w c (nd, hist) => (nd, ⟨w, c, d⟩ :: hist)⟩
 
 -- same signature for full evolution and single step, with ExprDist being initial state or accumulated state and the wieght bound that for the result or the accumulated state
 def Evolution(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist  → (initData: D) → ExprDist
@@ -304,7 +320,7 @@ def iterateAux{D: Type}[DataUpdate D](stepEv : RecEvolverM D)(incWt accumWt card
                      | m + 1 => fun initDist d evo => 
                       do
                         let newDist ←  stepEv (accumWt + 1) cardBound initDist d evo
-                        let newData := dataUpdate newDist d
+                        let newData := dataUpdate newDist  (accumWt + 1) cardBound d
                         iterateAux stepEv m (accumWt + 1) cardBound newDist newData evo
 
 def iterate{D: Type}[DataUpdate D](stepEv : RecEvolverM D): RecEvolverM D := 
@@ -482,7 +498,7 @@ def applyEvolver(D: Type)[IsNew D] : EvolutionM D := fun wb c init d =>
        do Expr.isForall <| ← inferType e
     prodGenM applyOpt wb c funcs init (newPair? d)
 
-def nameApplyEvolver(D: Type)[IsNew D][NameDist D]: EvolutionM D := fun wb c init d =>
+def nameApplyEvolver(D: Type)[IsNew D][GetNameDist D]: EvolutionM D := fun wb c init d =>
   do
     let names := nameDist d
     prodGenM nameApplyOpt wb c names init (
@@ -490,7 +506,7 @@ def nameApplyEvolver(D: Type)[IsNew D][NameDist D]: EvolutionM D := fun wb c ini
             isNew d wb c e we)
     
 
-def nameApplyPairEvolver(D: Type)[IsNew D][NameDist D]: EvolutionM D := fun wb c init d =>
+def nameApplyPairEvolver(D: Type)[IsNew D][GetNameDist D]: EvolutionM D := fun wb c init d =>
   do
     let names := nameDist d
     tripleProdGenM nameApplyPairOpt wb c names init init (
