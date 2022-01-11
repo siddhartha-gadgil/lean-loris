@@ -9,6 +9,10 @@ open Std
 open Std.HashMap
 open Nat
 
+/- 
+  Hashmaps for distributions; especially for expressions; with basic map, filter methods
+  including Mondaic forms
+-/
 abbrev ExprDist := HashMap Expr Nat
 
 abbrev NameDist := HashMap Name Nat
@@ -63,9 +67,15 @@ def weightCount{α : Type}[Hashable α][BEq α]
 def cumulWeightCount{α : Type}[Hashable α][BEq α] 
     (m: HashMap α  Nat) : HashMap Nat Nat := Id.run do
       let base := weightCount m
-      let mut w := base
+      let maxWeight := base.toList.foldl (fun max (key, val) =>
+        if key > max then
+          key
+        else
+          max
+      ) 0
+      let mut w := HashMap.empty
       for (key, val) in base.toArray do
-        for j in [0:key] do
+        for j in [key: (maxWeight + 1)] do
           match w.find? j with
           | some v =>
             w := w.insert j (v + val)

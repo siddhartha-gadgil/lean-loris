@@ -29,3 +29,10 @@ syntax (name:=genOne) "gen1!" term : term
     | _ => throwIllFormedSyntax
 
 #check gen1! ((2, 1), (5, 2), (Nat.succ, 1), ())
+
+def egMap := mapFromList [(1, 2), (2, 3), (3, 4), (7, 1), (9, 1), (10, 3)]
+
+#eval (weightCount egMap).toArray
+
+#eval (cumulWeightCount egMap).toArray
+
