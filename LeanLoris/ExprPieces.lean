@@ -5,15 +5,16 @@ import Std
 open Std
 open Lean Meta Elab Term
 
-initialize expNamesCache : IO.Ref (HashMap Expr (List Name)) ← IO.mkRef (HashMap.empty)
+initialize expNamesCache : IO.Ref (HashMap Bool (HashMap Expr (List Name))) ← IO.mkRef (HashMap.empty)
 
-def getCachedNames? (e : Expr) : IO (Option (List Name)) := do
+def getCachedNames? (withDoms: Bool)(e : Expr) : IO (Option (List Name)) := do
   let cache ← expNamesCache.get
-  return (cache.find? e)
+  return (cache.find? withDoms).bind (fun m => m.find? e)
 
-def cacheName (e: Expr) (offs : List Name) : IO Unit := do
+def cacheName (withDoms: Bool)(e: Expr) (offs : List Name) : IO Unit := do
   let cache ← expNamesCache.get
-  expNamesCache.set (cache.insert e offs)
+  let prev ← cache.findD withDoms HashMap.empty
+  expNamesCache.set (cache.insert withDoms $ prev.insert e offs)
   return ()
 
 def nameExpr? : Name → TermElabM ( Option Expr) := 
@@ -22,10 +23,10 @@ def nameExpr? : Name → TermElabM ( Option Expr) :=
       return Option.bind info ConstantInfo.value?
 
 -- does not look within types for lambda's and pi's
-partial def exprNames: Expr → TermElabM (List Name) :=
+partial def exprNames (withDoms : Bool): Expr → TermElabM (List Name) :=
   fun e =>
   do 
-  match ← getCachedNames? e with
+  match ← getCachedNames? withDoms e with
   | some offs => return offs
   | none =>
     let res ← match e with
@@ -36,26 +37,48 @@ partial def exprNames: Expr → TermElabM (List Name) :=
           else
           if ← (isNotAux  name)  then
             match ← nameExpr?  name with
-            | some e => exprNames e
+            | some e => exprNames withDoms e
             | none => []
           else []        
       | Expr.app f a _ => 
           do  
             let ftype ← inferType f 
             let expl := ftype.data.binderInfo.isExplicit
-            let fdeps ← exprNames f
-            let adeps ← exprNames a
+            let fdeps ← exprNames withDoms f
+            let adeps ← exprNames withDoms a
             let s := 
               if !expl then fdeps else
                 fdeps ++ adeps
             return s.eraseDups
-      | Expr.lam _ _ b _ => 
+      | Expr.lam _ t b _ => 
           do
-            return ← exprNames b 
-      | Expr.forallE _ _ b _ => do
-          return  ← exprNames b 
-      | Expr.letE _ _ _ b _ => 
-            return ← exprNames b
+            if withDoms then
+              do
+              let tdeps ← exprNames withDoms t
+              let bdeps ← exprNames withDoms b
+              return (tdeps ++ bdeps)
+            else
+              return ← exprNames withDoms b 
+      | Expr.forallE _ t b _ => do
+          if withDoms then
+              do
+              let tdeps ← exprNames withDoms t
+              let bdeps ← exprNames withDoms b
+              return (tdeps ++ bdeps)
+            else
+              return ← exprNames withDoms b 
+      | Expr.letE _ t v b _ => 
+            if withDoms then
+              do
+              let tdeps ← exprNames withDoms t
+              let bdeps ← exprNames withDoms b
+              let vdeps ← exprNames withDoms v
+              return (tdeps ++ bdeps ++ vdeps)
+            else
+              do
+              let bdeps ← exprNames withDoms b
+              let vdeps ← exprNames withDoms v
+              return (bdeps ++ vdeps)
       | _ => []
-    cacheName e res
+    cacheName withDoms e res
     return res
