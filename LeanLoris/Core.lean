@@ -292,19 +292,19 @@ def Evolution(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  Ex
 
 def initEvolution(D: Type) : Evolution D := fun _ _ init _ => init
 
--- can again play two roles; and is allowed to depend on a generator; diagonal should only be used for full generation, not for single step.
+-- can again play two roles; and is allowed to depend on a generator; fixed-point should only be used for full generation, not for single step.
 def RecEvolver(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist → (initData: D) → (evo: Evolution D) → ExprDist
 
 instance{D: Type} : Inhabited <| Evolution D := ⟨initEvolution D⟩
 
-partial def RecEvolver.diag{D: Type}(recEv: RecEvolver D) : Evolution D :=
-        fun d c init memo => recEv d c init  memo (diag recEv)
+partial def RecEvolver.fixedPoint{D: Type}(recEv: RecEvolver D) : Evolution D :=
+        fun d c init memo => recEv d c init  memo (fixedPoint recEv)
 
 -- same signature for full evolution and single step, with ExprDist being initial state or accumulated state and the wieght bound that for the result or the accumulated state
 def EvolutionM(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist  → (initData: D) → TermElabM ExprDist
 
 
--- can again play two roles; and is allowed to depend on a generator; diagonal should only be used for full generation, not for single step.
+-- can again play two roles; and is allowed to depend on a generator; fixed-point should only be used for full generation, not for single step.
 def RecEvolverM(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist → (initData: D) → (evo: EvolutionM D) → TermElabM ExprDist
 
 namespace EvolutionM
@@ -323,8 +323,8 @@ namespace RecEvolverM
 
 def init(D: Type) := (EvolutionM.init D).tautRec
 
-partial def diag{D: Type}(recEv: RecEvolverM D) : EvolutionM D :=
-        fun d c init memo => recEv d c init memo (diag recEv)
+partial def fixedPoint{D: Type}(recEv: RecEvolverM D) : EvolutionM D :=
+        fun d c init memo => recEv d c init memo (fixedPoint recEv)
 
 def iterateAux{D: Type}[DataUpdate D](stepEv : RecEvolverM D)(incWt accumWt cardBound: Nat) : 
                      ExprDist → (initData: D) → (evo: EvolutionM D) → TermElabM ExprDist := 
@@ -347,15 +347,21 @@ def merge{D: Type}(fst: RecEvolverM D)(snd: RecEvolverM D) : RecEvolverM D :=
           let sndDist ← snd wb cb initDist data evo
           return mergeDist fstDist sndDist
 
+def andThenM{D: Type} (recEv : RecEvolverM D) (f: ExprDist → ExprDist) : RecEvolverM D := 
+      fun wb cb initDist data evo => 
+        do
+          let newDist ← recEv wb cb initDist data evo
+          f newDist
+
 end RecEvolverM
 
 instance {D: Type}: Append <| RecEvolverM D := ⟨fun fst snd => fst.merge snd⟩
 
 def EvolutionM.evolve{D: Type}[DataUpdate D](ev: EvolutionM D) : EvolutionM D :=
-        ev.tautRec.iterate.diag
+        ev.tautRec.iterate.fixedPoint
 
 def isleM {D: Type}(type: Expr)(evolve : EvolutionM D)(weightBound: Nat)(cardBound: Nat)
-      (init : ExprDist)(initData: D)(includePi : Bool := true)(excludeProofs: Bool := false): TermElabM (ExprDist) := 
+      (init : ExprDist)(initData: D)(includePi : Bool := true)(excludeProofs: Bool := false)(excludeLambda : Bool := false): TermElabM (ExprDist) := 
     withLocalDecl Name.anonymous BinderInfo.default (type)  $ fun x => 
         do
           let dist := init.insert x 0
@@ -368,10 +374,13 @@ def isleM {D: Type}(type: Expr)(evolve : EvolutionM D)(weightBound: Nat)(cardBou
           let evt ← filterDistM evl (fun x => liftMetaM (isType x))
           let exported ← mapDistM evl (fun e => mkLambdaFVars #[x] e)
           let exportedPi ← mapDistM evt (fun e => mkForallFVars #[x] e)
-          let res := if includePi then mergeDist exported  exportedPi else exported
+          let res := 
+            if includePi then 
+                if excludeLambda then exportedPi else  mergeDist exported  exportedPi 
+              else  exported
           return res
 
--- Auxiliary functions mainly from lean source for subexpressions
+-- Auxiliary functions mainly from lean source for finding subexpressions
 
 def isBlackListed (env: Environment) (declName : Name) : IO  Bool := do
   declName.isInternal
@@ -561,7 +570,7 @@ def eqIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve =>
     for (type, w) in eqTypes.toArray do
       if wb - w > 0 then
         let ic := c / (typesCum.findD w typesTop)
-        let isleDist ←   isleM type evolve (wb -w -1) ic init d   
+        let isleDist ←   isleM type evolve (wb -w -1) ic init d false true
         isleDistMap := isleDistMap.insert type isleDist
     let mut finalDist: ExprDist := HashMap.empty
     for (eq, type, weq) in eqTriples do
@@ -575,6 +584,56 @@ def eqIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve =>
           | some y => finalDist := finalDist.insert y (wf + weq)
     return finalDist
 
+def allIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve => 
+  do
+    let typeDist ←  filterDistM init $ fun e =>
+        do return (← inferType e).isSort 
+    let typesCum := cumulWeightCount typeDist
+    let typesTop := (typesCum.toList.map (fun (k, v) => v)).maximum?.getD 1
+    let mut finalDist: ExprDist := HashMap.empty
+    for (type, w) in typeDist.toArray do
+      if wb - w > 0 then
+        let ic := c / (typesCum.findD w typesTop)
+        let isleDist ←   isleM type evolve (wb -w -1) ic init d   
+        finalDist := mergeDist finalDist isleDist
+    return finalDist
+
+def funcDomIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve => 
+  do
+    let mut typeDist := HashMap.empty
+    for (x, w) in init.toArray do
+      match ← whnf (← inferType x) with
+      | Expr.forallE _ t .. =>
+          typeDist := distUpdate typeDist (← whnf (← inferType t)) w
+      | _ => ()
+    let typesCum := cumulWeightCount typeDist
+    let typesTop := (typesCum.toList.map (fun (k, v) => v)).maximum?.getD 1
+    let mut finalDist: ExprDist := HashMap.empty
+    for (type, w) in typeDist.toArray do
+      if wb - w > 0 then
+        let ic := c / (typesCum.findD w typesTop)
+        let isleDist ←   isleM type evolve (wb -w -1) ic init d true false true  
+        finalDist := mergeDist finalDist isleDist
+    return finalDist
+
+def weightByType(cost: Nat): ExprDist → TermElabM ExprDist := fun init => do
+  let mut finalDist := init
+  for (x, w) in init.toArray do
+    let α := ← whnf (← inferType x)
+    match init.find? α   with
+    | some w  => finalDist := distUpdate finalDist x (w + cost)
+    | _ => ()
+  return finalDist
+
+def refineWeight(weight? : Expr → TermElabM (Option Nat)):
+      ExprDist → TermElabM ExprDist := fun init => do
+  let mut finalDist := init
+  for (x, w) in init.toArray do
+    match ← weight? x   with
+    | some w  => finalDist := distUpdate finalDist x (w)
+    | _ => ()
+  return finalDist
+
 def egEvolver : EvolutionM Unit := 
-  ((applyEvolver Unit).tautRec ++ (RecEvolverM.init Unit)).diag
+  ((applyEvolver Unit).tautRec ++ (RecEvolverM.init Unit)).fixedPoint
 
