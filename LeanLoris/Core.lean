@@ -103,7 +103,7 @@ def boundDist{α : Type}[Hashable α][BEq α]
     (m: HashMap α Nat) (maxWeight card: Nat)  : HashMap α Nat := Id.run do
   let mut w := HashMap.empty
   let cumul := cumulWeightCount m
-  let top := (cumul.toList.map (fun (k, v) => v)).maximum?.getD 0 
+  let top := (cumul.toList.map (fun (k, v) => v)).maximum?.getD 1 
   for (key, val) in m.toArray do
     if val ≤ maxWeight && (cumul.findD val top ≤ card) then
       w := w.insert key val
@@ -133,7 +133,7 @@ def prodGen{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     if maxWeight > 0 then
       let fstBdd := boundDist fst (maxWeight - 1) card
       let fstCount := cumulWeightCount fstBdd
-      let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 0 
+      let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 1 
       for (key, val) in fstBdd.toArray do
         let fstNum := fstCount.findD val fstTop
         let sndCard := card / fstNum
@@ -154,8 +154,9 @@ def prodGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     if maxWeight > 0 then
       let fstBdd := boundDist fst (maxWeight - 1) card
       let fstCount := cumulWeightCount fstBdd
-      let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 0 
+      let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 1 
       for (key, val) in fstBdd.toArray do
+      if maxWeight - val > 0 then
         let fstNum := fstCount.findD val fstTop
         let sndCard := card / fstNum
         let sndBdd := boundDist snd (maxWeight - val - 1) sndCard
@@ -176,13 +177,13 @@ def tripleProdGen{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     if maxWeight > 0 then
       let fstBdd := boundDist fst (maxWeight - 1) card
       let fstCount := cumulWeightCount fstBdd
-      let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 0 
+      let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 1 
       for (key, val) in fstBdd.toArray do
         let fstNum := fstCount.findD val fstTop
         let sndCard := card / fstNum
         let sndBdd := boundDist snd (maxWeight - val - 1) sndCard
         let sndCount := cumulWeightCount sndBdd
-        let sndTop := (sndCount.toList.map (fun (k, v) => v)).maximum?.getD 0 
+        let sndTop := (sndCount.toList.map (fun (k, v) => v)).maximum?.getD 1 
         for (key2, val2) in sndBdd.toArray do
           let sndNum := sndCount.findD val2 sndTop
           let thirdCard := sndCard / sndNum
@@ -205,14 +206,16 @@ def tripleProdGenM{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     if maxWeight > 0 then
       let fstBdd := boundDist fst (maxWeight - 1) card
       let fstCount := cumulWeightCount fstBdd
-      let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 0 
+      let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 1 
       for (key, val) in fstBdd.toArray do
+      if maxWeight - val > 0 then
         let fstNum := fstCount.findD val fstTop
         let sndCard := card / fstNum
         let sndBdd := boundDist snd (maxWeight - val - 1) sndCard
         let sndCount := cumulWeightCount sndBdd
-        let sndTop := (sndCount.toList.map (fun (k, v) => v)).maximum?.getD 0 
+        let sndTop := (sndCount.toList.map (fun (k, v) => v)).maximum?.getD 1 
         for (key2, val2) in sndBdd.toArray do
+        if maxWeight - val - val2 > 0 then
           let sndNum := sndCount.findD val2 sndTop
           let thirdCard := sndCard / sndNum
           let thirdBdd := boundDist third (maxWeight - val - val2 - 1) thirdCard
@@ -351,16 +354,16 @@ instance {D: Type}: Append <| RecEvolverM D := ⟨fun fst snd => fst.merge snd�
 def EvolutionM.evolve{D: Type}[DataUpdate D](ev: EvolutionM D) : EvolutionM D :=
         ev.tautRec.iterate.diag
 
-def isleM {D: Type}(type: Expr)(recEv : RecEvolverM D)(weightBound: Nat)(cardBound: Nat)
-      (init : ExprDist)(initData: D)(evolve : EvolutionM D)(includePi : Bool := true)(excludeProofs: Bool := false): TermElabM (ExprDist) := 
+def isleM {D: Type}(type: Expr)(evolve : EvolutionM D)(weightBound: Nat)(cardBound: Nat)
+      (init : ExprDist)(initData: D)(includePi : Bool := true)(excludeProofs: Bool := false): TermElabM (ExprDist) := 
     withLocalDecl Name.anonymous BinderInfo.default (type)  $ fun x => 
         do
           let dist := init.insert x 0
           -- logInfo m!"initial in isle: {l}"
-          let evb ← recEv weightBound cardBound dist initData evolve
+          let evb ← evolve weightBound cardBound dist initData 
           let mut evl : ExprDist := HashMap.empty
           for (y, w) in evb.toArray do
-            unless excludeProofs && ((← inferType y).isProp) do
+            unless excludeProofs && ((← inferType (← inferType y)).isProp) do
               evl := distUpdate evl y w
           let evt ← filterDistM evl (fun x => liftMetaM (isType x))
           let exported ← mapDistM evl (fun e => mkLambdaFVars #[x] e)
@@ -489,7 +492,7 @@ def rwPushOpt(symm : Bool)(e : Expr) (heq : Expr) : TermElabM (Option Expr) :=
         return none
 
 -- (optional) congrArg for an equality
-def eqCongrOpt (f: Expr)(eq : Expr) : TermElabM (Option Expr) :=
+def congrArgOpt (f: Expr)(eq : Expr) : TermElabM (Option Expr) :=
   do
     try
       let expr ← mkAppM ``congrArg #[f, eq]
@@ -536,7 +539,41 @@ def congrEvolver(D: Type)[IsNew D] : EvolutionM D := fun wb c init d =>
        do Expr.isForall <| ← inferType e
     let eqls ←   filterDistM init $ fun e => 
        do Expr.isEq <| ← inferType e
-    prodGenM eqCongrOpt wb c funcs eqls (newPair? d)
+    prodGenM congrArgOpt wb c funcs eqls (newPair? d)
+
+def eqIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve => 
+  do
+    let mut eqTypes: ExprDist := HashMap.empty
+    let mut eqs: ExprDist := HashMap.empty
+    let mut eqTriples : Array (Expr × Expr × Nat) := #[]
+    for (x, w) in init.toArray do
+      match (← inferType x).eq? with
+      | none => ()
+      | some (α, lhs, rhs) =>
+          eqTypes := distUpdate eqTypes α w
+          eqs := distUpdate eqs x w
+          eqTriples := eqTriples.push (x, α, w)
+    let typesCum := cumulWeightCount eqTypes
+    let eqsCum := cumulWeightCount eqs
+    let typesTop := (typesCum.toList.map (fun (k, v) => v)).maximum?.getD 1
+    let eqsTop := (typesCum.toList.map (fun (k, v) => v)).maximum?.getD 1
+    let mut isleDistMap : HashMap Expr ExprDist := HashMap.empty
+    for (type, w) in eqTypes.toArray do
+      if wb - w > 0 then
+        let ic := c / (typesCum.findD w typesTop)
+        let isleDist ←   isleM type evolve (wb -w -1) ic init d   
+        isleDistMap := isleDistMap.insert type isleDist
+    let mut finalDist: ExprDist := HashMap.empty
+    for (eq, type, weq) in eqTriples do
+      if wb - weq > 0 then
+        let isleDistBase := isleDistMap.findD type HashMap.empty
+        let xc := c / (eqsCum.findD weq eqsTop)
+        let isleDist := boundDist isleDistBase (wb -weq -1) xc
+        for (f, wf) in isleDist.toArray do
+          match ← congrArgOpt f eq with 
+          | none => ()
+          | some y => finalDist := finalDist.insert y (wf + weq)
+    return finalDist
 
 def egEvolver : EvolutionM Unit := 
   ((applyEvolver Unit).tautRec ++ (RecEvolverM.init Unit)).diag
