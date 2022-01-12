@@ -82,3 +82,27 @@ partial def exprNames (withDoms : Bool): Expr → TermElabM (List Name) :=
       | _ => []
     cacheName withDoms e res
     return res
+
+partial def subExpr?(withDoms: Bool)(parent: Expr): Expr → TermElabM Bool := 
+    fun e => do
+      if ← isDefEq parent e then return true
+      else
+      match ← whnf e with
+        | Expr.app f a _ => 
+            return (←  subExpr? withDoms parent f) || 
+                  (← subExpr? withDoms parent a)
+        | Expr.lam _ t b _ => 
+              return  (← subExpr? withDoms parent b) || 
+                  withDoms &&  (← subExpr? withDoms parent t)
+        | Expr.forallE _ t b _ => 
+                  return  (← subExpr? withDoms parent b) || 
+                  withDoms &&  (← subExpr? withDoms parent t)
+        | Expr.letE _ t v b _ => 
+                return  (← subExpr? withDoms parent b) || 
+                        (← subExpr? withDoms parent v) || 
+                  withDoms &&  (← subExpr? withDoms parent t)
+        | _ => return false
+
+def subExprWeight(cost: Nat)(withDoms: Bool)(parent: Expr): Expr → TermElabM (Option Nat) :=
+    fun e => do
+        if (← subExpr? withDoms parent e) then return (some cost) else return none
