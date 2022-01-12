@@ -303,7 +303,7 @@ initialize exprDistCache : IO.Ref (HashMap Name (Expr × ExprDist))
 def saveExprDist (name: Name)(es: ExprDist) : TermElabM (Unit) := do
   let lctx ← getLCtx
   let fvarIds ← lctx.getFVarIds
-  let fvIds ← fvarIds.filterM $ fun fid => whiteListed ((lctx.get! fid).userName) 
+  let fvIds ← fvarIds.filterM $ fun fid => isWhiteListed ((lctx.get! fid).userName) 
   let fvars := fvIds.map mkFVar
   Term.synthesizeSyntheticMVarsNoPostponing 
   let espair ← mapDistM es (fun e => do Term.levelMVarToParam (← instantiateMVars e))

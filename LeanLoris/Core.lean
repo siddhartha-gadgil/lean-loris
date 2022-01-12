@@ -382,28 +382,27 @@ def isleM {D: Type}(type: Expr)(evolve : EvolutionM D)(weightBound: Nat)(cardBou
 
 -- Auxiliary functions mainly from lean source for finding subexpressions
 
-def isBlackListed (env: Environment) (declName : Name) : IO  Bool := do
+def isBlackListed  (declName : Name) : TermElabM  Bool := do
+  let env ← getEnv
   declName.isInternal
   <||> isAuxRecursor env declName
   <||> isNoConfusion env declName
   <||> isRecCore env declName
   <||> isMatcherCore env declName
 
-def isAux (env: Environment) (declName : Name) : IO  Bool := do
+def isAux (declName : Name) : TermElabM  Bool := do
+  let env ← getEnv
   isAuxRecursor env declName
   <||> isNoConfusion env declName
   
-def isNotAux (env: Environment) (declName : Name) : IO  Bool := do
-  let nAux ← isAux env declName
+def isNotAux  (declName : Name) : TermElabM  Bool := do
+  let nAux ← isAux declName
   return (not nAux)
 
-def isWhiteListed (env: Environment)(declName : Name) : IO Bool := do
-  let bl ← isBlackListed env declName
+def isWhiteListed (declName : Name) : TermElabM Bool := do
+  let bl ← isBlackListed  declName
   return !bl
 
-def whiteListed (n: Name) : TermElabM Bool := do
-  let b ← isWhiteListed (← getEnv) n
-  return b
 
 -- Basic functions for generation
 
