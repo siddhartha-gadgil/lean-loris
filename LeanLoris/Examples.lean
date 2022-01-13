@@ -34,9 +34,9 @@ def egMap := FinDist.fromList [(1, 2), (2, 3), (3, 4), (7, 1), (9, 1), (10, 3)]
 
 -- tests for helpers
 
-#eval (weightCount egMap).toArray
+#eval (egMap.weightCount).toArray
 
-#eval (cumulWeightCount egMap).toArray
+#eval (egMap.cumulWeightCount).toArray
 
 #eval (egMap.filter (fun n => n % 2 = 1)).toArray
 
