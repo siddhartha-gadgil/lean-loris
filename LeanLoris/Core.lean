@@ -451,6 +451,18 @@ def applyOpt (f x : Expr) : TermElabM (Option Expr) :=
     catch e =>
       return none
 
+def applyPairOpt (f x y : Expr) : TermElabM (Option Expr) :=
+  do
+    try
+      let expr ← elabAppArgs f #[] #[Arg.expr x, Arg.expr y] none 
+                    (explicit := false) (ellipsis := false)
+      let exprType ← inferType expr
+      if (← isTypeCorrect expr) &&  (← isTypeCorrect exprType)  then 
+        return some <| ← whnf expr
+      else return none
+    catch e =>
+      return none
+
 -- (optional) function application with unification given name of function
 def nameApplyOpt (f: Name) (x : Expr) : TermElabM (Option Expr) :=
   do
@@ -551,6 +563,14 @@ def applyEvolver(D: Type)[IsNew D] : EvolutionM D := fun wb c init d =>
     let funcs ← init.filterM $ fun e => 
        do Expr.isForall <| ← inferType e
     prodGenM applyOpt wb c funcs init (isNewPair d)
+
+def applyPairEvolver(D: Type)[IsNew D]: EvolutionM D := fun wb c init d =>
+  do
+    let funcs ← init.filterM $ fun e => 
+       do Expr.isForall <| ← inferType e
+    tripleProdGenM applyPairOpt wb c funcs init init (
+          fun wb c (f, x, y) (wf, wx, wy) => 
+            isNew d wb c f wf || isNew d wb c x wx || isNew d wb c y wy)
 
 def nameApplyEvolver(D: Type)[IsNew D][GetNameDist D]: EvolutionM D := fun wb c init d =>
   do
