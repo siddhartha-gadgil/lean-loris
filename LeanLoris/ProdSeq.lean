@@ -306,8 +306,8 @@ def saveExprDist (name: Name)(es: ExprDist) : TermElabM (Unit) := do
   let fvIds ← fvarIds.filterM $ fun fid => isWhiteListed ((lctx.get! fid).userName) 
   let fvars := fvIds.map mkFVar
   Term.synthesizeSyntheticMVarsNoPostponing 
-  let espair ← mapDistM es (fun e => do Term.levelMVarToParam (← instantiateMVars e))
-  let es ← mapDistM espair (fun (e, _) => do whnf <| ←  mkLambdaFVars fvars e)
+  let espair ← es.mapM (fun e => do Term.levelMVarToParam (← instantiateMVars e))
+  let es ← espair.mapM (fun (e, _) => do whnf <| ←  mkLambdaFVars fvars e)
   logInfo m!"saving relative to: {fvars}"
   let varPack ← ProdSeq.lambdaPack fvars.toList
   let cache ← exprDistCache.get
@@ -320,5 +320,5 @@ def loadExprArr (name: Name) : TermElabM (ExprDist) := do
   | some (varPack, es) =>
         let fvars ← ProdSeq.lambdaUnpack varPack
         logInfo m!"loading relative to: {fvars}"
-        mapDistM es $ fun e => reduce (mkAppN e fvars.toArray)
+        es.mapM $ fun e => reduce (mkAppN e fvars.toArray)
   | none => throwError m!"no cached expression distribution for {name}"
