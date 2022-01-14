@@ -2,6 +2,7 @@ import Lean.Meta
 import Lean.Elab
 import LeanLoris.Core
 import LeanLoris.ProdSeq
+import LeanLoris.Evolution
 open Lean Meta Elab Term
 open ProdSeq
 
