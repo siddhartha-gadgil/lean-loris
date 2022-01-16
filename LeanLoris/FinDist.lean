@@ -23,9 +23,6 @@ namespace FinDist
 
 def empty{α : Type} [Hashable α][BEq α] : FinDist α := HashMap.empty
 
-def fromList{α : Type}[Hashable α][BEq α] (l : List (α  × Nat)) : FinDist α :=
-  l.foldl (fun m (a, n) => m.insert a n) HashMap.empty
-
 def merge{α : Type}[Hashable α][BEq α] 
     (fst: FinDist α)(snd: FinDist α) : FinDist α  := Id.run do
   let mut min := fst
@@ -129,6 +126,9 @@ def update{α : Type}[Hashable α][BEq α]
   | some v => if d < v then m.insert x d else m
   | none => m.insert x d
 
+def fromList{α : Type}[Hashable α][BEq α] (l : List (α  × Nat)) : FinDist α :=
+  l.foldl (fun m (a, n) => m.update a n) HashMap.empty
+
 def keys{α : Type}[Hashable α][BEq α] 
     (m: FinDist α) := m.toList.map (fun (k, v) => k)
 
@@ -145,3 +145,9 @@ def FinDist.exists{α : Type}[Hashable α][BEq α]
     | some v => v ≤ weight
     | none => false
 
+syntax "%[" term,* "]" : term
+macro_rules
+| `(%[$[$xs],*]) =>
+  `(FinDist.fromList [$[$xs],*])
+
+#check %[("this", 1), ("that", 2)]
