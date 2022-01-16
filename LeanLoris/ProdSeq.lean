@@ -247,29 +247,40 @@ def parseExprMap : Syntax → TermElabM (Array (Expr × Nat))
           m
   | _ => throwIllFormedSyntax
 
-syntax (name:= exprDistPack) expr_dist : term
+syntax (name:= exprDistPack) "packdist!" expr_dist : term
 @[termElab exprDistPack] def exprDistPackImpl : TermElab := fun stx _ =>
     match stx with 
-    | `($s:expr_dist) => 
+    | `(packdist! $s:expr_dist) => 
         do
           let m : Array (Expr × Nat) ←  parseExprMap s
           packWeighted m.toList
     | _ => throwIllFormedSyntax
 
-#eval %{(1, 2), ("Hello", 4)}
+#eval packdist! %{(1, 2), ("Hello", 4)}
+#check packdist! %{(1, 2), ("Hello", 4)}
 
-#reduce (fun x y : Nat => %{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
+#reduce (fun x y : Nat => packdist!%{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
 
-syntax (name:= exprPack) "%[" term,* "]" : term
+declare_syntax_cat expr_list
+syntax "%[" term,* "]" : expr_list
+
+def parseExprList : Syntax → TermElabM (Array Expr)
+  | `(expr_list|%[$[$xs],*]) =>
+    do
+          let m : Array Expr ←  xs.mapM <| fun s => elabTerm s none
+          return m
+  | _ => throwIllFormedSyntax
+
+syntax (name:= exprPack) "pack!" expr_list : term
 @[termElab exprPack] def exprPackImpl : TermElab := fun stx expectedType =>
   match stx with
-  | `(%[$[$xs],*]) => 
+  | `(pack! $s:expr_list) => 
     do
-          let m : Array (Expr) ←  xs.mapM <| fun s => elabTerm s none
+          let m : Array (Expr) ←  parseExprList s
           pack m.toList
   | _ => throwIllFormedSyntax
 
-#check %[(1, 2), 3, ("Hello", 4), "over here"]
+#check pack! %[(1, 2), 3, ("Hello", 4), "over here"]
 
 end ProdSeq
 
