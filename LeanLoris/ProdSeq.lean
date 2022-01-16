@@ -260,16 +260,16 @@ syntax (name:= exprDistPack) expr_dist : term
 
 #reduce (fun x y : Nat => %{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
 
-syntax (name:= exprPack) "!{" term,* "}" : term
+syntax (name:= exprPack) "%[" term,* "]" : term
 @[termElab exprPack] def exprPackImpl : TermElab := fun stx expectedType =>
   match stx with
-  | `(!{$[$xs],*}) => 
+  | `(%[$[$xs],*]) => 
     do
           let m : Array (Expr) ←  xs.mapM <| fun s => elabTerm s none
           pack m.toList
   | _ => throwIllFormedSyntax
 
-#check !{(1, 2), 3, ("Hello", 4), "over here"}
+#check %[(1, 2), 3, ("Hello", 4), "over here"]
 
 end ProdSeq
 

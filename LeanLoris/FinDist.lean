@@ -145,9 +145,9 @@ def FinDist.exists{α : Type}[Hashable α][BEq α]
     | some v => v ≤ weight
     | none => false
 
-syntax "%[" term,* "]" : term
+syntax "!{" term,* "}" : term
 macro_rules
-| `(%[$[$xs],*]) =>
+| `(!{$[$xs],*}) =>
   `(FinDist.fromList [$[$xs],*])
 
-#check %[("this", 1), ("that", 2)]
+#check !{("this", 1), ("that", 2)}
