@@ -282,6 +282,37 @@ syntax (name:= exprPack) "pack!" expr_list : term
 
 #check pack! %[(1, 2), 3, ("Hello", 4), "over here"]
 
+declare_syntax_cat name_dist
+syntax nameWt := "(" ident "," num ")"
+syntax nameWtList := "!{" nameWt,* "}"
+syntax nameWtList : name_dist
+
+def parseNameMap : Syntax → TermElabM (Array (Name × Nat))
+  | `(name_dist|!{$[$xs:nameWt],*}) =>
+    do
+          let m : Array (Name × Nat) ←  xs.mapM (fun s => do
+              match s with 
+              | `(nameWt|($x:ident, $n:numLit)) =>                  
+                  return (x.getId, (Syntax.isNatLit? n).get!)
+              | _ =>
+                throwError m!"{s} is not a valid nameWt"
+              )
+          m
+  | _ => throwIllFormedSyntax
+
+syntax (name:= constpack) "const!" name_dist : term
+@[termElab constpack] def constpackImpl : TermElab := fun stx _ =>
+    match stx with 
+    | `(const! $s:name_dist) => 
+        do
+          let m : Array (Name × Nat) ←  parseNameMap s
+          let c := m.map (fun (n, w) => (mkConst n, w))
+          packWeighted c.toList
+    | _ => throwIllFormedSyntax
+
+#check const! !{(Nat.add, 2), (Nat.zero, 4)}
+
+
 end ProdSeq
 
 initialize exprDistCache : IO.Ref (HashMap Name (Expr × ExprDist)) 

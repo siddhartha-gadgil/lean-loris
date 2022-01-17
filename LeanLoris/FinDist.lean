@@ -151,10 +151,3 @@ def FinDist.exists{α : Type}[Hashable α][BEq α]
     match m.find? elem with
     | some v => v ≤ weight
     | none => false
-
-syntax "!{" term,* "}" : term
-macro_rules
-| `(!{$[$xs],*}) =>
-  `(FinDist.fromList [$[$xs],*])
-
-#check !{("this", 1), ("that", 2)}

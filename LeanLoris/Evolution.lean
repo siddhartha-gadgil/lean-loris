@@ -317,7 +317,7 @@ def refineWeight(weight? : Expr → TermElabM (Option Nat)):
     | _ => ()
   return finalDist
 
-def logResults(goals : List Expr) : ExprDist →  TermElabM Unit := fun dist => do
+def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist => do
     for g in goals do
       logInfo m!"goal: {g}"
       let statement ←  dist.findM? $ fun s => isDefEq s g
@@ -325,16 +325,6 @@ def logResults(goals : List Expr) : ExprDist →  TermElabM Unit := fun dist => 
       let proof ←  dist.findM? $ fun t => do isDefEq (← inferType t) g
       logInfo m!"proof: {proof}"
 
--- syntax for getting expressions; first an auxiliarly function
-
-def initializedEvolve (goals: List Expr)(initDist : ExprDist): (initNames: NameDist) →  
-            (stepEv : RecEvolverM FullData) → Nat → Nat → TermElabM ExprDist := 
-  fun initNames stepEv wb c  => do
-    let initData : FullData := (initNames, [])   
-    let evolver : EvolutionM FullData := (stepEv.andThenM (logResults goals)).fixedPoint     
-    evolver wb c initDist initData 
-  
-  
 -- examples
 
 def egEvolver : EvolutionM Unit := 
