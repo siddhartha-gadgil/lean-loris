@@ -56,6 +56,8 @@ instance : GetNameDist NameDist := ⟨fun nd => nd⟩
 
 instance : GetNameDist Unit := ⟨fun _ => FinDist.empty⟩
 
+instance : IsNew NameDist := allNew
+
 class DistHist (D: Type) where
   distHist: D → List GenDist
 
@@ -343,16 +345,16 @@ syntax "name-binop": evolver
 declare_syntax_cat evolver_list
 syntax "^[" evolver,* "]" : evolver_list
 
-def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
-| `(evolver|app) => (applyEvolver FullData).tautRec
-| `(evolver|name-app) => (nameApplyEvolver FullData).tautRec
+def parseEvolver : Syntax → TermElabM (RecEvolverM NameDist)
+| `(evolver|app) => (applyEvolver NameDist).tautRec
+| `(evolver|name-app) => (nameApplyEvolver NameDist).tautRec
 | stx => throwError m!"Evolver not implemented for {stx}"
 
-def parseEvolverList : Syntax → TermElabM (RecEvolverM FullData)  
+def parseEvolverList : Syntax → TermElabM (RecEvolverM NameDist)  
   | `(evolver_list|^[$[$xs],*]) =>
     do
-          let m : Array (RecEvolverM FullData) ←  xs.mapM <| fun s => parseEvolver s
-          return m.foldl (fun acc x => acc ++ x) (RecEvolverM.init FullData)
+          let m : Array (RecEvolverM NameDist) ←  xs.mapM <| fun s => parseEvolver s
+          return m.foldl (fun acc x => acc ++ x) (RecEvolverM.init NameDist)
   | _ => throwIllFormedSyntax
 
 syntax (name:= evolution) 
@@ -369,11 +371,11 @@ match s with
   let initData : FullData := (nameDist, [])
   let goals? ← goals?.mapM $ fun goals => parseExprList goals
   let goals := goals?.getD #[]
-  let ev := (ev.andThenM (logResults goals)).fixedPoint
+  let ev := (ev.andThenM (logResults goals)).fixedPoint.evolve
   let wb ← parseNat wb
   let card ← parseNat card
-  let finalDist ← ev wb card initDist initData
+  let finalDist ← ev wb card initDist nameDist
   return ← (packWeighted finalDist.toList)
 | _ => throwIllFormedSyntax
 
-#check evolve! ^[app] %[Nat.succ Nat.zero] %{(Nat.succ, 0), (Nat.zero, 0)} !{} 2 1 ;
+#check evolve! ^[app] %[Nat.succ Nat.zero] %{(Nat.succ, 0), (Nat.zero, 1)} !{} 5 100 ;
