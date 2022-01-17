@@ -133,11 +133,18 @@ def keys{α : Type}[Hashable α][BEq α]
     (m: FinDist α) := m.toList.map (fun (k, v) => k)
 
 def findM?{α : Type}[Hashable α][BEq α] 
-    (m: FinDist α)(p: α → TermElabM Bool) : TermElabM (Option α) := 
-      m.keys.findM? p
+    (m: FinDist α)(p: α → TermElabM Bool) : TermElabM (Option (α × Nat)) := 
+      findInList m.toList p 
+    where
+      findInList : List (α  × Nat) → (α → TermElabM Bool) → TermElabM (Option (α × Nat)) := 
+        fun l p => do
+          let mut res : Option (α × Nat) := none
+          for (a, n) in l do
+            if (← p a) && (res.map (fun (_, m) => n < m)).getD true then
+              res := some (a, n)
+          return res
 
 end FinDist
-
 
 def FinDist.exists{α : Type}[Hashable α][BEq α] 
     (m: FinDist α) (elem: α)(weight: Nat) : Bool :=

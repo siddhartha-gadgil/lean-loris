@@ -1,5 +1,6 @@
 import LeanLoris.FinDist
 import LeanLoris.Core
+import LeanLoris.ProdSeq
 import Lean.Meta
 import Lean.Elab
 import Std
@@ -10,6 +11,7 @@ open Lean.Elab.Term
 open Std
 open Std.HashMap
 open Nat
+open ProdSeq
 
 structure GenDist where
   weight: Nat
@@ -314,6 +316,26 @@ def refineWeight(weight? : Expr → TermElabM (Option Nat)):
     | some w  => finalDist := FinDist.update finalDist x (w)
     | _ => ()
   return finalDist
+
+def logResults(goals : List Expr) : ExprDist →  TermElabM Unit := fun dist => do
+    for g in goals do
+      logInfo m!"goal: {g}"
+      let statement ←  dist.findM? $ fun s => isDefEq s g
+      logInfo m!"statement: {statement}"
+      let proof ←  dist.findM? $ fun t => do isDefEq (← inferType t) g
+      logInfo m!"proof: {proof}"
+
+-- syntax for getting expressions; first an auxiliarly function
+
+def initializedEvolve (goals: List Expr)(initDist : ExprDist): (initNames: NameDist) →  
+            (stepEv : RecEvolverM FullData) → Nat → Nat → TermElabM ExprDist := 
+  fun initNames stepEv wb c  => do
+    let initData : FullData := (initNames, [])   
+    let evolver : EvolutionM FullData := (stepEv.andThenM (logResults goals)).fixedPoint     
+    evolver wb c initDist initData 
+  
+  
+-- examples
 
 def egEvolver : EvolutionM Unit := 
   ((applyEvolver Unit).tautRec ++ (RecEvolverM.init Unit)).fixedPoint
