@@ -3,6 +3,8 @@ import Lean.Elab
 import LeanLoris.Core
 import LeanLoris.ProdSeq
 import LeanLoris.Evolution
+import Std
+open Std
 open Lean Meta Elab Term
 open ProdSeq
 
@@ -25,6 +27,10 @@ syntax (name:=genOne) "gen1!" term : term
       logInfo "Evolved state"
       let m3 ← (egEvolver).evolve 12 100 m ()
       for (x, w) in m3.toArray do
+        logInfo m!"{x} : {w}" 
+      logInfo "Full Evolved state"
+      let m4 ← (egEvolverFull).evolve 12 100 m (HashMap.empty, [])
+      for (x, w) in m4.toArray do
         logInfo m!"{x} : {w}" 
       return x
     | _ => throwIllFormedSyntax

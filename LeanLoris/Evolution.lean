@@ -330,3 +330,50 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
 def egEvolver : EvolutionM Unit := 
   ((applyEvolver Unit).tautRec ++ (RecEvolverM.init Unit)).fixedPoint
 
+def egEvolverFull : EvolutionM FullData := 
+  ((applyEvolver FullData).tautRec ++ (RecEvolverM.init FullData)).fixedPoint
+
+
+declare_syntax_cat evolver 
+syntax "app" : evolver
+syntax "name-app": evolver
+syntax "binop": evolver
+syntax "name-binop": evolver
+
+declare_syntax_cat evolver_list
+syntax "^[" evolver,* "]" : evolver_list
+
+def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
+| `(evolver|app) => (applyEvolver FullData).tautRec
+| `(evolver|name-app) => (nameApplyEvolver FullData).tautRec
+| stx => throwError m!"Evolver not implemented for {stx}"
+
+def parseEvolverList : Syntax → TermElabM (RecEvolverM FullData)  
+  | `(evolver_list|^[$[$xs],*]) =>
+    do
+          let m : Array (RecEvolverM FullData) ←  xs.mapM <| fun s => parseEvolver s
+          return m.foldl (fun acc x => acc ++ x) (RecEvolverM.init FullData)
+  | _ => throwIllFormedSyntax
+
+syntax (name:= evolution) 
+  "evolve!" evolver_list (expr_list)? expr_dist (name_dist)? num num ";" : term
+@[termElab evolution] def evolutionImpl : TermElab := fun s _ =>
+match s with
+| `(evolve! $evolvers $(goals?)? $initDist $(nameDist?)? $wb $card ;) => do
+  let ev ← parseEvolverList evolvers
+  let initDist ← parseExprMap initDist
+  let initDist := FinDist.fromList (initDist.toList)
+  let nameDist? ← nameDist?.mapM  $ fun nameDist => parseNameMap nameDist
+  let nameDist := nameDist?.getD #[]
+  let nameDist := FinDist.fromList (nameDist.toList)
+  let initData : FullData := (nameDist, [])
+  let goals? ← goals?.mapM $ fun goals => parseExprList goals
+  let goals := goals?.getD #[]
+  let ev := (ev.andThenM (logResults goals)).fixedPoint
+  let wb ← parseNat wb
+  let card ← parseNat card
+  let finalDist ← ev wb card initDist initData
+  return ← (packWeighted finalDist.toList)
+| _ => throwIllFormedSyntax
+
+#check evolve! ^[app] %[Nat.succ Nat.zero] %{(Nat.succ, 0), (Nat.zero, 0)} !{} 2 1 ;
