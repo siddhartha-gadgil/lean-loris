@@ -195,6 +195,7 @@ def prodGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
             | some key3 =>
                 w := FinDist.update w key3 (val + val2 + 1)
             | none => ()
+          -- else logWarning m!"newPair failed {val} {val2} ; {maxWeight}"
     return w
 
 def tripleProdGen{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]

@@ -33,18 +33,21 @@ instance : DataUpdate NameDist := idUpate
 
 class IsNew (D: Type) where
   isNew: D → Nat → Nat →  Expr → Nat →  Bool
+  isNewPair : D → Nat → Nat →  Expr → Nat →  Expr → Nat → Bool
+  isNewTriple : D → Nat → Nat →  Expr → Nat →  Expr → Nat → Expr → Nat →   Bool
 
 def isNew{D: Type}[c: IsNew D] : D → Nat → Nat →   Expr  → Nat  → Bool :=
   c.isNew
 
 def allNew{D: Type} : IsNew D :=
-  ⟨fun d _ _ e _ => true⟩
+  ⟨fun d _ _ e _ => true, fun d _ _ _ _ _ _  => true,
+  fun _ _ _ _ _ _ _ _ _ => true⟩
 
 instance : IsNew Unit := allNew
 
 def isNewPair{D: Type}[c: IsNew D] : D → Nat → Nat →  
         (Expr ×   Expr) → (Nat × Nat)  → Bool :=
-  fun d wb cb (e1, e2) (w1, w2) => isNew d wb cb e1 w1 || isNew d wb cb e2 w2
+  fun d wb cb (e1, e2) (w1, w2) => c.isNewPair d wb cb e1 w1 e2 w2
 
 class GetNameDist (D: Type) where
   nameDist: D → NameDist
@@ -63,8 +66,14 @@ class DistHist (D: Type) where
 
 def newFromHistory {D: Type}[cl: DistHist D] : IsNew D :=
   ⟨fun d wb c e w =>
-    let hist := (cl.distHist d).filter <| fun gd => wb ≤ gd.weight  && c ≤  gd.card  
-    hist.any <| fun dist =>  dist.exprDist.exists e w⟩
+    !((cl.distHist d).any <| fun dist =>  dist.exprDist.exists e w),
+  fun d wb c e1 w1 e2 w2 =>
+    !((cl.distHist d).any <| fun ⟨wt, _,dist⟩ => 
+    dist.exists e1 w1 && (dist.exists e2 w2) && (w1 + w2 + 1 ≤ wt)),
+    fun d wb c e1 w1 e2 w2 e3 w3 =>
+    !((cl.distHist d).any <| fun ⟨wt, _,dist⟩ => 
+    dist.exists e1 w1 && (dist.exists e2 w2) && (dist.exists e3 w3) &&
+    (w1 + w2 + w3 + 1 ≤ wt)) ⟩
 
 instance {D: Type}[cl: DistHist D] : IsNew D := newFromHistory 
 
@@ -122,7 +131,7 @@ def iterateAux{D: Type}[DataUpdate D](stepEv : RecEvolverM D)(incWt accumWt card
                      | m + 1 => fun initDist d evo => 
                       do
                         let newDist ←  stepEv (accumWt + 1) cardBound initDist d evo
-                        let newData := dataUpdate newDist  (accumWt + 1) cardBound d
+                        let newData := dataUpdate initDist accumWt cardBound d
                         iterateAux stepEv m (accumWt + 1) cardBound newDist newData evo
 
 def iterate{D: Type}[DataUpdate D](stepEv : RecEvolverM D): RecEvolverM D := 
@@ -197,13 +206,13 @@ def applyEvolver(D: Type)[IsNew D] : EvolutionM D := fun wb c init d =>
        do Expr.isForall <| ← inferType e
     prodGenM applyOpt wb c funcs init (isNewPair d)
 
-def applyPairEvolver(D: Type)[IsNew D]: EvolutionM D := fun wb c init d =>
+def applyPairEvolver(D: Type)[cs : IsNew D]: EvolutionM D := fun wb c init d =>
   do
     let funcs ← init.filterM $ fun e => 
        do Expr.isForall <| ← inferType e
     tripleProdGenM applyPairOpt wb c funcs init init (
           fun wb c (f, x, y) (wf, wx, wy) => 
-            isNew d wb c f wf || isNew d wb c x wx || isNew d wb c y wy)
+            cs.isNewTriple d wb c f wf x wx y wy)
 
 def nameApplyEvolver(D: Type)[IsNew D][GetNameDist D]: EvolutionM D := fun wb c init d =>
   do
@@ -213,7 +222,7 @@ def nameApplyEvolver(D: Type)[IsNew D][GetNameDist D]: EvolutionM D := fun wb c 
             isNew d wb c e we)
     
 
-def nameApplyPairEvolver(D: Type)[IsNew D][GetNameDist D]: EvolutionM D := fun wb c init d =>
+def nameApplyPairEvolver(D: Type)[cs: IsNew D][GetNameDist D]: EvolutionM D := fun wb c init d =>
   do
     let names := nameDist d
     tripleProdGenM nameApplyPairOpt wb c names init init (
