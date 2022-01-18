@@ -66,3 +66,14 @@ def egMap := FinDist.fromList [(1, 2), (2, 3), (3, 4), (7, 1), (9, 1), (10, 3)]
 #eval (FinDist.update egMap 10 2).getOp 10
 
 #eval (FinDist.update egMap 6 2).getOp 6
+
+open Nat
+
+def one := succ zero
+def two := succ one
+
+#check evolve! ^[app] %[one, two] %{(succ, 0), (zero, 1)} !{} 5 100 
+
+#check evolve! ^[app] %[one, two] %{(succ, 0), (zero, 1)} 5 100 
+
+#check evolve! ^[app] %{(succ, 0), (zero, 1)}  5 100 

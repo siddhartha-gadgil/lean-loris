@@ -179,7 +179,7 @@ def EvolutionM.evolve{D: Type}[DataUpdate D](ev: EvolutionM D) : EvolutionM D :=
         ev.tautRec.iterate.fixedPoint
 
 def isleM {D: Type}(type: Expr)(evolve : EvolutionM D)(weightBound: Nat)(cardBound: Nat)
-      (init : ExprDist)(initData: D)(includePi : Bool := true)(excludeProofs: Bool := false)(excludeLambda : Bool := false): TermElabM (ExprDist) := 
+      (init : ExprDist)(initData: D)(includePi : Bool := true)(excludeProofs: Bool := false)(excludeLambda : Bool := false)(excludeConstants : Bool := false): TermElabM (ExprDist) := 
     withLocalDecl Name.anonymous BinderInfo.default (type)  $ fun x => 
         do
           let dist := init.insert x 0
@@ -187,7 +187,8 @@ def isleM {D: Type}(type: Expr)(evolve : EvolutionM D)(weightBound: Nat)(cardBou
           let evb ← evolve weightBound cardBound dist initData 
           let mut evl : ExprDist := FinDist.empty
           for (y, w) in evb.toArray do
-            unless excludeProofs && ((← inferType (← inferType y)).isProp) do
+            unless excludeProofs && ((← inferType (← inferType y)).isProp) ||
+            (excludeConstants && (init.exists y w)) do
               evl := FinDist.update evl y w
           let evt ← evl.filterM (fun x => liftMetaM (isType x))
           let exported ← evl.mapM (fun e => mkLambdaFVars #[x] e)
@@ -264,7 +265,7 @@ def eqIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve =>
     for (type, w) in eqTypes.toArray do
       if wb - w > 0 then
         let ic := c / (typesCum.findD w typesTop)
-        let isleDist ←   isleM type evolve (wb -w -1) ic init d false true
+        let isleDist ←   isleM type evolve (wb -w -1) ic init d false true false true
         isleDistMap := isleDistMap.insert type isleDist
     let mut finalDist: ExprDist := FinDist.empty
     for (eq, type, weq) in eqTriples do
@@ -367,10 +368,10 @@ def parseEvolverList : Syntax → TermElabM (RecEvolverM NameDist)
   | _ => throwIllFormedSyntax
 
 syntax (name:= evolution) 
-  "evolve!" evolver_list (expr_list)? expr_dist (name_dist)? num num ";" : term
+  "evolve!" evolver_list (expr_list)? expr_dist (name_dist)? num num  : term
 @[termElab evolution] def evolutionImpl : TermElab := fun s _ =>
 match s with
-| `(evolve! $evolvers $(goals?)? $initDist $(nameDist?)? $wb $card ;) => do
+| `(evolve! $evolvers $(goals?)? $initDist $(nameDist?)? $wb $card) => do
   let ev ← parseEvolverList evolvers
   let initDist ← parseExprMap initDist
   let initDist := FinDist.fromList (initDist.toList)
@@ -386,5 +387,3 @@ match s with
   let finalDist ← ev wb card initDist nameDist
   return ← (packWeighted finalDist.toList)
 | _ => throwIllFormedSyntax
-
-#check evolve! ^[app] %[Nat.succ Nat.zero] %{(Nat.succ, 0), (Nat.zero, 1)} !{} 5 100 ;
