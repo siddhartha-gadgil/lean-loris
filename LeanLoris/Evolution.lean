@@ -332,8 +332,9 @@ def refineWeight(weight? : Expr → TermElabM (Option Nat)):
 def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist => do
     for g in goals do
       logInfo m!"goal: {g}"
-      let statement ←  dist.findM? $ fun s => isDefEq s g
-      logInfo m!"statement: {statement}"
+      let statement ←  (dist.findM? $ fun s => isDefEq s g)
+      let statement ←  statement.mapM $ fun (e, w) => do (← whnf e, w) 
+      logInfo m!"statement: {← statement}"
       let proof ←  dist.findM? $ fun t => do isDefEq (← inferType t) g
       logInfo m!"proof: {proof}"
 
@@ -351,20 +352,50 @@ syntax "app" : evolver
 syntax "name-app": evolver
 syntax "binop": evolver
 syntax "name-binop": evolver
+syntax "rewrite": evolver
+syntax "rewrite-flip": evolver
+syntax "congr": evolver
+syntax "eq-isles": evolver
+syntax "all-isles": evolver
+syntax "func-dom-isles": evolver
+
+declare_syntax_cat evolve_transformer
+syntax "by-type" (num)?: evolve_transformer
 
 declare_syntax_cat evolver_list
-syntax "^[" evolver,* "]" : evolver_list
+syntax "^[" evolver,* (">>" evolve_transformer)? "]" : evolver_list
 
-def parseEvolver : Syntax → TermElabM (RecEvolverM NameDist)
-| `(evolver|app) => (applyEvolver NameDist).tautRec
-| `(evolver|name-app) => (nameApplyEvolver NameDist).tautRec
+def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
+| `(evolver|app) => (applyEvolver FullData).tautRec
+| `(evolver|name-app) => (nameApplyEvolver FullData).tautRec
+| `(evolver|binop) => (applyPairEvolver FullData).tautRec
+| `(evolver|name-binop) => (nameApplyPairEvolver FullData).tautRec
+| `(evolver|rewrite) => (rewriteEvolver true FullData).tautRec
+| `(evolver|rewrite-flip) => (rewriteEvolver false FullData).tautRec
+| `(evolver|congr) => (congrEvolver FullData).tautRec
+| `(evolver|eq-isles) => eqIsleEvolver FullData
+| `(evolver|all-isles) => allIsleEvolver FullData
+| `(evolver|func-dom-isles) => funcDomIsleEvolver FullData
 | stx => throwError m!"Evolver not implemented for {stx}"
 
-def parseEvolverList : Syntax → TermElabM (RecEvolverM NameDist)  
+def parseEvolverTrans : Syntax → TermElabM (ExprDist → TermElabM ExprDist)
+| `(evolve_transformer|by-type) => return weightByType 1
+| `(evolve_transformer|by-type $n) => do
+      let n ← parseNat n
+      return weightByType n
+| stx => throwError m!"Evolver transformer not implemented for {stx}"
+
+
+def parseEvolverList : Syntax → TermElabM (RecEvolverM FullData)  
   | `(evolver_list|^[$[$xs],*]) =>
     do
-          let m : Array (RecEvolverM NameDist) ←  xs.mapM <| fun s => parseEvolver s
-          return m.foldl (fun acc x => acc ++ x) (RecEvolverM.init NameDist)
+          let m : Array (RecEvolverM FullData) ←  xs.mapM <| fun s => parseEvolver s
+          return m.foldl (fun acc x => acc ++ x) (RecEvolverM.init FullData)
+  | `(evolver_list|^[$[$xs],* >> $tr]) =>
+    do
+          let m : Array (RecEvolverM FullData) ←  xs.mapM <| fun s => parseEvolver s
+          return (m.foldl (fun acc x => acc ++ x) (RecEvolverM.init FullData)).transformM 
+                    <| ← parseEvolverTrans tr
   | _ => throwIllFormedSyntax
 
 syntax (name:= evolution) 
@@ -384,6 +415,6 @@ match s with
   let ev := (ev.andThenM (logResults goals)).fixedPoint.evolve
   let wb ← parseNat wb
   let card ← parseNat card
-  let finalDist ← ev wb card initDist nameDist
+  let finalDist ← ev wb card initDist initData
   return ← (packWeighted finalDist.toList)
 | _ => throwIllFormedSyntax

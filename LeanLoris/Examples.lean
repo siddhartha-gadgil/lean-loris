@@ -77,3 +77,8 @@ def two := succ one
 #check evolve! ^[app] %[one, two] %{(succ, 0), (zero, 1)} 5 100 
 
 #check evolve! ^[app] %{(succ, 0), (zero, 1)}  5 100 
+
+def eveg(α : Type):= fun (f g: α →  α) (a: α) => 
+          evolve! ^[app] %[f, f a, f (f a)] %{(a, 1), (f, 0), (g, 1)} 5 100
+
+#reduce eveg
