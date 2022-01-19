@@ -112,6 +112,14 @@ def init(D: Type) : EvolutionM D := fun _ _ init _ => pure init
 def tautRec{D: Type}(ev: EvolutionM D) : RecEvolverM D := 
         fun wb cb init d _ => ev wb cb init d
 
+def andThenM{D: Type}(ev : EvolutionM D) 
+              (effect: ExprDist → TermElabM Unit) : EvolutionM D := 
+      fun wb cb initDist data  => 
+        do
+          let newDist ← ev wb cb initDist data 
+          effect newDist
+          newDist
+
 end EvolutionM
 
 
@@ -187,7 +195,7 @@ def isleM {D: Type}(type: Expr)(evolve : EvolutionM D)(weightBound: Nat)(cardBou
           let evb ← evolve weightBound cardBound dist initData 
           let mut evl : ExprDist := FinDist.empty
           for (y, w) in evb.toArray do
-            unless excludeProofs && ((← inferType (← inferType y)).isProp) ||
+            unless excludeProofs && (← isProof y) ||
             (excludeConstants && (init.exists y w)) do
               evl := FinDist.update evl y w
           let evt ← evl.filterM (fun x => liftMetaM (isType x))
@@ -334,9 +342,12 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
       logInfo m!"goal: {g}"
       let statement ←  (dist.findM? $ fun s => isDefEq s g)
       let statement ←  statement.mapM $ fun (e, w) => do (← whnf e, w) 
-      logInfo m!"statement: {← statement}"
-      let proof ←  dist.findM? $ fun t => do isDefEq (← inferType t) g
-      logInfo m!"proof: {proof}"
+      if ← isType g then
+        logInfo m!"statement generated: {← statement}"
+        let proof ←  dist.findM? $ fun t => do isDefEq (← inferType t) g
+        logInfo m!"proof generated: {proof}"
+      else
+        logInfo m!"term generated: {statement}"
 
 -- examples
 
@@ -412,7 +423,7 @@ match s with
   let initData : FullData := (nameDist, [])
   let goals? ← goals?.mapM $ fun goals => parseExprList goals
   let goals := goals?.getD #[]
-  let ev := (ev.andThenM (logResults goals)).fixedPoint.evolve
+  let ev := ev.fixedPoint.evolve.andThenM (logResults goals)
   let wb ← parseNat wb
   let card ← parseNat card
   let finalDist ← ev wb card initDist initData
