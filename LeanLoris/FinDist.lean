@@ -72,14 +72,8 @@ def weightCount{α : Type}[Hashable α][BEq α]
       ) HashMap.empty
 
 def cumulWeightCount{α : Type}[Hashable α][BEq α] 
-    (m: FinDist α) : HashMap Nat Nat := Id.run do
+    (m: FinDist α) (maxWeight : Nat) : HashMap Nat Nat := Id.run do
       let base := weightCount m
-      let maxWeight := base.toList.foldl (fun max (key, val) =>
-        if key > max then
-          key
-        else
-          max
-      ) 0
       let mut w := HashMap.empty
       for (key, val) in base.toArray do
         for j in [key: (maxWeight + 1)] do
@@ -110,9 +104,9 @@ def bound{α : Type}[Hashable α][BEq α]
     (m: FinDist α) (maxWeight card: Nat)  : FinDist α := Id.run do
   let mut w := FinDist.empty
   let cumul := cumulWeightCount m
-  let top := (cumul.toList.map (fun (k, v) => v)).maximum?.getD 1 
+  let top := ((cumul maxWeight).toList.map (fun (k, v) => v)).maximum?.getD 1 
   for (key, val) in m.toArray do
-    if val ≤ maxWeight && (cumul.findD val top ≤ card) then
+    if val ≤ maxWeight && ((cumul maxWeight).findD val top ≤ card) then
       w := w.insert key val
   return w
 

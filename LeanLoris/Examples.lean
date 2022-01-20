@@ -43,7 +43,7 @@ def egMap := FinDist.fromList [(1, 2), (2, 3), (3, 4), (7, 1), (9, 1), (10, 3)]
 
 #eval (egMap.weightCount).toArray
 
-#eval (egMap.cumulWeightCount).toArray
+#eval (egMap.cumulWeightCount 6).toArray
 
 #eval (egMap.filter (fun n => n % 2 = 1)).toArray
 

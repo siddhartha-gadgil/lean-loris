@@ -265,8 +265,8 @@ def eqIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve =>
           eqTypes := FinDist.update eqTypes α w
           eqs := FinDist.update eqs x w
           eqTriples := eqTriples.push (x, α, w)
-    let typesCum := eqTypes.cumulWeightCount
-    let eqsCum := eqs.cumulWeightCount
+    let typesCum := eqTypes.cumulWeightCount wb
+    let eqsCum := eqs.cumulWeightCount wb
     let typesTop := (typesCum.toList.map (fun (k, v) => v)).maximum?.getD 1
     let eqsTop := (typesCum.toList.map (fun (k, v) => v)).maximum?.getD 1
     let mut isleDistMap : HashMap Expr ExprDist := HashMap.empty
@@ -291,7 +291,7 @@ def allIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve =
   do
     let typeDist ← init.filterM $ fun e =>
         do return (← inferType e).isSort 
-    let typesCum := typeDist.cumulWeightCount
+    let typesCum := typeDist.cumulWeightCount wb
     let typesTop := (typesCum.toList.map (fun (k, v) => v)).maximum?.getD 1
     let mut finalDist: ExprDist := FinDist.empty
     for (type, w) in typeDist.toArray do
@@ -309,7 +309,7 @@ def funcDomIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evol
       | Expr.forallE _ t .. =>
           typeDist := FinDist.update typeDist (← whnf (← inferType t)) w
       | _ => ()
-    let typesCum := typeDist.cumulWeightCount
+    let typesCum := typeDist.cumulWeightCount wb
     let typesTop := (typesCum.toList.map (fun (k, v) => v)).maximum?.getD 1
     let mut finalDist: ExprDist := FinDist.empty
     for (type, w) in typeDist.toArray do

@@ -161,10 +161,10 @@ def prodGen{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     let mut w : FinDist γ := FinDist.empty
     if maxWeight > 0 then
       let fstBdd := fst.bound (maxWeight - 1) card
-      let fstCount := fstBdd.cumulWeightCount
+      let fstCount := fstBdd.cumulWeightCount maxWeight
       let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 1 
       for (key, val) in fstBdd.toArray do
-        let fstNum := fstCount.findD val fstTop
+        let fstNum := fstCount.findD val 0
         let sndCard := card / fstNum
         let sndBdd := snd.bound (maxWeight - val - 1) sndCard
         for (key2, val2) in sndBdd.toArray do
@@ -182,11 +182,11 @@ def prodGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     let mut w := FinDist.empty
     if maxWeight > 0 then
       let fstBdd := fst.bound (maxWeight - 1) card
-      let fstCount := fstBdd.cumulWeightCount
+      let fstCount := fstBdd.cumulWeightCount maxWeight
       let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 1 
       for (key, val) in fstBdd.toArray do
       if maxWeight - val > 0 then
-        let fstNum := fstCount.findD val fstTop
+        let fstNum := fstCount.findD val 0
         let sndCard := card / fstNum
         let sndBdd := snd.bound (maxWeight - val - 1) sndCard
         for (key2, val2) in sndBdd.toArray do
@@ -206,16 +206,16 @@ def tripleProdGen{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     let mut w := FinDist.empty
     if maxWeight > 0 then
       let fstBdd := fst.bound (maxWeight - 1) card
-      let fstCount := fstBdd.cumulWeightCount
+      let fstCount := fstBdd.cumulWeightCount maxWeight
       let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 1 
       for (key, val) in fstBdd.toArray do
-        let fstNum := fstCount.findD val fstTop
+        let fstNum := fstCount.findD val 0
         let sndCard := card / fstNum
         let sndBdd := snd.bound (maxWeight - val - 1) sndCard
-        let sndCount := sndBdd.cumulWeightCount
+        let sndCount := sndBdd.cumulWeightCount maxWeight
         let sndTop := (sndCount.toList.map (fun (k, v) => v)).maximum?.getD 1 
         for (key2, val2) in sndBdd.toArray do
-          let sndNum := sndCount.findD val2 sndTop
+          let sndNum := sndCount.findD val2 0
           let thirdCard := sndCard / sndNum
           let thirdBdd := third.bound (maxWeight - val - val2 - 1) thirdCard
           for (key3, val3) in thirdBdd.toArray do
@@ -235,18 +235,18 @@ def tripleProdGenM{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     let mut w := FinDist.empty
     if maxWeight > 0 then
       let fstBdd := fst.bound (maxWeight - 1) card
-      let fstCount := fstBdd.cumulWeightCount
+      let fstCount := fstBdd.cumulWeightCount maxWeight
       let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 1 
       for (key, val) in fstBdd.toArray do
       if maxWeight - val > 0 then
-        let fstNum := fstCount.findD val fstTop
+        let fstNum := fstCount.findD val 0
         let sndCard := card / fstNum
         let sndBdd := snd.bound (maxWeight - val - 1) sndCard
-        let sndCount := sndBdd.cumulWeightCount
+        let sndCount := sndBdd.cumulWeightCount maxWeight
         let sndTop := (sndCount.toList.map (fun (k, v) => v)).maximum?.getD 1 
         for (key2, val2) in sndBdd.toArray do
         if maxWeight - val - val2 > 0 then
-          let sndNum := sndCount.findD val2 sndTop
+          let sndNum := sndCount.findD val2 0
           let thirdCard := sndCard / sndNum
           let thirdBdd := third.bound (maxWeight - val - val2 - 1) thirdCard
           for (key3, val3) in thirdBdd.toArray do
@@ -257,3 +257,7 @@ def tripleProdGenM{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
               | none => ()
     return w
 
+def propagateEqualities (init: ExprDist) : TermElabM ExprDist :=
+do
+
+    return sorry
