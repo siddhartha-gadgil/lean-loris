@@ -257,7 +257,46 @@ def tripleProdGenM{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
               | none => ()
     return w
 
-def propagateEqualities (init: ExprDist) : TermElabM ExprDist :=
+def propagateEqualities (init: ExprDist)(maxWeight card: Nat) : TermElabM ExprDist :=
 do
-
-    return sorry
+    let mut withLhs : HashMap Expr ExprDist := HashMap.empty
+    let mut withRhs : HashMap Expr ExprDist := HashMap.empty
+    let mut eqs : ExprDist := init
+    for (e, w) in init.toArray do
+      match (← inferType e).eq? with
+      | none => ()
+      | some (α , lhs, rhs) => 
+        unless ← isDefEq lhs rhs do
+          withLhs := withLhs.insert lhs <| 
+                      (withLhs.findD lhs (HashMap.empty)).update e w 
+          withRhs := withRhs.insert rhs <| 
+                      (withRhs.findD rhs (HashMap.empty)).update e w
+          let flip ← whnf (← mkAppM `Eq.symm #[e]) 
+          withRhs := withRhs.insert lhs <| 
+                      (withRhs.findD lhs (HashMap.empty)).update flip w 
+          withLhs := withLhs.insert rhs <| 
+                      (withLhs.findD rhs (HashMap.empty)).update flip w
+          eqs := eqs.update flip w
+    let pairCount := 
+          withLhs.toArray.map $ fun (e, d) => 
+                (e, FinDist.weightCount d, FinDist.weightCount (withRhs.findD e d))
+    let mut cumPairCount : HashMap Nat Nat := HashMap.empty
+    for (e, lm, rm) in pairCount do
+      for (e1, w1) in lm.toArray do
+        for (e2, w2) in rm.toArray do
+          let w := w1 + w2 + 1
+          for j in [w:maxWeight + 1] do
+              cumPairCount := cumPairCount.insert j <| (cumPairCount.findD j 0) + 1
+    for (e, ld) in withLhs.toArray do
+      let rd := withRhs.findD e HashMap.empty
+      for (eq1, w1) in rd.toArray do
+        for (eq2, w2) in ld.toArray do
+          let w := w1 + w2 + 1
+          if w ≤ maxWeight && (cumPairCount.findD w 0) ≤ card then
+            let eq3 ←  mkAppM `Eq.trans #[eq1, eq2]
+            match (← inferType eq3).eq? with
+            | none => ()
+            | some (_, lhs, rhs) => 
+                unless ← isDefEq lhs rhs do
+                  eqs := eqs.update eq3 w
+    return eqs
