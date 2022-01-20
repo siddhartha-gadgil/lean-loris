@@ -301,6 +301,69 @@ def allIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve =
         finalDist := finalDist ++ isleDist
     return finalDist
 
+def propagateEqualities (D: Type)[IsNew D] : EvolutionM D := fun wb card init d => 
+do
+    let mut withLhs : HashMap Expr ExprDist := HashMap.empty
+    let mut withRhs : HashMap Expr ExprDist := HashMap.empty
+    let mut eqs : ExprDist := init
+    let mut fromFlip: HashMap Expr Expr := HashMap.empty
+    for (e, w) in init.toArray do
+      match (← inferType e).eq? with
+      | none => ()
+      | some (α , lhs, rhs) => 
+        unless ← isDefEq lhs rhs do
+          withLhs := withLhs.insert lhs <| 
+                      (withLhs.findD lhs (HashMap.empty)).update e w 
+          withRhs := withRhs.insert rhs <| 
+                      (withRhs.findD rhs (HashMap.empty)).update e w
+          let flip ← whnf (← mkAppM `Eq.symm #[e]) 
+          withRhs := withRhs.insert lhs <| 
+                      (withRhs.findD lhs (HashMap.empty)).update flip w 
+          withLhs := withLhs.insert rhs <| 
+                      (withLhs.findD rhs (HashMap.empty)).update flip w
+          if isNew d wb card e w then
+            fromFlip := fromFlip.insert flip e
+            eqs := eqs.update flip w
+    let pairCount := 
+          withLhs.toArray.map $ fun (e, d) => 
+                (e, FinDist.weightCount d, FinDist.weightCount (withRhs.findD e d))
+    let mut cumPairCount : HashMap Nat Nat := HashMap.empty
+    for (e, lm, rm) in pairCount do
+      for (e1, w1) in lm.toArray do
+        for (e2, w2) in rm.toArray do
+          let w := w1 + w2 + 1
+          for j in [w:wb + 1] do
+              cumPairCount := cumPairCount.insert j <| (cumPairCount.findD j 0) + 1
+    for (e, ld) in withLhs.toArray do
+      let rd := withRhs.findD e HashMap.empty
+      for (eq1, w1) in rd.toArray do
+        for (eq2, w2) in ld.toArray do
+          let w := w1 + w2 + 1
+          if w ≤ wb && (cumPairCount.findD w 0) ≤ card then
+          let newPair := 
+            match fromFlip.find? eq1, fromFlip.find? eq2 with 
+            | none, none => isNewPair d wb card (eq1, eq2) (w1, w2)
+            | some e1, some e2 =>
+                  isNewPair d wb card (eq1, eq2) (w1, w2) && 
+                  isNewPair d wb card (eq1, e2) (w1, w2) &&
+                  isNewPair d wb card (e1, eq2) (w1, w2) &&
+                  isNewPair d wb card (e1, e2) (w1, w2)
+            | none, some e2 => 
+                  isNewPair d wb card (eq1, eq2) (w1, w2) && 
+                  isNewPair d wb card (eq1, e2) (w1, w2)
+            | some e1, none => 
+                  isNewPair d wb card (eq1, eq2) (w1, w2) &&
+                  isNewPair d wb card (e1, eq2) (w1, w2)
+          if newPair then
+            let eq3 ←  mkAppM `Eq.trans #[eq1, eq2]
+            match (← inferType eq3).eq? with
+            | none => ()
+            | some (_, lhs, rhs) => 
+                unless ← isDefEq lhs rhs do
+                  eqs := eqs.update eq3 w
+    return eqs
+
+
 def funcDomIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve => 
   do
     let mut typeDist := FinDist.empty
@@ -369,6 +432,7 @@ syntax "congr": evolver
 syntax "eq-isles": evolver
 syntax "all-isles": evolver
 syntax "func-dom-isles": evolver
+syntax "eq-closure": evolver
 
 declare_syntax_cat evolve_transformer
 syntax "by-type" (num)?: evolve_transformer
@@ -387,6 +451,7 @@ def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
 | `(evolver|eq-isles) => eqIsleEvolver FullData
 | `(evolver|all-isles) => allIsleEvolver FullData
 | `(evolver|func-dom-isles) => funcDomIsleEvolver FullData
+| `(evolver|eq-closure) => (propagateEqualities FullData).tautRec
 | stx => throwError m!"Evolver not implemented for {stx}"
 
 def parseEvolverTrans : Syntax → TermElabM (ExprDist → TermElabM ExprDist)
