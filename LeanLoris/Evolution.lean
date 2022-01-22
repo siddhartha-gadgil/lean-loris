@@ -491,5 +491,8 @@ match s with
   let wb ← parseNat wb
   let card ← parseNat card
   let finalDist ← ev wb card initDist initData
-  return ← (packWeighted finalDist.toList)
+  let reportDist ← finalDist.filterM <| fun e => do
+    goals.anyM $ fun g => do
+      return (← isDefEq e g) || (← isDefEq (← inferType e) g)
+  return ← (ppackWeighted reportDist.toList)
 | _ => throwIllFormedSyntax
