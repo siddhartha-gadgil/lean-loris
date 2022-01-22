@@ -255,31 +255,28 @@ def congrEvolver(D: Type)[IsNew D] : EvolutionM D := fun wb c init d =>
 
 def eqIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve => 
   do
-    let mut eqTypes: ExprDist := FinDist.empty
-    let mut eqs: ExprDist := FinDist.empty
-    let mut eqTriples : Array (Expr × Expr × Nat) := #[]
-    for (x, w) in init.toArray do
-      match (← inferType x).eq? with
+    let mut eqTypes: ExprDist := FinDist.empty -- lhs types, (minimum) weights
+    let mut eqs: ExprDist := FinDist.empty -- equalities, weights
+    let mut eqTriples : Array (Expr × Expr × Nat) := #[] -- equality, lhs type, weight
+    for (exp, w) in init.toArray do
+      match (← inferType exp).eq? with
       | none => ()
       | some (α, lhs, rhs) =>
           eqTypes := FinDist.update eqTypes α w
-          eqs := FinDist.update eqs x w
-          eqTriples := eqTriples.push (x, α, w)
-    let typesCum := eqTypes.cumulWeightCount wb
+          eqs := FinDist.update eqs exp w
+          eqTriples := eqTriples.push (exp, α, w)
     let eqsCum := eqs.cumulWeightCount wb
-    let typesTop := (typesCum.toList.map (fun (k, v) => v)).maximum?.getD 1
-    let eqsTop := (typesCum.toList.map (fun (k, v) => v)).maximum?.getD 1
     let mut isleDistMap : HashMap Expr ExprDist := HashMap.empty
     for (type, w) in eqTypes.toArray do
       if wb - w > 0 then
-        let ic := c / (typesCum.findD w typesTop)
+        let ic := c / (eqsCum.findD w 0) -- should not be 0
         let isleDist ←   isleM type evolve (wb -w -1) ic init d false true false true
         isleDistMap := isleDistMap.insert type isleDist
     let mut finalDist: ExprDist := FinDist.empty
     for (eq, type, weq) in eqTriples do
       if wb - weq > 0 then
         let isleDistBase := isleDistMap.findD type FinDist.empty
-        let xc := c / (eqsCum.findD weq eqsTop)
+        let xc := c / (eqsCum.findD weq 0) -- should not be 0
         let isleDist := isleDistBase.bound (wb -weq -1) xc
         for (f, wf) in isleDist.toArray do
           match ← congrArgOpt f eq with 
@@ -301,7 +298,7 @@ def allIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve =
         finalDist := finalDist ++ isleDist
     return finalDist
 
-def propagateEqualities (D: Type)[IsNew D] : EvolutionM D := fun wb card init d => 
+def eqSymmTransEvolver (D: Type)[IsNew D] : EvolutionM D := fun wb card init d => 
 do
     let mut withLhs : HashMap Expr ExprDist := HashMap.empty
     let mut withRhs : HashMap Expr ExprDist := HashMap.empty
@@ -316,7 +313,8 @@ do
                       (withLhs.findD lhs (HashMap.empty)).update e w 
           withRhs := withRhs.insert rhs <| 
                       (withRhs.findD rhs (HashMap.empty)).update e w
-          let flip ← whnf (← mkAppM `Eq.symm #[e]) 
+          let flip ← whnf (← mkAppM ``Eq.symm #[e]) 
+          Term.synthesizeSyntheticMVarsNoPostponing
           withRhs := withRhs.insert lhs <| 
                       (withRhs.findD lhs (HashMap.empty)).update flip w 
           withLhs := withLhs.insert rhs <| 
@@ -355,7 +353,8 @@ do
                   isNewPair d wb card (eq1, eq2) (w1, w2) &&
                   isNewPair d wb card (e1, eq2) (w1, w2)
           if newPair then
-            let eq3 ←  mkAppM `Eq.trans #[eq1, eq2]
+            let eq3 ←  mkAppM ``Eq.trans #[eq1, eq2]
+            Term.synthesizeSyntheticMVarsNoPostponing
             match (← inferType eq3).eq? with
             | none => ()
             | some (_, lhs, rhs) => 
@@ -451,7 +450,7 @@ def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
 | `(evolver|eq-isles) => eqIsleEvolver FullData
 | `(evolver|all-isles) => allIsleEvolver FullData
 | `(evolver|func-dom-isles) => funcDomIsleEvolver FullData
-| `(evolver|eq-closure) => (propagateEqualities FullData).tautRec
+| `(evolver|eq-closure) => (eqSymmTransEvolver FullData).tautRec
 | stx => throwError m!"Evolver not implemented for {stx}"
 
 def parseEvolverTrans : Syntax → TermElabM (ExprDist → TermElabM ExprDist)

@@ -6,28 +6,6 @@ open Lean Meta Elab Term Std
 
 open Nat
 
-partial def exprNat : Expr → TermElabM Nat := fun expr => 
-  do
-    let mvar ←  mkFreshExprMVar (some (mkConst ``Nat))
-    let sExp := mkApp (mkConst ``Nat.succ) mvar
-    if ← isDefEq sExp expr then
-      Term.synthesizeSyntheticMVarsNoPostponing
-      let prev ← exprNat (← whnf mvar)
-      return succ prev
-    else 
-    if ← isDefEq (mkConst `Nat.zero) expr then
-      return zero
-    else
-      throwError m!"{expr} not a Nat expression"
-
-#eval exprNat (ToExpr.toExpr 3)
-
-def parseNat : Syntax → TermElabM Nat := fun s => 
-  do
-    let expr ← elabTerm s none
-    exprNat expr
-
-
 namespace ProdSeq
 def splitPProd? (expr: Expr) : TermElabM (Option (Expr × Expr)) :=
   do
