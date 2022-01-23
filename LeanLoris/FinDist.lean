@@ -150,9 +150,16 @@ namespace ExprDist
 
 def updateExprM
     (m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist := 
-  match m.find? x with
-  | some v => return if d < v then m.insert x d else m
-  | none => return m.insert x d
+  do
+  if (← m.toArray.anyM (fun (k, v) => do v ≤ d && (← isDefEq x k) )) then
+    return m
+  else
+    let type ← inferType x
+    if (type.isProp) then
+      if (← m.toArray.anyM (fun (k, v) => do v ≤ d && (← isDefEq type (← inferType k)) )) then return m
+      else return m.insert x d
+    else
+      return m.insert x d 
 
 def updateExpr
     (m: ExprDist) (x: Expr) (d: Nat) : ExprDist := 

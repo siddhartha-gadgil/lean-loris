@@ -322,7 +322,7 @@ do
                       (withLhs.findD rhs (HashMap.empty)).update flip w
           if isNew d wb card e w then
             fromFlip := fromFlip.insert flip e
-            eqs := eqs.update flip w
+            eqs ←  eqs.updateExprM flip w
     let pairCount := 
           withLhs.toArray.map $ fun (e, d) => 
                 (e, FinDist.weightCount d, FinDist.weightCount (withRhs.findD e d))
@@ -360,7 +360,7 @@ do
             | none => ()
             | some (_, lhs, rhs) => 
                 unless ← isDefEq lhs rhs do
-                  eqs := eqs.update eq3 w
+                  eqs ←  eqs.updateExprM eq3 w
     return eqs
 
 
