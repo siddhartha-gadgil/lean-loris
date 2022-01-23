@@ -148,10 +148,19 @@ def FinDist.exists{α : Type}[Hashable α][BEq α]
 
 namespace ExprDist
 
+def updateExprM
+    (m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist := 
+  match m.find? x with
+  | some v => return if d < v then m.insert x d else m
+  | none => return m.insert x d
+
 def updateExpr
     (m: ExprDist) (x: Expr) (d: Nat) : ExprDist := 
   match m.find? x with
   | some v => if d < v then m.insert x d else m
   | none => m.insert x d
 
+
 end ExprDist
+
+#check @Array.anyM

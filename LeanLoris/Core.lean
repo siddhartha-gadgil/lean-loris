@@ -216,7 +216,7 @@ def prodGenM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
           if newPair maxWeight card (key, key2) (val, val2) then
             match ← compose key key2 with
             | some key3 =>
-                w := ExprDist.updateExpr w key3 (val + val2 + 1)
+                w ←  ExprDist.updateExprM w key3 (val + val2 + 1)
             | none => ()
           -- else logWarning m!"newPair failed {val} {val2} ; {maxWeight}"
     return w
@@ -276,7 +276,7 @@ def tripleProdGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
             if newTriple maxWeight card (key, key2, key3) (val, val2, val3) then
               match ← compose key key2 key3 with
               | some key3 =>
-                  w := ExprDist.updateExpr w key3 (val + val2 + val3 + 1)
+                  w ←  ExprDist.updateExprM w key3 (val + val2 + val3 + 1)
               | none => ()
     return w
 
