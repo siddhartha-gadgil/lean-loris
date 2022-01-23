@@ -255,6 +255,7 @@ def congrEvolver(D: Type)[IsNew D] : EvolutionM D := fun wb c init d =>
 
 def eqIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve => 
   do
+    logInfo m!"isle called: weight-bound {wb}, cardinality: {c}"
     let mut eqTypes: ExprDist := FinDist.empty -- lhs types, (minimum) weights
     let mut eqs: ExprDist := FinDist.empty -- equalities, weights
     let mut eqTriples : Array (Expr × Expr × Nat) := #[] -- equality, lhs type, weight
@@ -281,7 +282,7 @@ def eqIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve =>
         for (f, wf) in isleDist.toArray do
           match ← congrArgOpt f eq with 
           | none => ()
-          | some y => finalDist := finalDist.insert y (wf + weq)
+          | some y => finalDist := finalDist.insert y (wf + weq + 1)
     return finalDist
 
 def allIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve => 
@@ -496,3 +497,6 @@ match s with
       return (← isDefEq e g) || (← isDefEq (← inferType e) g)
   return ← (ppackWeighted reportDist.toList)
 | _ => throwIllFormedSyntax
+
+def syn: MacroM Syntax :=  `(evolver|app)
+#check syn.run

@@ -18,6 +18,7 @@ theorem CzSlOly : (∀ a b : M, (a * b) * b = a) → (∀ a b : M, a * (a * b) =
                     congrArg (fun x => x * m) lem5 
               rw [lem3] at lem6
               assumption 
+set_option maxHeartbeats 2000000
 
 def mul(m n: M) := m * n
 
@@ -28,6 +29,8 @@ def exploreProofs(ax1 : ∀ a b : M, (a * b) * b = a)(ax2 : ∀ a b : M, a * (a 
                   let lem3! := ((m * n) * m) * m = m * n  
                   let seek123 := evolve! ^[app, name-app] %[lem1!, lem2!, lem3!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0)} !{(mul, 0)} 5 1000
                   let seekmn := evolve! ^[app, name-app] %[m * n] %{(m, 0), (n, 0)} !{(mul, 0)} 5 1000
-                  let seek123mn := evolve! ^[app, name-app] %[lem1!, lem2!, lem3!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0), (m *n, 0)} !{(mul, 0), (Eq, 0)} 4 1000
+                  let seek123mn := evolve! ^[app, name-app, name-binop, binop] %[lem1!, lem2!, lem3!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0), (m *n, 0)} !{(mul, 0), (Eq, 0)} 5 1000
+                  let lem4! := (m * n) * ((m * n) * n) = (m * n) * m
+                  let seek4 := evolve! ^[app, name-app, name-binop, eq-isles, binop] %[lem1!, lem4!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0), (m *n, 0)} !{(mul, 0), (Eq, 0)} 4 1000
                   ()
              
