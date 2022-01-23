@@ -197,7 +197,7 @@ def isleM {D: Type}(type: Expr)(evolve : EvolutionM D)(weightBound: Nat)(cardBou
           for (y, w) in evb.toArray do
             unless excludeProofs && (← isProof y) ||
             (excludeConstants && (init.exists y w)) do
-              evl := FinDist.update evl y w
+              evl := ExprDist.updateExpr evl y w
           let evt ← evl.filterM (fun x => liftMetaM (isType x))
           let exported ← evl.mapM (fun e => mkLambdaFVars #[x] e)
           let exportedPi ← evt.mapM (fun e => mkForallFVars #[x] e)
@@ -263,8 +263,8 @@ def eqIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve =>
       match (← inferType exp).eq? with
       | none => ()
       | some (α, lhs, rhs) =>
-          eqTypes := FinDist.update eqTypes α w
-          eqs := FinDist.update eqs exp w
+          eqTypes := ExprDist.updateExpr eqTypes α w
+          eqs := ExprDist.updateExpr eqs exp w
           eqTriples := eqTriples.push (exp, α, w)
     let eqsCum := eqs.cumulWeightCount wb
     let mut isleDistMap : HashMap Expr ExprDist := HashMap.empty
@@ -370,7 +370,7 @@ def funcDomIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evol
     for (x, w) in init.toArray do
       match ← whnf (← inferType x) with
       | Expr.forallE _ t .. =>
-          typeDist := FinDist.update typeDist (← whnf (← inferType t)) w
+          typeDist := ExprDist.updateExpr typeDist (← whnf (← inferType t)) w
       | _ => ()
     let typesCum := typeDist.cumulWeightCount wb
     let typesTop := (typesCum.toList.map (fun (k, v) => v)).maximum?.getD 1
@@ -387,7 +387,7 @@ def weightByType(cost: Nat): ExprDist → TermElabM ExprDist := fun init => do
   for (x, w) in init.toArray do
     let α := ← whnf (← inferType x)
     match init.find? α   with
-    | some w  => finalDist := FinDist.update finalDist x (w + cost)
+    | some w  => finalDist := ExprDist.updateExpr finalDist x (w + cost)
     | _ => ()
   return finalDist
 
@@ -396,7 +396,7 @@ def refineWeight(weight? : Expr → TermElabM (Option Nat)):
   let mut finalDist := init
   for (x, w) in init.toArray do
     match ← weight? x   with
-    | some w  => finalDist := FinDist.update finalDist x (w)
+    | some w  => finalDist := ExprDist.updateExpr finalDist x (w)
     | _ => ()
   return finalDist
 

@@ -82,3 +82,6 @@ def eveg(α : Type):= fun (f g: α →  α) (a: α) =>
           evolve! ^[app] %[f, f a, f (f a), α] %{(a, 1), (f, 0), (g, 1)} 5 100
 
 #reduce eveg
+
+def egEqProp(a b c: Nat)(p: a = b)(q: a = c) :=
+    evolve! ^[eq-closure] %[a = c] %{(p, 0), (q, 0)} 4 1000

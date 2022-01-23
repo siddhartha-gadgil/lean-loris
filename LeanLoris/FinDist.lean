@@ -145,3 +145,13 @@ def FinDist.exists{α : Type}[Hashable α][BEq α]
     match m.find? elem with
     | some v => v ≤ weight
     | none => false
+
+namespace ExprDist
+
+def updateExpr
+    (m: ExprDist) (x: Expr) (d: Nat) : ExprDist := 
+  match m.find? x with
+  | some v => if d < v then m.insert x d else m
+  | none => m.insert x d
+
+end ExprDist

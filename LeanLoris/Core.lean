@@ -177,11 +177,11 @@ def isWhiteListed (declName : Name) : TermElabM Bool := do
 
 -- generating distributions by combining
 
-def prodGen{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
-    [Hashable γ][BEq γ](fst: FinDist α)(snd: FinDist β)
-    (maxWeight card: Nat)(compose: α → β → Option γ)
-    (newPair: α × β → Bool) : FinDist γ  := Id.run do 
-    let mut w : FinDist γ := FinDist.empty
+def prodGen{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
+    (fst: FinDist α)(snd: FinDist β)
+    (maxWeight card: Nat)(compose: α → β → Option Expr)
+    (newPair: α × β → Bool) : ExprDist  := Id.run do 
+    let mut w : ExprDist := FinDist.empty
     if maxWeight > 0 then
       let fstBdd := fst.bound (maxWeight - 1) card
       let fstCount := fstBdd.cumulWeightCount maxWeight
@@ -198,10 +198,10 @@ def prodGen{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
             | none => ()
     return w
 
-def prodGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
-    [Hashable γ][BEq γ](compose: α → β → TermElabM (Option γ))
+def prodGenM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
+    (compose: α → β → TermElabM (Option Expr))
     (maxWeight card: Nat)(fst: FinDist α)(snd: FinDist β)
-    (newPair: Nat → Nat →  α × β → Nat × Nat → Bool) : TermElabM (FinDist γ) := do 
+    (newPair: Nat → Nat →  α × β → Nat × Nat → Bool) : TermElabM (ExprDist) := do 
     let mut w := FinDist.empty
     if maxWeight > 0 then
       let fstBdd := fst.bound (maxWeight - 1) card
@@ -216,16 +216,16 @@ def prodGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
           if newPair maxWeight card (key, key2) (val, val2) then
             match ← compose key key2 with
             | some key3 =>
-                w := FinDist.update w key3 (val + val2 + 1)
+                w := ExprDist.updateExpr w key3 (val + val2 + 1)
             | none => ()
           -- else logWarning m!"newPair failed {val} {val2} ; {maxWeight}"
     return w
 
-def tripleProdGen{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
-    [Hashable γ][BEq γ][Hashable δ][BEq δ](compose: α → β → γ  → Option δ)
+def tripleProdGen{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
+    [Hashable γ][BEq γ](compose: α → β → γ  → Option Expr)
     (maxWeight card: Nat)
     (fst: FinDist α)(snd: FinDist β)(third : FinDist γ)
-    (newTriple: Nat → Nat →  α × β × γ → Nat × Nat × Nat  → Bool) : FinDist δ := Id.run do 
+    (newTriple: Nat → Nat →  α × β × γ → Nat × Nat × Nat  → Bool) : ExprDist := Id.run do 
     let mut w := FinDist.empty
     if maxWeight > 0 then
       let fstBdd := fst.bound (maxWeight - 1) card
@@ -245,16 +245,16 @@ def tripleProdGen{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
             if newTriple maxWeight card (key, key2, key3) (val, val2, val3) then
               match compose key key2 key3 with
               | some key3 =>
-                  w := FinDist.update w key3 (val + val2 + val3 + 1)
+                  w := ExprDist.updateExpr w key3 (val + val2 + val3 + 1)
               | none => ()
     return w
 
-def tripleProdGenM{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
-    [Hashable γ][BEq γ][Hashable δ][BEq δ]
-    (compose: α → β → γ  → TermElabM (Option δ))
+def tripleProdGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
+    [Hashable γ][BEq γ]
+    (compose: α → β → γ  →  TermElabM (Option Expr))
     (maxWeight card: Nat)
     (fst: FinDist α)(snd: FinDist β)(third : FinDist γ)
-    (newTriple: Nat → Nat →  α × β × γ → Nat × Nat × Nat → Bool) : TermElabM <| FinDist δ := do 
+    (newTriple: Nat → Nat →  α × β × γ → Nat × Nat × Nat → Bool) : TermElabM ExprDist := do 
     let mut w := FinDist.empty
     if maxWeight > 0 then
       let fstBdd := fst.bound (maxWeight - 1) card
@@ -276,7 +276,7 @@ def tripleProdGenM{α β γ δ : Type}[Hashable α][BEq α][Hashable β][BEq β]
             if newTriple maxWeight card (key, key2, key3) (val, val2, val3) then
               match ← compose key key2 key3 with
               | some key3 =>
-                  w := FinDist.update w key3 (val + val2 + val3 + 1)
+                  w := ExprDist.updateExpr w key3 (val + val2 + val3 + 1)
               | none => ()
     return w
 
