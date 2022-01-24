@@ -501,3 +501,11 @@ match s with
 
 def syn: MacroM Syntax :=  `(evolver|app)
 #check syn.run
+
+def syn2: TermElabM Syntax :=  `(evolver_list|^[app, name-app])
+#check syn2.run
+def lstfromsyn:  TermElabM (RecEvolverM FullData)  :=  do
+        let syn ← syn2
+        parseEvolverList syn
+
+#check lstfromsyn
