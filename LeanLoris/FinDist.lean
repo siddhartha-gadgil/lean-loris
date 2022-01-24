@@ -15,7 +15,7 @@ open Nat
 -/
 abbrev FinDist (α : Type)[Hashable α][BEq α] := HashMap α Nat 
 
-abbrev ExprDist := FinDist Expr 
+
 
 abbrev NameDist := FinDist Name
 
@@ -146,28 +146,57 @@ def FinDist.exists{α : Type}[Hashable α][BEq α]
     | some v => v ≤ weight
     | none => false
 
+structure ExprDist where
+  terms : FinDist Expr
+  proofs: HashMap Expr (Expr × Nat)  
 namespace ExprDist
+
+def empty : ExprDist := ⟨HashMap.empty, HashMap.empty⟩
 
 def updateExprM
     (m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist := 
   do
-  if (← m.toArray.anyM (fun (k, v) => do v ≤ d && (← isDefEq x k) )) then
-    return m
-  else
-    let type ← inferType x
-    if (type.isProp) then
-      if (← m.toArray.anyM (fun (k, v) => do v ≤ d && (← isDefEq type (← inferType k)) )) then return m
-      else return m.insert x d
-    else
-      return m.insert x d 
+    if ← isProof x then
+      let prop ← whnf (← inferType x)
+      Term.synthesizeSyntheticMVarsNoPostponing
+      match m.proofs.find? prop with
+      | some (p, n) =>
+        if d < n then
+          return ⟨(m.terms.erase p).insert x d, m.proofs.insert prop (x, d)⟩
+        else
+          return m 
+      | none => 
+        return ⟨m.terms.insert x d, m.proofs.insert prop (x, d)⟩
+    else 
+      match m.terms.find? x with
+      | some v => if d < v then return ⟨m.terms.insert x d, m.proofs⟩ else m
+      | none => return ⟨m.terms.insert x d, m.proofs⟩
 
-def updateExpr
-    (m: ExprDist) (x: Expr) (d: Nat) : ExprDist := 
-  match m.find? x with
-  | some v => if d < v then m.insert x d else m
-  | none => m.insert x d
 
+def mapM(dist: ExprDist)(f: Expr → TermElabM Expr) : TermElabM ExprDist := do
+  let pfList ← dist.proofs.toList.mapM <| fun (p, (e, n)) => do
+    let e ← f e
+    let p ← f p
+    return (p, (e, n))
+  let pfMap : HashMap Expr (Expr × Nat) := 
+      pfList.foldl (fun m (p, (e, n)) => m.insert p (e, n)) HashMap.empty
+  return ⟨← dist.terms.mapM f, pfMap⟩
+
+def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
+    let mut dist := fst
+    for (key, val) in snd.terms.toArray do
+      dist ←  dist.updateExprM key val
+    return dist
+
+instance : HAppend ExprDist ExprDist (TermElabM ExprDist) := 
+  ⟨ExprDist.mergeM⟩
+
+def fromTerms(dist: FinDist Expr): TermElabM ExprDist := do
+  dist.foldM  (fun m e n => m.updateExprM e n) ExprDist.empty
 
 end ExprDist
+
+def ExprDist.exists(dist: ExprDist)(elem: Expr)(weight: Nat) : Bool :=
+  dist.terms.exists elem weight
 
 #check @Array.anyM

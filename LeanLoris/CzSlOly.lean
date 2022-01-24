@@ -18,7 +18,7 @@ theorem CzSlOly : (∀ a b : M, (a * b) * b = a) → (∀ a b : M, a * (a * b) =
                     congrArg (fun x => x * m) lem5 
               rw [lem3] at lem6
               assumption 
-set_option maxHeartbeats 100000000
+set_option maxHeartbeats 10000000
 
 def mul(m n: M) := m * n
 

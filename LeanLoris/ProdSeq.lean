@@ -309,8 +309,8 @@ def saveExprDist (name: Name)(es: ExprDist) : TermElabM (Unit) := do
   let fvIds ← fvarIds.filterM $ fun fid => isWhiteListed ((lctx.get! fid).userName) 
   let fvars := fvIds.map mkFVar
   Term.synthesizeSyntheticMVarsNoPostponing 
-  let espair ← es.mapM (fun e => do Term.levelMVarToParam (← instantiateMVars e))
-  let es ← espair.mapM (fun (e, _) => do whnf <| ←  mkLambdaFVars fvars e)
+  let espair ← es.mapM (fun e => do (← Term.levelMVarToParam (← instantiateMVars e)).1)
+  let es ← espair.mapM (fun e => do whnf <| ←  mkLambdaFVars fvars e)
   logInfo m!"saving relative to: {fvars}"
   let varPack ← ProdSeq.lambdaPack fvars.toList
   let cache ← exprDistCache.get

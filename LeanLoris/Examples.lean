@@ -19,18 +19,18 @@ syntax (name:=genOne) "gen1!" term : term
       for (x, w) in m.toArray do
         logInfo m!"{x} : {w}" 
       let m1 ← prodGenM  applyOpt 4 100 m m (fun _ _ _ _ => true)
-      for (x, w) in m1.toArray do
+      for (x, w) in m1.terms.toArray do
         logInfo m!"{x} : {w}" 
-      let m2 ← egEvolver  4 100 m ()
-      for (x, w) in m2.toArray do
+      let m2 ← egEvolver  4 100 ⟨m, HashMap.empty⟩ ()
+      for (x, w) in m2.terms.toArray do
         logInfo m!"{x} : {w}" 
       logInfo "Evolved state"
-      let m3 ← (egEvolver).evolve 12 100 m ()
-      for (x, w) in m3.toArray do
+      let m3 ← (egEvolver).evolve 12 100 ⟨m, HashMap.empty⟩ ()
+      for (x, w) in m3.terms.toArray do
         logInfo m!"{x} : {w}" 
       logInfo "Full Evolved state"
-      let m4 ← (egEvolverFull).evolve 12 100 m (HashMap.empty, [])
-      for (x, w) in m4.toArray do
+      let m4 ← (egEvolverFull).evolve 12 100 ⟨m, HashMap.empty⟩ (HashMap.empty, [])
+      for (x, w) in m4.terms.toArray do
         logInfo m!"{x} : {w}" 
       return x
     | _ => throwIllFormedSyntax
