@@ -172,6 +172,8 @@ def updateExprM
       | some v => if d < v then return ⟨m.terms.insert x d, m.proofs⟩ else m
       | none => return ⟨m.terms.insert x d, m.proofs⟩
 
+  def addProof(m: ExprDist)(pf prop : Expr)(w: Nat) : ExprDist :=
+    ⟨m.terms.insert pf w, m.proofs.insert prop (pf, w)⟩
 
 def mapM(dist: ExprDist)(f: Expr → TermElabM Expr) : TermElabM ExprDist := do
   let pfList ← dist.proofs.toList.mapM <| fun (p, (e, n)) => do

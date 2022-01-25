@@ -313,7 +313,7 @@ do
       match (← inferType e).eq? with
       | none => ()
       | some (α , lhs, rhs) => 
-        unless ← isDefEq lhs rhs do
+        unless lhs == rhs do
           withLhs := withLhs.insert lhs <| 
                       (withLhs.findD lhs (HashMap.empty)).update e w 
           withRhs := withRhs.insert rhs <| 
@@ -326,7 +326,7 @@ do
                       (withLhs.findD rhs (HashMap.empty)).update flip w
           if ← isNew d wb card e w then
             fromFlip := fromFlip.insert flip e
-            eqs ←  eqs.updateExprM flip w
+            eqs ←  eqs.updateExprM flip (w + 1)
     let pairCount := 
           withLhs.toArray.map $ fun (e, d) => 
                 (e, FinDist.weightCount d, FinDist.weightCount (withRhs.findD e d))
@@ -358,12 +358,12 @@ do
                   (isNewPair d wb card (eq1, eq2) (w1, w2) <&&>
                   isNewPair d wb card (e1, eq2) (w1, w2))
           if newPair then
-            let eq3 ←  mkAppM ``Eq.trans #[eq1, eq2]
+            let eq3 ← whnf (←   mkAppM ``Eq.trans #[eq1, eq2])
             Term.synthesizeSyntheticMVarsNoPostponing
             match (← inferType eq3).eq? with
             | none => ()
             | some (_, lhs, rhs) => 
-                unless ← isDefEq lhs rhs do
+                unless lhs == rhs do
                   eqs ←  eqs.updateExprM eq3 w
     return eqs
 
