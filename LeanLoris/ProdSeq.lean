@@ -252,7 +252,7 @@ syntax "%[" term,* "]" : expr_list
 def parseExprList : Syntax → TermElabM (Array Expr)
   | `(expr_list|%[$[$xs],*]) =>
     do
-          let m : Array Expr ←  xs.mapM <| fun s => elabTerm s none
+          let m : Array Expr ←  xs.mapM <| fun s => do whnf <| (← elabTerm s none)
           return m
   | _ => throwIllFormedSyntax
 

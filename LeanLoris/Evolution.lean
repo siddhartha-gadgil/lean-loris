@@ -303,7 +303,8 @@ def allIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve =
         finalDist ←  finalDist ++ isleDist
     return finalDist
 
-def eqSymmTransEvolver (D: Type)[IsNew D] : EvolutionM D := fun wb card init d => 
+def eqSymmTransEvolver (D: Type)[IsNew D](goals: Array Expr := #[]) : 
+                EvolutionM D := fun wb card init d => 
 do
     logInfo m!"eqSymmTrans called: weight-bound {wb}, cardinality: {card}"
     let mut eqs := ExprDist.empty
@@ -312,7 +313,12 @@ do
     let mut provedEqual : HashMap Expr (FinDist Expr) := HashMap.empty
     -- initial equalities
     for (e, w) in init.terms.toArray do
-      match (← inferType e).eq? with
+      let type ← whnf (←  inferType e)
+      Term.synthesizeSyntheticMVarsNoPostponing
+      for g in goals do
+        if ← isDefEq g type then
+          logInfo m!"observed goal: {g}, type: {type}. equal?: {g == type}"
+      match type.eq? with
       | none => ()
       | some (α , lhs, rhs) => 
         unless lhs == rhs do
@@ -333,7 +339,8 @@ do
           Term.synthesizeSyntheticMVarsNoPostponing
           pfs := pfs.insert (rhs, lhs) flip
           eqs ← eqs.updateExprM flip w
-    logInfo m!"equalities after flip: {eqs.terms.toArray.size}"
+    logInfo m!"equalities after flip: {eqs.terms.toArray.size}"    
+    logInfo m!"proof-pairs: {provedEqual.toArray.size}"
     -- count cumulative weights of pairs, deleting reflexive pairs
     let mut cumPairCount : HashMap Nat Nat := HashMap.empty
     for (lhs, m) in provedEqual.toArray do
@@ -431,7 +438,7 @@ syntax "congr": evolver
 syntax "eq-isles": evolver
 syntax "all-isles": evolver
 syntax "func-dom-isles": evolver
-syntax "eq-closure": evolver
+syntax "eq-closure" (expr_list)?: evolver
 
 declare_syntax_cat evolve_transformer
 syntax "by-type" (num)?: evolve_transformer
@@ -451,6 +458,10 @@ def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
 | `(evolver|all-isles) => allIsleEvolver FullData
 | `(evolver|func-dom-isles) => funcDomIsleEvolver FullData
 | `(evolver|eq-closure) => (eqSymmTransEvolver FullData).tautRec
+| `(evolver|eq-closure $goals) => do
+        let goals ← parseExprList goals
+        Term.synthesizeSyntheticMVarsNoPostponing
+        (eqSymmTransEvolver FullData goals).tautRec
 | stx => throwError m!"Evolver not implemented for {stx}"
 
 def parseEvolverTrans : Syntax → TermElabM (ExprDist → TermElabM ExprDist)

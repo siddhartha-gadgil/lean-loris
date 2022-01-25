@@ -145,6 +145,7 @@ def congrArgOpt (f: Expr)(eq : Expr) : TermElabM (Option Expr) :=
   do
     try
       let expr ← mkAppM ``congrArg #[f, eq]
+      Term.synthesizeSyntheticMVarsNoPostponing
       let exprType ← inferType expr
       if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  then return some expr
       else 

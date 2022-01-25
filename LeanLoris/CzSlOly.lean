@@ -31,9 +31,10 @@ def exploreProofs(ax1 : ∀ a b : M, (a * b) * b = a)(ax2 : ∀ a b : M, a * (a 
                   let seekmn := evolve! ^[app, name-app] %[m * n] %{(m, 0), (n, 0)} !{(mul, 0)} 5 1000
                   let seek123mn := evolve! ^[app, name-app, name-binop, binop] %[lem1!, lem2!, lem3!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0), (m *n, 0)} !{(mul, 0), (Eq, 0)} 5 1000
                   let lem4! := (m * n) * ((m * n) * n) = (m * n) * m
+                  let lem4flip! := (m * n) * m = (m * n) * ((m * n) * n)
                   let lem5! := (m * n) * m = n
                   let seek4 := evolve! ^[app, name-app, name-binop, eq-isles, binop] %[lem1!, lem4!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0), (m *n, 0)} !{(mul, 0), (Eq, 0)} 4 2000
-                  let seek5 := evolve! ^[app, name-app, name-binop, eq-isles, binop, eq-closure] %[lem2!, lem4!, lem5!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0), (m *n, 0)} !{(mul, 0), (Eq, 0)} 5 3000
+                  let seek5 := evolve! ^[app, name-app, name-binop, eq-isles, binop, eq-closure %[lem2!, lem4flip!, lem4!, lem5!] %[lem2!, lem4!, lem4flip!, lem5!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0), (m *n, 0)} !{(mul, 0), (Eq, 0)} 6 3000
                   seek5
              
 #check exploreProofs
