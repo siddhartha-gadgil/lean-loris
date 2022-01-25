@@ -196,7 +196,17 @@ def fromTerms(dist: FinDist Expr): TermElabM ExprDist := do
 
 end ExprDist
 
-def ExprDist.exists(dist: ExprDist)(elem: Expr)(weight: Nat) : Bool :=
-  dist.terms.exists elem weight
+def ExprDist.existsM(dist: ExprDist)(elem: Expr)(weight: Nat) : TermElabM Bool :=
+  do
+    if ← isProof elem then
+      let prop ← whnf (← inferType elem)
+      Term.synthesizeSyntheticMVarsNoPostponing
+      match ← dist.proofs.find? prop with
+      | some (p, n) =>
+        return n ≤ weight
+      | none => 
+        return false
+    else 
+      return dist.terms.exists elem weight
 
 #check @Array.anyM

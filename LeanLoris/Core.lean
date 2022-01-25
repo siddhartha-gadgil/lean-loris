@@ -41,7 +41,7 @@ def applyOpt (f x : Expr) : TermElabM (Option Expr) :=
     try
       let expr ← elabAppArgs f #[] #[Arg.expr x] none (explicit := false) (ellipsis := false)
       let exprType ← inferType expr
-      if (← isTypeCorrect expr) &&  (← isTypeCorrect exprType)  then 
+      if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  then 
         return some <| ← whnf expr
       else return none
     catch e =>
@@ -53,7 +53,7 @@ def applyPairOpt (f x y : Expr) : TermElabM (Option Expr) :=
       let expr ← elabAppArgs f #[] #[Arg.expr x, Arg.expr y] none 
                     (explicit := false) (ellipsis := false)
       let exprType ← inferType expr
-      if (← isTypeCorrect expr) &&  (← isTypeCorrect exprType)  then 
+      if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  then 
         return some <| ← whnf expr
       else return none
     catch e =>
@@ -65,7 +65,7 @@ def nameApplyOpt (f: Name) (x : Expr) : TermElabM (Option Expr) :=
     try
       let expr ← mkAppM f #[x]
       let exprType ← inferType expr
-      if (← isTypeCorrect expr) &&  (← isTypeCorrect exprType)  then 
+      if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  then 
         -- Elab.logInfo m!"from name, arg : {expr}"
         return some expr
       else
@@ -82,7 +82,7 @@ def nameApplyPairOpt (f: Name) (x y: Expr) : TermElabM (Option Expr) :=
     try
       let expr ← mkAppM f #[x, y]
       let exprType ← inferType expr
-      if (← isTypeCorrect expr) &&  (← isTypeCorrect exprType)  then 
+      if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  then 
         -- Elab.logInfo m!"from name, arg : {expr}"
         return some expr
       else
@@ -134,7 +134,7 @@ def rwPushOpt(symm : Bool)(e : Expr) (heq : Expr) : TermElabM (Option Expr) :=
       try
         let expr ← mkAppM ``Eq.mp #[pf, e]
         let exprType ← inferType expr
-        if (← isTypeCorrect expr) &&  (← isTypeCorrect exprType)  
+        if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  
         then return some expr
         else return none
       catch _ => 
@@ -146,7 +146,7 @@ def congrArgOpt (f: Expr)(eq : Expr) : TermElabM (Option Expr) :=
     try
       let expr ← mkAppM ``congrArg #[f, eq]
       let exprType ← inferType expr
-      if (← isTypeCorrect expr) &&  (← isTypeCorrect exprType)  then return some expr
+      if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  then return some expr
       else 
         return none
     catch e => 
@@ -181,7 +181,7 @@ def isWhiteListed (declName : Name) : TermElabM Bool := do
 def prodGenM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
     (compose: α → β → TermElabM (Option Expr))
     (maxWeight card: Nat)(fst: FinDist α)(snd: FinDist β)
-    (newPair: Nat → Nat →  α × β → Nat × Nat → Bool) : TermElabM (ExprDist) := do 
+    (newPair: Nat → Nat →  α × β → Nat × Nat → TermElabM Bool) : TermElabM (ExprDist) := do 
     let mut w := ExprDist.empty
     if maxWeight > 0 then
       let fstBdd := fst.bound (maxWeight - 1) card
@@ -193,7 +193,7 @@ def prodGenM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
         let sndCard := card / fstNum
         let sndBdd := snd.bound (maxWeight - val - 1) sndCard
         for (key2, val2) in sndBdd.toArray do
-          if newPair maxWeight card (key, key2) (val, val2) then
+          if ←  newPair maxWeight card (key, key2) (val, val2) then
             match ← compose key key2 with
             | some key3 =>
                 w ←  ExprDist.updateExprM w key3 (val + val2 + 1)
@@ -207,7 +207,7 @@ def tripleProdGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     (compose: α → β → γ  →  TermElabM (Option Expr))
     (maxWeight card: Nat)
     (fst: FinDist α)(snd: FinDist β)(third : FinDist γ)
-    (newTriple: Nat → Nat →  α × β × γ → Nat × Nat × Nat → Bool) : TermElabM ExprDist := do 
+    (newTriple: Nat → Nat →  α × β × γ → Nat × Nat × Nat → TermElabM Bool) : TermElabM ExprDist := do 
     let mut w := ExprDist.empty
     if maxWeight > 0 then
       let fstBdd := fst.bound (maxWeight - 1) card
@@ -226,7 +226,7 @@ def tripleProdGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
           let thirdCard := sndCard / sndNum
           let thirdBdd := third.bound (maxWeight - val - val2 - 1) thirdCard
           for (key3, val3) in thirdBdd.toArray do
-            if newTriple maxWeight card (key, key2, key3) (val, val2, val3) then
+            if ←  newTriple maxWeight card (key, key2, key3) (val, val2, val3) then
               match ← compose key key2 key3 with
               | some key3 =>
                   w ←  ExprDist.updateExprM w key3 (val + val2 + val3 + 1)

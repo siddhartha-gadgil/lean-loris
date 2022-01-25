@@ -89,18 +89,18 @@ partial def subExpr?(withDoms: Bool)(parent: Expr): Expr → TermElabM Bool :=
       else
       match ← whnf e with
         | Expr.app f a _ => 
-            return (←  subExpr? withDoms parent f) || 
-                  (← subExpr? withDoms parent a)
+            (subExpr? withDoms parent f) <||>
+                  (subExpr? withDoms parent a)
         | Expr.lam _ t b _ => 
-              return  (← subExpr? withDoms parent b) || 
-                  withDoms &&  (← subExpr? withDoms parent t)
+            (subExpr? withDoms parent b) <||>
+                  withDoms <&&>  (subExpr? withDoms parent t)
         | Expr.forallE _ t b _ => 
-                  return  (← subExpr? withDoms parent b) || 
-                  withDoms &&  (← subExpr? withDoms parent t)
-        | Expr.letE _ t v b _ => 
-                return  (← subExpr? withDoms parent b) || 
-                        (← subExpr? withDoms parent v) || 
-                  withDoms &&  (← subExpr? withDoms parent t)
+            (subExpr? withDoms parent b) <||>
+                  withDoms <&&>  (subExpr? withDoms parent t)
+        | Expr.letE _ t v b _ => do
+            (subExpr? withDoms parent b) <||>
+                  (subExpr? withDoms parent v) <||>
+                  withDoms <&&>  (subExpr? withDoms parent t)
         | _ => return false
 
 def subExprWeight(cost: Nat)(withDoms: Bool)(parent: Expr): Expr → TermElabM (Option Nat) :=

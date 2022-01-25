@@ -32,11 +32,11 @@ instance : DataUpdate Unit := idUpate
 instance : DataUpdate NameDist := idUpate
 
 class IsNew (D: Type) where
-  isNew: D → Nat → Nat →  Expr → Nat →  Bool
-  isNewPair : D → Nat → Nat →  Expr → Nat →  Expr → Nat → Bool
-  isNewTriple : D → Nat → Nat →  Expr → Nat →  Expr → Nat → Expr → Nat →   Bool
+  isNew: D → Nat → Nat →  Expr → Nat →  TermElabM Bool
+  isNewPair : D → Nat → Nat →  Expr → Nat →  Expr → Nat → TermElabM Bool
+  isNewTriple : D → Nat → Nat →  Expr → Nat →  Expr → Nat → Expr → Nat →   TermElabM Bool
 
-def isNew{D: Type}[c: IsNew D] : D → Nat → Nat →   Expr  → Nat  → Bool :=
+def isNew{D: Type}[c: IsNew D] : D → Nat → Nat →   Expr  → Nat  → TermElabM Bool :=
   c.isNew
 
 def allNew{D: Type} : IsNew D :=
@@ -46,7 +46,7 @@ def allNew{D: Type} : IsNew D :=
 instance : IsNew Unit := allNew
 
 def isNewPair{D: Type}[c: IsNew D] : D → Nat → Nat →  
-        (Expr ×   Expr) → (Nat × Nat)  → Bool :=
+        (Expr ×   Expr) → (Nat × Nat)  → TermElabM Bool :=
   fun d wb cb (e1, e2) (w1, w2) => c.isNewPair d wb cb e1 w1 e2 w2
 
 class GetNameDist (D: Type) where
@@ -65,15 +65,18 @@ class DistHist (D: Type) where
   distHist: D → List GenDist
 
 def newFromHistory {D: Type}[cl: DistHist D] : IsNew D :=
-  ⟨fun d wb c e w =>
-    !((cl.distHist d).any <| fun dist =>  dist.exprDist.exists e w),
-  fun d wb c e1 w1 e2 w2 =>
-    !((cl.distHist d).any <| fun ⟨wt, _,dist⟩ => 
-    dist.exists e1 w1 && (dist.exists e2 w2) && (w1 + w2 + 1 ≤ wt)),
-    fun d wb c e1 w1 e2 w2 e3 w3 =>
-    !((cl.distHist d).any <| fun ⟨wt, _,dist⟩ => 
-    dist.exists e1 w1 && (dist.exists e2 w2) && (dist.exists e3 w3) &&
-    (w1 + w2 + w3 + 1 ≤ wt)) ⟩
+  ⟨fun d wb c e w => do
+    let exs ← ((cl.distHist d).anyM <| fun dist =>  dist.exprDist.existsM e w)
+    return !exs,
+  fun d wb c e1 w1 e2 w2 => do
+    let exs ← ((cl.distHist d).anyM <| fun ⟨wt, _,dist⟩ => 
+      dist.existsM e1 w1 <&&> (dist.existsM e2 w2) <&&> (w1 + w2 + 1 ≤ wt))
+    return !exs,
+    fun d wb c e1 w1 e2 w2 e3 w3 => do
+    let exst ← ((cl.distHist d).anyM <| fun ⟨wt, _,dist⟩ => do
+      dist.existsM e1 w1 <&&> (dist.existsM e2 w2) <&&> (dist.existsM e3 w3) <&&>
+    (w1 + w2 + w3 + 1 ≤ wt))
+     return !exst⟩
 
 instance {D: Type}[cl: DistHist D] : IsNew D := newFromHistory 
 
@@ -196,7 +199,7 @@ def isleM {D: Type}(type: Expr)(evolve : EvolutionM D)(weightBound: Nat)(cardBou
           let mut evl : ExprDist := ExprDist.empty
           for (y, w) in evb.terms.toArray do
             unless excludeProofs && (← isProof y) ||
-            (excludeConstants && (init.exists y w)) do
+            (excludeConstants && (← init.existsM y w)) do
               evl ←  ExprDist.updateExprM evl y w
           let evt ← evl.terms.filterM (fun x => liftMetaM (isType x))
           let exported ← evl.mapM (fun e => mkLambdaFVars #[x] e)
@@ -321,7 +324,7 @@ do
                       (withRhs.findD lhs (HashMap.empty)).update flip w 
           withLhs := withLhs.insert rhs <| 
                       (withLhs.findD rhs (HashMap.empty)).update flip w
-          if isNew d wb card e w then
+          if ← isNew d wb card e w then
             fromFlip := fromFlip.insert flip e
             eqs ←  eqs.updateExprM flip w
     let pairCount := 
@@ -340,20 +343,20 @@ do
         for (eq2, w2) in ld.toArray do
           let w := w1 + w2 + 1
           if w ≤ wb && (cumPairCount.findD w 0) ≤ card then
-          let newPair := 
+          let newPair ←  
             match fromFlip.find? eq1, fromFlip.find? eq2 with 
             | none, none => isNewPair d wb card (eq1, eq2) (w1, w2)
-            | some e1, some e2 =>
-                  isNewPair d wb card (eq1, eq2) (w1, w2) && 
-                  isNewPair d wb card (eq1, e2) (w1, w2) &&
-                  isNewPair d wb card (e1, eq2) (w1, w2) &&
-                  isNewPair d wb card (e1, e2) (w1, w2)
-            | none, some e2 => 
-                  isNewPair d wb card (eq1, eq2) (w1, w2) && 
-                  isNewPair d wb card (eq1, e2) (w1, w2)
-            | some e1, none => 
-                  isNewPair d wb card (eq1, eq2) (w1, w2) &&
-                  isNewPair d wb card (e1, eq2) (w1, w2)
+            | some e1, some e2 => do
+                (isNewPair d wb card (eq1, eq2) (w1, w2) <&&> 
+                  isNewPair d wb card (eq1, e2) (w1, w2) <&&>
+                  isNewPair d wb card (e1, eq2) (w1, w2) <&&>
+                  isNewPair d wb card (e1, e2) (w1, w2))
+            | none, some e2 => do
+                 (isNewPair d wb card (eq1, eq2) (w1, w2) <&&> 
+                  isNewPair d wb card (eq1, e2) (w1, w2))
+            | some e1, none => do 
+                  (isNewPair d wb card (eq1, eq2) (w1, w2) <&&>
+                  isNewPair d wb card (e1, eq2) (w1, w2))
           if newPair then
             let eq3 ←  mkAppM ``Eq.trans #[eq1, eq2]
             Term.synthesizeSyntheticMVarsNoPostponing
@@ -495,7 +498,7 @@ match s with
   let finalDist ← ev wb card (← ExprDist.fromTerms initDist) initData
   let reportDist ← finalDist.terms.filterM <| fun e => do
     goals.anyM $ fun g => do
-      return (← isDefEq e g) || (← isDefEq (← inferType e) g)
+      isDefEq e g <||>  isDefEq (← inferType e) g
   return ← (ppackWeighted reportDist.toList)
 | _ => throwIllFormedSyntax
 
