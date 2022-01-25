@@ -305,66 +305,61 @@ def allIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve =
 
 def eqSymmTransEvolver (D: Type)[IsNew D] : EvolutionM D := fun wb card init d => 
 do
-    let mut withLhs : HashMap Expr (FinDist Expr) := HashMap.empty
-    let mut withRhs : HashMap Expr (FinDist Expr) := HashMap.empty
-    let mut eqs : ExprDist := init
-    let mut fromFlip: HashMap Expr Expr := HashMap.empty
+    logInfo m!"eqSymmTrans called: weight-bound {wb}, cardinality: {card}"
+    let mut eqs := ExprDist.empty
+    let mut pfs : HashMap (Expr × Expr) Expr := HashMap.empty
+    -- group by lhs
+    let mut provedEqual : HashMap Expr (FinDist Expr) := HashMap.empty
+    -- initial equalities
     for (e, w) in init.terms.toArray do
       match (← inferType e).eq? with
       | none => ()
       | some (α , lhs, rhs) => 
         unless lhs == rhs do
-          withLhs := withLhs.insert lhs <| 
-                      (withLhs.findD lhs (HashMap.empty)).update e w 
-          withRhs := withRhs.insert rhs <| 
-                      (withRhs.findD rhs (HashMap.empty)).update e w
-          let flip ← whnf (← mkAppM ``Eq.symm #[e]) 
+        let lhsMap := provedEqual.findD lhs (FinDist.empty)
+        provedEqual := provedEqual.insert lhs (lhsMap.update rhs w) 
+        pfs := pfs.insert (lhs, rhs) e
+        eqs ← eqs.updateExprM e w -- original to avoid complicated proofs
+    logInfo m!"initial equalities: {eqs.terms.toArray.size}"
+    -- symmetrize
+    let initeqs := provedEqual.toArray
+    for (lhs, m) in initeqs do
+      for (rhs, w) in m.toArray do
+        let rhsMap := provedEqual.findD rhs (FinDist.empty)
+        unless rhsMap.exists lhs w do
+          provedEqual := provedEqual.insert rhs (rhsMap.insert lhs w)
+          let pf := pfs.find! (lhs, rhs) 
+          let flip ← whnf (← mkAppM ``Eq.symm #[pf])
           Term.synthesizeSyntheticMVarsNoPostponing
-          withRhs := withRhs.insert lhs <| 
-                      (withRhs.findD lhs (HashMap.empty)).update flip w 
-          withLhs := withLhs.insert rhs <| 
-                      (withLhs.findD rhs (HashMap.empty)).update flip w
-          if ← isNew d wb card e w then
-            fromFlip := fromFlip.insert flip e
-            eqs ←  eqs.updateExprM flip (w + 1)
-    let pairCount := 
-          withLhs.toArray.map $ fun (e, d) => 
-                (e, FinDist.weightCount d, FinDist.weightCount (withRhs.findD e d))
+          pfs := pfs.insert (rhs, lhs) flip
+          eqs ← eqs.updateExprM flip w
+    logInfo m!"equalities after flip: {eqs.terms.toArray.size}"
+    -- count cumulative weights of pairs, deleting reflexive pairs
     let mut cumPairCount : HashMap Nat Nat := HashMap.empty
-    for (e, lm, rm) in pairCount do
-      for (e1, w1) in lm.toArray do
-        for (e2, w2) in rm.toArray do
-          let w := w1 + w2 + 1
-          for j in [w:wb + 1] do
-              cumPairCount := cumPairCount.insert j <| (cumPairCount.findD j 0) + 1
-    for (e, ld) in withLhs.toArray do
-      let rd := withRhs.findD e HashMap.empty
-      for (eq1, w1) in rd.toArray do
-        for (eq2, w2) in ld.toArray do
-          let w := w1 + w2 + 1
-          if w ≤ wb && (cumPairCount.findD w 0) ≤ card then
-          let newPair ←  
-            match fromFlip.find? eq1, fromFlip.find? eq2 with 
-            | none, none => isNewPair d wb card (eq1, eq2) (w1, w2)
-            | some e1, some e2 => do
-                (isNewPair d wb card (eq1, eq2) (w1, w2) <&&> 
-                  isNewPair d wb card (eq1, e2) (w1, w2) <&&>
-                  isNewPair d wb card (e1, eq2) (w1, w2) <&&>
-                  isNewPair d wb card (e1, e2) (w1, w2))
-            | none, some e2 => do
-                 (isNewPair d wb card (eq1, eq2) (w1, w2) <&&> 
-                  isNewPair d wb card (eq1, e2) (w1, w2))
-            | some e1, none => do 
-                  (isNewPair d wb card (eq1, eq2) (w1, w2) <&&>
-                  isNewPair d wb card (e1, eq2) (w1, w2))
-          if newPair then
-            let eq3 ← whnf (←   mkAppM ``Eq.trans #[eq1, eq2])
-            Term.synthesizeSyntheticMVarsNoPostponing
-            match (← inferType eq3).eq? with
-            | none => ()
-            | some (_, lhs, rhs) => 
-                unless lhs == rhs do
-                  eqs ←  eqs.updateExprM eq3 w
+    for (lhs, m) in provedEqual.toArray do
+      let weights := m.toArray.map <| fun (_, w) => w
+      for w1 in weights do
+        for w2 in weights do 
+          for j in [w1 + w2 +1:wb + 1] do
+            cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 + 1)
+      for w1 in weights do 
+        for j in [w1 + w1 + 1:wb + 1] do
+          cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 - 1)
+    logInfo m!"cumulative pair count: {cumPairCount.toArray}"
+    -- make equations by transitivity
+    for (lhs, m) in provedEqual.toArray do
+      for (rhs1, w1) in m.toArray do
+        let rhsMap := provedEqual.findD rhs1 (FinDist.empty)
+        for (rhs2, w2) in rhsMap.toArray do
+          unless rhs2 == lhs do
+            let w := w1 + w2 + 1
+            if w ≤ wb && (cumPairCount.findD w 0) ≤ card * 2 then 
+              let eq1 := pfs.find! (lhs, rhs1)
+              let eq2 := pfs.find! (rhs1, rhs2)
+              let eq3 ← whnf (←   mkAppM ``Eq.trans #[eq1, eq2]) 
+              Term.synthesizeSyntheticMVarsNoPostponing
+              eqs ← eqs.updateExprM eq3 w
+    logInfo m!"equalities after transitivity: {eqs.terms.toArray.size}"
     return eqs
 
 
