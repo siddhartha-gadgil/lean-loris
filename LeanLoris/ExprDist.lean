@@ -11,63 +11,67 @@ open Std.HashMap
 open Nat
 
 structure ExprDist where
-  terms : FinDist Expr
-  proofs: HashMap Expr (Expr × Nat)  
+  termsArr : Array (Expr × Nat)
+  proofsArr: Array (Expr × Expr × Nat)  
 namespace ExprDist
 
-def empty : ExprDist := ⟨HashMap.empty, HashMap.empty⟩
+def empty : ExprDist := ⟨Array.empty, Array.empty⟩
 
+-- TODO: purge on adding 
 def updateExprM
     (m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist := 
   do
     if ← isProof x then
       let prop ← whnf (← inferType x)
       Term.synthesizeSyntheticMVarsNoPostponing
-      match m.proofs.find? prop with
-      | some (p, n) =>
-        if d < n then
-          return ⟨(m.terms.erase p).insert x d, m.proofs.insert prop (x, d)⟩
-        else
-          return m 
+      match ← (m.proofsArr.findM? <| fun (l, _, w) => 
+              do pure (decide <| w ≤ d) <&&> isDefEq l prop)  with
+      | some (l, p, n) =>
+          return m
       | none => 
-        return ⟨m.terms.insert x d, m.proofs.insert prop (x, d)⟩
+        let termsArr ←  m.termsArr.filterM <| fun (t, w) => 
+              do w ≤ d ||  !(← isDefEq t x)
+        let proofsArr ←  m.proofsArr.filterM <| fun (l, _, w) => 
+              do w ≤ d ||  !(← isDefEq l prop)
+        return ⟨termsArr.push (x, d), proofsArr.push (prop, x, d)⟩
     else 
-      match m.terms.find? x with
-      | some v => if d < v then return ⟨m.terms.insert x d, m.proofs⟩ else m
-      | none => return ⟨m.terms.insert x d, m.proofs⟩
+      match ← (m.termsArr.findM? <| fun (t, w) => 
+              do pure (decide <| w ≤ d) <&&> isDefEq t x) with
+      | some v => return m
+      | none => 
+          let termsArr ←  m.termsArr.filterM <| fun (t, w) => 
+              do w ≤ d ||  !(← isDefEq t x)
+          return ⟨termsArr.push (x, d), m.proofsArr⟩
 
 def mapM(dist: ExprDist)(f: Expr → TermElabM Expr) : TermElabM ExprDist := do
-  let pfList ← dist.proofs.toList.mapM <| fun (p, (e, n)) => do
+  let termsArrBase ← dist.termsArr.mapM <| fun (e, n) => do
     let e ← f e
-    let p ← f p
-    return (p, (e, n))
-  let pfMap : HashMap Expr (Expr × Nat) := 
-      pfList.foldl (fun m (p, (e, n)) => m.insert p (e, n)) HashMap.empty
-  return ⟨← dist.terms.mapM f, pfMap⟩
+    return (e, n)
+  termsArrBase.foldlM (fun  dist (e, n) => 
+    do dist.updateExprM e n) empty
 
 def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
     let mut dist := fst
-    for (key, val) in snd.terms.toArray do
+    for (key, val) in snd.termsArr do
       dist ←  dist.updateExprM key val
     return dist
 
 instance : HAppend ExprDist ExprDist (TermElabM ExprDist) := 
   ⟨ExprDist.mergeM⟩
 
-def fromTerms(dist: FinDist Expr): TermElabM ExprDist := do
+def fromTermsM(dist: FinDist Expr): TermElabM ExprDist := do
   dist.foldM  (fun m e n => m.updateExprM e n) ExprDist.empty
 
 def existsM(dist: ExprDist)(elem: Expr)(weight: Nat) : TermElabM Bool :=
   do
     if ← isProof elem then
-      let prop ← whnf (← inferType elem)
-      Term.synthesizeSyntheticMVarsNoPostponing
-      match ← dist.proofs.find? prop with
-      | some (p, n) =>
-        return n ≤ weight
-      | none => 
-        return false
+      let prop ← inferType elem
+      dist.proofsArr.anyM <| fun (l, _, w) => 
+              do pure (decide <| w ≤ weight) <&&> isDefEq l prop
     else 
-      return dist.terms.exists elem weight
+      dist.termsArr.anyM <| fun (t, w) => 
+              do pure (decide <| w ≤ weight) <&&> isDefEq t elem
+
+def terms(dist: ExprDist) : FinDist Expr := FinDist.fromArray dist.termsArr
 
 end ExprDist

@@ -21,15 +21,15 @@ syntax (name:=genOne) "gen1!" term : term
       let m1 ← prodGenM  applyOpt 4 100 m m (fun _ _ _ _ => true)
       for (x, w) in m1.terms.toArray do
         logInfo m!"{x} : {w}" 
-      let m2 ← egEvolver  4 100 ⟨m, HashMap.empty⟩ ()
+      let m2 ← egEvolver  4 100 (← ExprDist.fromTermsM m) ()
       for (x, w) in m2.terms.toArray do
         logInfo m!"{x} : {w}" 
       logInfo "Evolved state"
-      let m3 ← (egEvolver).evolve 12 100 ⟨m, HashMap.empty⟩ ()
+      let m3 ← (egEvolver).evolve 12 100 (← ExprDist.fromTermsM m) ()
       for (x, w) in m3.terms.toArray do
         logInfo m!"{x} : {w}" 
       logInfo "Full Evolved state"
-      let m4 ← (egEvolverFull).evolve 12 100 ⟨m, HashMap.empty⟩ (HashMap.empty, [])
+      let m4 ← (egEvolverFull).evolve 12 100 (← ExprDist.fromTermsM m) (HashMap.empty, [])
       for (x, w) in m4.terms.toArray do
         logInfo m!"{x} : {w}" 
       return x

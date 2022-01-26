@@ -123,6 +123,9 @@ def update{α : Type}[Hashable α][BEq α]
 def fromList{α : Type}[Hashable α][BEq α] (l : List (α  × Nat)) : FinDist α :=
   l.foldl (fun m (a, n) => m.update a n) HashMap.empty
 
+def fromArray{α : Type}[Hashable α][BEq α] (arr: Array (α × Nat)) : FinDist α :=
+  arr.foldl (fun m (x, w) => m.insert x w) HashMap.empty
+
 def keys{α : Type}[Hashable α][BEq α] 
     (m: FinDist α) := m.toList.map (fun (k, v) => k)
 

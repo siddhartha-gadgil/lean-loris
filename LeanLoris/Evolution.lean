@@ -204,8 +204,8 @@ def isleM {D: Type}(type: Expr)(evolve : EvolutionM D)(weightBound: Nat)(cardBou
               evl ←  ExprDist.updateExprM evl y w
           let evt ← evl.terms.filterM (fun x => liftMetaM (isType x))
           let exported ← evl.mapM (fun e => mkLambdaFVars #[x] e)
-          let exportedPi : ExprDist :=
-                ⟨← evt.mapM (fun e => mkForallFVars #[x] e), HashMap.empty⟩
+          let exportedPi : ExprDist ← 
+               ExprDist.fromTermsM (← evt.mapM (fun e => mkForallFVars #[x] e))
           let res := 
             if includePi then 
                 if excludeLambda then exportedPi else ←  exported ++  exportedPi 
@@ -491,7 +491,7 @@ match s with
   let ev := ev.fixedPoint.evolve.andThenM (logResults goals)
   let wb ← parseNat wb
   let card ← parseNat card
-  let finalDist ← ev wb card (← ExprDist.fromTerms initDist) initData
+  let finalDist ← ev wb card (← ExprDist.fromTermsM initDist) initData
   let reportDist ← finalDist.terms.filterM <| fun e => do
     goals.anyM $ fun g => do
       isDefEq e g <||>  isDefEq (← inferType e) g
