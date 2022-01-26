@@ -1,4 +1,5 @@
 import LeanLoris.FinDist
+import LeanLoris.ExprDist
 import Lean.Meta
 import Lean.Elab
 import Std

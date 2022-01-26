@@ -1,4 +1,5 @@
 import LeanLoris.FinDist
+import LeanLoris.ExprDist
 import LeanLoris.Core
 import LeanLoris.ProdSeq
 import Lean.Meta
@@ -267,8 +268,8 @@ def eqIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve =>
       match (← inferType exp).eq? with
       | none => ()
       | some (α, lhs, rhs) =>
-          eqTypes ←  ExprDist.updateExprM eqTypes α w
-          eqs ←  ExprDist.updateExprM eqs exp w
+          eqTypes ←  eqTypes.updateExprM α w
+          eqs ←  eqs.updateExprM exp w
           eqTriples := eqTriples.push (exp, α, w)
     let eqsCum := eqs.terms.cumulWeightCount wb
     let mut isleDistMap : HashMap Expr ExprDist := HashMap.empty
@@ -311,11 +312,11 @@ do
     -- group by lhs
     let mut provedEqual : HashMap Expr (FinDist Expr) := HashMap.empty
     -- initial equalities
-    for (e, w) in init.terms.toArray do
+    for (e, w) in init.terms.toArray do -- may as well use proofs, get triples
       match (← inferType e).eq? with
       | none => ()
       | some (α , lhs, rhs) => 
-        unless lhs == rhs do
+        unless lhs == rhs do -- use isDefEq
         let lhsMap := provedEqual.findD lhs (FinDist.empty)
         provedEqual := provedEqual.insert lhs (lhsMap.update rhs w) 
         pfs := pfs.insert (lhs, rhs) e
@@ -325,7 +326,7 @@ do
     let initeqs := provedEqual.toArray
     for (lhs, m) in initeqs do
       for (rhs, w) in m.toArray do
-        let rhsMap := provedEqual.findD rhs (FinDist.empty)
+        let rhsMap := provedEqual.findD rhs (FinDist.empty) -- use isDefEq
         unless rhsMap.exists lhs w do
           provedEqual := provedEqual.insert rhs (rhsMap.insert lhs w)
           let pf := pfs.find! (lhs, rhs) 
