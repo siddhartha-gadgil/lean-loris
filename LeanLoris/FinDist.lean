@@ -140,6 +140,8 @@ def findM?{α : Type}[Hashable α][BEq α]
 
 end FinDist
 
+#check Array.elem
+
 def FinDist.exists{α : Type}[Hashable α][BEq α] 
     (m: FinDist α) (elem: α)(weight: Nat) : Bool :=
     match m.find? elem with
