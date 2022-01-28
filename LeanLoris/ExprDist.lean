@@ -17,7 +17,6 @@ namespace ExprDist
 
 def empty : ExprDist := ⟨Array.empty, Array.empty⟩
 
--- TODO: purge on adding 
 def updateExprM
     (m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist := 
   do

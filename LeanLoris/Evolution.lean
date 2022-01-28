@@ -46,6 +46,10 @@ def allNew{D: Type} : IsNew D :=
 
 instance : IsNew Unit := allNew
 
+instance : NewElem Expr Unit := constNewElem true
+
+instance {D: Type} : NewElem Name D := constNewElem false
+
 def isNewPair{D: Type}[c: IsNew D] : D → Nat → Nat →  
         (Expr ×   Expr) → (Nat × Nat)  → TermElabM Bool :=
   fun d wb cb (e1, e2) (w1, w2) => c.isNewPair d wb cb e1 w1 e2 w2
@@ -61,6 +65,8 @@ instance : GetNameDist NameDist := ⟨fun nd => nd⟩
 instance : GetNameDist Unit := ⟨fun _ => FinDist.empty⟩
 
 instance : IsNew NameDist := allNew
+
+instance : NewElem Expr NameDist := constNewElem true
 
 class DistHist (D: Type) where
   distHist: D → List GenDist
@@ -79,7 +85,14 @@ def newFromHistory {D: Type}[cl: DistHist D] : IsNew D :=
     (w1 + w2 + w3 + 1 ≤ wt))
      return !exst⟩
 
+def newElemFromHistory {D: Type}[cl: DistHist D] : NewElem Expr D :=
+  ⟨fun d  e w => do
+    let exs ← ((cl.distHist d).anyM <| fun dist =>  dist.exprDist.existsM e w)
+    return !exs⟩
+
 instance {D: Type}[cl: DistHist D] : IsNew D := newFromHistory 
+
+instance {D: Type}[cl: DistHist D] : NewElem Expr D := newElemFromHistory 
 
 abbrev FullData := NameDist × (List GenDist)
 
@@ -87,7 +100,7 @@ instance : DistHist FullData := ⟨fun (nd, hist) => hist⟩
 
 instance : GetNameDist FullData := ⟨fun (nd, _) => nd⟩
 
-instance : DataUpdate FullData := ⟨fun d w c (nd, hist) => (nd, ⟨w, c, d⟩ :: hist)⟩
+instance : DataUpdate FullData := ⟨fun d w c (nd, hist) => (nd, [⟨w, c, d⟩])⟩
 
 -- same signature for full evolution and single step, with ExprDist being initial state or accumulated state and the weight bound that for the result or the accumulated state
 def Evolution(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist  → (initData: D) → ExprDist
@@ -214,11 +227,11 @@ def isleM {D: Type}(type: Expr)(evolve : EvolutionM D)(weightBound: Nat)(cardBou
 
 -- Some evolution cases; just one step (so update not needed)
 
-def applyEvolver(D: Type)[IsNew D] : EvolutionM D := fun wb c init d => 
+def applyEvolver(D: Type)[NewElem Expr D] : EvolutionM D := fun wb c init d => 
   do
-    let funcs ← init.terms.filterM $ fun e => 
+    let funcs ← init.termsArr.filterM $ fun (e, _) => 
        do Expr.isForall <| ← inferType e
-    prodGenM applyOpt wb c funcs init.terms (isNewPair d)
+    prodGenArrM applyOpt wb c funcs init.termsArr d 
 
 def applyPairEvolver(D: Type)[cs : IsNew D]: EvolutionM D := fun wb c init d =>
   do
@@ -508,3 +521,5 @@ def lstfromsyn:  TermElabM (RecEvolverM FullData)  :=  do
         parseEvolverList syn
 
 #check lstfromsyn
+
+def tup : Nat × Nat × Nat := (1, (2, 3)) 

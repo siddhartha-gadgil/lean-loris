@@ -178,6 +178,103 @@ def isWhiteListed (declName : Name) : TermElabM Bool := do
 
 -- generating distributions by combining
 
+class NewElem (α D: Type) where
+  newElem: D → α → Nat → TermElabM Bool
+
+def constNewElem{α D: Type}: Bool →  NewElem α D
+  | ans => ⟨fun d a wb => pure ans⟩
+
+def oldNewElems{α D: Type}[c: NewElem α D]: 
+        D →  Array (α × Nat) → TermElabM ((Array (α × Nat)) × (Array (α × Nat)))  
+  | data, src => do
+      let mut oldElems: Array (α × Nat) := #[]
+      let mut newElems: Array (α × Nat) := #[]
+      for (e, w) in src do
+        if (← c.newElem data e w) then
+          newElems := newElems.push (e, w)
+        else
+          oldElems := oldElems.push (e, w) 
+      (oldElems, newElems)
+
+-- actually applied to weighted pairs
+def oldNewPairs{α β : Type}(oldFst newFst : Array α)(oldSnd newSnd : Array β) : 
+      Array (α × β) × Array (α × β) := Id.run $ do
+    let mut newPairs: Array (α × β) := Array.mk []
+    let mut oldPairs: Array (α × β) := Array.mk []
+    for a in oldFst do
+      for b in oldSnd do
+        oldPairs := oldPairs.push (a, b)
+    for a in newFst do
+      for b in newSnd ++ oldSnd do
+        newPairs := newPairs.push (a, b)
+    for a in oldFst do
+      for b in newSnd do
+        newPairs := newPairs.push (a, b)    
+    return (oldPairs, newPairs)
+
+def oldNewTriples{α β γ : Type}(oldFst newFst : Array α)(oldSnd newSnd : Array β)
+      (oldThird newThird : Array γ) : Array (α × β × γ) × Array (α × β × γ) := 
+      let (oldTail, newTail) := oldNewPairs oldSnd newSnd oldThird newThird
+      oldNewPairs oldFst newFst oldTail newTail
+
+def prodGenArrM{α β D: Type}[NewElem α D][NewElem β D][ToMessageData α][ToMessageData β]
+    (compose: α → β → TermElabM (Option Expr))
+    (maxWeight card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
+    (data: D) : TermElabM (ExprDist) := do 
+    let mut w := ExprDist.empty
+    let fstAbove := weightAbove fst maxWeight
+    let sndAbove := weightAbove snd maxWeight
+    let (oldFst, newFst) ← oldNewElems data fst
+    let (oldSnd, newSnd) ← oldNewElems data snd
+    let (oldPairs, newPairs) := oldNewPairs oldFst newFst oldSnd newSnd
+    logInfo m!"newFirst: {newFst.size}"
+    logInfo m!"newSecond: {newSnd.size}"
+    logInfo m!"newPairs: {newPairs.size}"
+    if maxWeight > 0 then
+      for ((e1, w1), (e2, w2)) in newPairs do
+        -- logInfo m!"trying:  ({e1}, {w1}) and ({e2}, {w2}); {maxWeight - w1 - w2}"
+        if w1 + w2 + 1 ≤ maxWeight && 
+          (fstAbove.findD w1 0) * (sndAbove.findD w2 0) ≤ card then
+          match ← compose e1 e2 with
+          | some e3 =>
+              -- logInfo m!"generated:  {e3}"
+              w ←  ExprDist.updateExprM w e3 (w1 + w2 + 1)
+          | none => 
+              ()-- logInfo m!"not generated from  {e1} and {e2}"
+      for ((e1, w1), (e2, w2)) in oldPairs do
+        -- logInfo m!"trying:  ({e1}, {w1}) and ({e2}, {w2}); {maxWeight - w1 - w2}"
+        if w1 + w2 + 1 = maxWeight && 
+          (fstAbove.findD w1 0) * (sndAbove.findD w2 0) ≤ card then
+          match ← compose e1 e2 with
+          | some e3 =>
+              logInfo m!"generated:  {e3}"
+              w ←  ExprDist.updateExprM w e3 (w1 + w2 + 1)
+          | none => 
+              ()-- logInfo m!"not generated from  {e1} and {e2}"
+    return w
+
+def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ D]
+    (compose: α → β → γ → TermElabM (Option Expr))
+    (maxWeight card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
+    (third : Array (γ × Nat))(data: D) : TermElabM (ExprDist) := do 
+    let mut w := ExprDist.empty
+    let fstAbove := weightAbove fst maxWeight
+    let sndAbove := weightAbove snd maxWeight
+    let thirdAbove := weightAbove third maxWeight
+    let (oldFst, newFst) ← oldNewElems data fst
+    let (oldSnd, newSnd) ← oldNewElems data snd
+    let (oldThird, newThird) ← oldNewElems data third
+    let (_, newTriples) := oldNewTriples oldFst newFst oldSnd newSnd oldThird newThird
+    if maxWeight > 0 then
+      for ((e1, w1), (e2, w2), (e3, w3)) in newTriples do
+        if w1 + w2 + w3 + 1 ≤ maxWeight && 
+          (fstAbove.find! w1) * (sndAbove.find! w2) * (thirdAbove.find! w3) ≤ card then
+          match ← compose e1 e2 e3 with
+          | some e4 =>
+              w ←  ExprDist.updateExprM w e4 (w1 + w2 + w3 + 1)
+          | none => ()
+    return w
+
 
 def prodGenM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
     (compose: α → β → TermElabM (Option Expr))
@@ -187,10 +284,9 @@ def prodGenM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
     if maxWeight > 0 then
       let fstBdd := fst.bound (maxWeight - 1) card
       let fstCount := fstBdd.cumulWeightCount maxWeight
-      let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 1 
       for (key, val) in fstBdd.toArray do
       if maxWeight - val > 0 then
-        let fstNum := fstCount.findD val 0
+        let fstNum := fstCount.find! val 
         let sndCard := card / fstNum
         let sndBdd := snd.bound (maxWeight - val - 1) sndCard
         for (key2, val2) in sndBdd.toArray do
@@ -201,7 +297,6 @@ def prodGenM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
             | none => ()
           -- else logWarning m!"newPair failed {val} {val2} ; {maxWeight}"
     return w
-
 
 def tripleProdGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     [Hashable γ][BEq γ]

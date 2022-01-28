@@ -148,3 +148,15 @@ def FinDist.exists{α : Type}[Hashable α][BEq α]
     match m.find? elem with
     | some v => v ≤ weight
     | none => false
+
+def weightAbove{α : Type}(wtd : Array (α × Nat))(maxWeight: Nat): 
+    HashMap Nat Nat := Id.run do
+      let mut w := HashMap.empty
+      for (_, n) in wtd do
+        for j in [n: (maxWeight + 1)] do
+          match w.find? j with
+          | some v =>
+            w := w.insert j (v + 1)
+          | none => 
+            w := w.insert j 1
+      return w
