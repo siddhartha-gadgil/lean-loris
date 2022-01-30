@@ -96,6 +96,17 @@ instance {D: Type}[cl: DistHist D] : IsNew D := newFromHistory
 
 instance {D: Type}[cl: DistHist D] : NewElem Expr D := newElemFromHistory 
 
+class IsleData(D: Type) where
+  isleData : D → ExprDist → Nat → Nat → D
+
+def isleData{D: Type}[c: IsleData D] : D → ExprDist → Nat → Nat → D := c.isleData
+
+def idIsleData{D:Type} : IsleData D := ⟨fun d _ _ _=> d⟩
+
+instance : IsleData Unit := idIsleData
+
+instance : IsleData NameDist := idIsleData
+
 abbrev FullData := NameDist × (List GenDist) × (List ExprDist)
 
 instance : DistHist FullData := ⟨fun (nd, hist, ehist) => hist,
@@ -105,6 +116,9 @@ instance : GetNameDist FullData := ⟨fun (nd, _) => nd⟩
 
 instance : DataUpdate FullData := ⟨fun d w c (nd, hist, ehist) => 
                                                         (nd, [⟨w, c, d⟩], ehist)⟩
+
+instance : IsleData FullData :=
+  ⟨fun ⟨nd, hist, ehist⟩ d w c => (nd, [⟨w, c, d⟩], [d])⟩ 
 
 -- same signature for full evolution and single step, with ExprDist being initial state or accumulated state and the weight bound that for the result or the accumulated state
 def Evolution(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist  → (initData: D) → ExprDist
@@ -207,13 +221,14 @@ instance {D: Type}: Append <| RecEvolverM D := ⟨fun fst snd => fst.merge snd�
 def EvolutionM.evolve{D: Type}[DataUpdate D](ev: EvolutionM D) : EvolutionM D :=
         ev.tautRec.iterate.fixedPoint
 
-def isleM {D: Type}(type: Expr)(evolve : EvolutionM D)(weightBound: Nat)(cardBound: Nat)
+def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolutionM D)(weightBound: Nat)(cardBound: Nat)
       (init : ExprDist)(initData: D)(includePi : Bool := true)(excludeProofs: Bool := false)(excludeLambda : Bool := false)(excludeConstants : Bool := false): TermElabM (ExprDist) := 
     withLocalDecl Name.anonymous BinderInfo.default (type)  $ fun x => 
         do
           let dist ←  init.updateExprM x 0
           -- logInfo m!"initial in isle: {l}"
-          let evb ← evolve weightBound cardBound dist initData 
+          let evb ← evolve weightBound cardBound dist 
+                  (isleData initData dist weightBound cardBound) 
           let mut evl : ExprDist := ExprDist.empty
           for (y, w) in evb.termsArr do
             unless excludeProofs && (← isProof y) ||
@@ -237,45 +252,43 @@ def applyEvolver(D: Type)[NewElem Expr D] : EvolutionM D := fun wb c init d =>
        do Expr.isForall <| ← inferType e
     prodGenArrM applyOpt wb c funcs init.termsArr d 
 
-def applyPairEvolver(D: Type)[cs : IsNew D]: EvolutionM D := fun wb c init d =>
+def applyPairEvolver(D: Type)[cs : IsNew D][NewElem Expr D]: EvolutionM D := 
+  fun wb c init d =>
   do
-    let funcs ← init.terms.filterM $ fun e => 
+    let funcs ← init.termsArr.filterM $ fun (e, _) => 
        do Expr.isForall <| ← inferType e
-    tripleProdGenM applyPairOpt wb c funcs init.terms init.terms (
-          fun wb c (f, x, y) (wf, wx, wy) => 
-            cs.isNewTriple d wb c f wf x wx y wy)
+    tripleProdGenArrM applyPairOpt wb c funcs init.termsArr init.termsArr d
 
-def nameApplyEvolver(D: Type)[IsNew D][GetNameDist D]: EvolutionM D := fun wb c init d =>
+def nameApplyEvolver(D: Type)[IsNew D][GetNameDist D][NewElem Expr D]: EvolutionM D := fun wb c init d =>
   do
-    let names := nameDist d
-    prodGenM nameApplyOpt wb c names init.terms (
-          fun wb c (_, e) (_, we) => 
-            isNew d wb c e we)
+    let names := (nameDist d).toArray
+    prodGenArrM nameApplyOpt wb c names init.termsArr d
     
 
-def nameApplyPairEvolver(D: Type)[cs: IsNew D][GetNameDist D]: EvolutionM D := fun wb c init d =>
+def nameApplyPairEvolver(D: Type)[cs: IsNew D][GetNameDist D][NewElem Expr D]: 
+        EvolutionM D := fun wb c init d =>
   do
-    let names := nameDist d
-    tripleProdGenM nameApplyPairOpt wb c names init.terms init.terms (
-          fun wb c (_, x, y) (_, wx, wy) => 
-            isNewPair d wb c (x, y) (wx, wy))
+    let names := (nameDist d).toArray
+    tripleProdGenArrM nameApplyPairOpt wb c names init.termsArr init.termsArr d
     
 
-def rewriteEvolver(flip: Bool)(D: Type)[IsNew D] : EvolutionM D := fun wb c init d => 
+def rewriteEvolver(flip: Bool)(D: Type)[IsNew D][NewElem Expr D] : EvolutionM D := 
+  fun wb c init d => 
   do
-    let eqls := FinDist.fromArray <| ←  init.proofsArr.filterMapM  $ fun (l, e, w) => 
+    let eqls ←  init.proofsArr.filterMapM  $ fun (l, e, w) => 
        do if l.isEq then some (e, w) else none
-    prodGenM (rwPushOpt flip) wb c init.terms eqls (isNewPair d)
+    prodGenArrM (rwPushOpt flip) wb c init.termsArr eqls d
 
-def congrEvolver(D: Type)[IsNew D] : EvolutionM D := fun wb c init d => 
+def congrEvolver(D: Type)[IsNew D][NewElem Expr D] : EvolutionM D := fun wb c init d => 
   do
-    let funcs ←   init.terms.filterM $ fun e => 
+    let funcs ←   init.termsArr.filterM $ fun (e, _) => 
        do Expr.isForall <| ← inferType e
-    let eqls := FinDist.fromArray <| ←  init.proofsArr.filterMapM  $ fun (l, e, w) => 
+    let eqls  ←  init.proofsArr.filterMapM  $ fun (l, e, w) => 
        do if l.isEq then some (e, w) else none
-    prodGenM congrArgOpt wb c funcs eqls (isNewPair d)
+    prodGenArrM congrArgOpt wb c funcs eqls d
 
-def eqIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve => 
+def eqIsleEvolver(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM D := 
+  fun wb c init d evolve => 
   do
     logInfo m!"isle called: weight-bound {wb}, cardinality: {c}"
     let mut eqTypes: FinDist Expr := FinDist.empty -- lhs types, (minimum) weights
@@ -307,10 +320,9 @@ def eqIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve =>
           | some y => finalDist ←  finalDist.updateExprM y (wf + weq + 1)
     return finalDist
 
-def allIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve => 
+def allIsleEvolver(D: Type)[IsNew D][IsleData D] : RecEvolverM D := fun wb c init d evolve => 
   do
-    let typeDist ← init.terms.filterM $ fun e =>
-        do return (← inferType e).isSort 
+    let typeDist ← init.allSorts
     let typesCum := typeDist.cumulWeightCount wb
     let mut finalDist: ExprDist := ExprDist.empty
     for (type, w) in typeDist.toArray do
@@ -337,7 +349,7 @@ do
         provedEqual := provedEqual.insert lhs (lhsMap.update rhs w) 
         pfs := pfs.insert (lhs, rhs) e
         eqs ← eqs.updateExprM e w -- original to avoid complicated proofs
-    logInfo m!"initial equalities: {eqs.terms.toArray.size}"
+    logInfo m!"initial equalities: {eqs.proofsArr.size}"
     -- symmetrize
     let initeqs := provedEqual.toArray
     for (lhs, m) in initeqs do
@@ -350,7 +362,7 @@ do
           Term.synthesizeSyntheticMVarsNoPostponing
           pfs := pfs.insert (rhs, lhs) flip
           eqs ← eqs.updateExprM flip w
-    logInfo m!"equalities after flip: {eqs.terms.toArray.size}"
+    logInfo m!"equalities after flip: {eqs.proofsArr.size}"
     -- count cumulative weights of pairs, deleting reflexive pairs
     let mut cumPairCount : HashMap Nat Nat := HashMap.empty
     for (lhs, m) in provedEqual.toArray do
@@ -376,11 +388,11 @@ do
               let eq3 ← whnf (←   mkAppM ``Eq.trans #[eq1, eq2]) 
               Term.synthesizeSyntheticMVarsNoPostponing
               eqs ← eqs.updateExprM eq3 w
-    logInfo m!"equalities after transitivity: {eqs.terms.toArray.size}"
+    logInfo m!"equalities after transitivity: {eqs.proofsArr.size}"
     return eqs
 
 
-def funcDomIsleEvolver(D: Type)[IsNew D] : RecEvolverM D := fun wb c init d evolve => 
+def funcDomIsleEvolver(D: Type)[IsNew D][IsleData D] : RecEvolverM D := fun wb c init d evolve => 
   do
     let mut typeDist := FinDist.empty
     for (x, w) in init.termsArr do

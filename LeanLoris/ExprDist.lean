@@ -89,6 +89,17 @@ def existsM(dist: ExprDist)(elem: Expr)(weight: Nat) : TermElabM Bool :=
       dist.termsArr.anyM <| fun (t, w) => 
               do pure (decide <| w ≤ weight) <&&> isDefEq t elem
 
-def terms(dist: ExprDist) : FinDist Expr := FinDist.fromArray dist.termsArr
+def terms(dist: ExprDist) : FinDist Expr := 
+      FinDist.fromArray dist.termsArr
+
+def allTerms(dist: ExprDist) : FinDist Expr := 
+      FinDist.fromArray (dist.termsArr ++ 
+          (dist.proofsArr.map <| fun (_, t, w) => (t, w)))
+
+def allSorts(dist: ExprDist) : TermElabM (FinDist Expr) := do
+  let types ←  dist.termsArr.filterM <| fun (e, w) => do
+          (← inferType e).isSort
+  let props := dist.proofsArr.map <| fun (l, _, w) => (l, w)
+  return FinDist.fromArray <| types ++ props
 
 end ExprDist
