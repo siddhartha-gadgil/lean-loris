@@ -10,6 +10,7 @@ open Std
 open Std.HashMap
 open Nat
 
+-- proofs will not also be stored as terms
 structure ExprDist where
   termsArr : Array (Expr × Nat)
   proofsArr: Array (Expr × Expr × Nat)  
@@ -23,24 +24,21 @@ def updateExprM
     if ← isProof x then
       let prop ← whnf (← inferType x)
       Term.synthesizeSyntheticMVarsNoPostponing
-      match ← (m.proofsArr.findM? <| fun (l, _, w) => 
-              do pure (decide <| w ≤ d) <&&> isDefEq l prop)  with
-      | some (l, p, n) =>
-          return m
+      match ← (m.proofsArr.findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
+      | some j => 
+          let (l, p, w) := m.proofsArr.get! j
+          if w ≤ d then return m 
+          else return ⟨m.termsArr, m.proofsArr.insertAt j (prop, x, d)⟩
       | none => 
-        let termsArr ←  m.termsArr.filterM <| fun (t, w) => 
-              do w ≤ d ||  !(← isDefEq t x)
-        let proofsArr ←  m.proofsArr.filterM <| fun (l, _, w) => 
-              do w ≤ d ||  !(← isDefEq l prop)
-        return ⟨termsArr.push (x, d), proofsArr.push (prop, x, d)⟩
+        return ⟨m.termsArr, m.proofsArr.push (prop, x, d)⟩
     else 
-      match ← (m.termsArr.findM? <| fun (t, w) => 
-              do pure (decide <| w ≤ d) <&&> isDefEq t x) with
-      | some v => return m
+      match ← (m.termsArr.findIdxM? <| fun (t, w) => isDefEq t x) with
+      | some j =>
+        let (t, w) := m.termsArr.get! j 
+        if w ≤ j then return m
+        else return ⟨m.termsArr.insertAt j (x, d), m.proofsArr⟩
       | none => 
-          let termsArr ←  m.termsArr.filterM <| fun (t, w) => 
-              do w ≤ d ||  !(← isDefEq t x)
-          return ⟨termsArr.push (x, d), m.proofsArr⟩
+          return ⟨m.termsArr.push (x, d), m.proofsArr⟩
 
 def mapM(dist: ExprDist)(f: Expr → TermElabM Expr) : TermElabM ExprDist := do
   let termsArrBase ← dist.termsArr.mapM <| fun (e, n) => do
