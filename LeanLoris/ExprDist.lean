@@ -49,9 +49,29 @@ def mapM(dist: ExprDist)(f: Expr → TermElabM Expr) : TermElabM ExprDist := do
 
 def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
     let mut dist := fst
-    for (key, val) in snd.termsArr do
-      dist ←  dist.updateExprM key val
-    return dist
+    let mut ⟨fstTerms, fstProofs⟩ := fst
+    let mut ⟨sndTerms, sndProofs⟩ := ExprDist.empty
+    for (prop, x, d) in snd.proofsArr do
+      match ← (fstProofs.findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
+      | some j => 
+          let (l, p, w) := fstProofs.get! j
+          if w ≤ d then ()
+          else 
+           fstProofs := fstProofs.eraseIdx j 
+           sndProofs := sndProofs.push (prop, x, d)
+      | none => 
+          sndProofs := sndProofs.push (prop, x, d)
+    for (x, d) in snd.termsArr do
+      match ← (fstTerms.findIdxM? <| fun (t, w) =>  isDefEq t x)  with
+      | some j => 
+          let (t, w) := fstTerms.get! j
+          if w ≤ d then ()
+          else 
+           fstTerms := fstTerms.eraseIdx j 
+           sndTerms := sndTerms.push (x, d)
+      | none => 
+          sndTerms := sndTerms.push (x, d)
+    return ⟨fstTerms ++ sndTerms, fstProofs ++ sndProofs⟩
 
 instance : HAppend ExprDist ExprDist (TermElabM ExprDist) := 
   ⟨ExprDist.mergeM⟩
