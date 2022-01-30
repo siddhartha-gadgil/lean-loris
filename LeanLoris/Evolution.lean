@@ -46,9 +46,9 @@ def allNew{D: Type} : IsNew D :=
 
 instance : IsNew Unit := allNew
 
-instance : NewElem Expr Unit := constNewElem true
+instance : NewElem Expr Unit := constNewElem (true, true)
 
-instance {D: Type} : NewElem Name D := constNewElem false
+instance {D: Type} : NewElem Name D := constNewElem (false, true)
 
 def isNewPair{D: Type}[c: IsNew D] : D → Nat → Nat →  
         (Expr ×   Expr) → (Nat × Nat)  → TermElabM Bool :=
@@ -66,10 +66,11 @@ instance : GetNameDist Unit := ⟨fun _ => FinDist.empty⟩
 
 instance : IsNew NameDist := allNew
 
-instance : NewElem Expr NameDist := constNewElem true
+instance : NewElem Expr NameDist := constNewElem (true, true)
 
 class DistHist (D: Type) where
   distHist: D → List GenDist
+  extHist : D → List ExprDist
 
 def newFromHistory {D: Type}[cl: DistHist D] : IsNew D :=
   ⟨fun d wb c e w => do
@@ -87,20 +88,23 @@ def newFromHistory {D: Type}[cl: DistHist D] : IsNew D :=
 
 def newElemFromHistory {D: Type}[cl: DistHist D] : NewElem Expr D :=
   ⟨fun d  e w => do
-    let exs ← ((cl.distHist d).anyM <| fun dist =>  dist.exprDist.existsM e w)
-    return !exs⟩
+    let exst ← ((cl.distHist d).anyM <| fun dist =>  dist.exprDist.existsM e w)
+    let extrn ← ((cl.extHist d).anyM <| fun dist =>  dist.existsM e w)
+    return (!exst, !extrn)⟩
 
 instance {D: Type}[cl: DistHist D] : IsNew D := newFromHistory 
 
 instance {D: Type}[cl: DistHist D] : NewElem Expr D := newElemFromHistory 
 
-abbrev FullData := NameDist × (List GenDist)
+abbrev FullData := NameDist × (List GenDist) × (List ExprDist)
 
-instance : DistHist FullData := ⟨fun (nd, hist) => hist⟩
+instance : DistHist FullData := ⟨fun (nd, hist, ehist) => hist,
+                                fun (nd, hist, ehist) => ehist⟩
 
 instance : GetNameDist FullData := ⟨fun (nd, _) => nd⟩
 
-instance : DataUpdate FullData := ⟨fun d w c (nd, hist) => (nd, [⟨w, c, d⟩])⟩
+instance : DataUpdate FullData := ⟨fun d w c (nd, hist, ehist) => 
+                                                        (nd, [⟨w, c, d⟩], ehist)⟩
 
 -- same signature for full evolution and single step, with ExprDist being initial state or accumulated state and the weight bound that for the result or the accumulated state
 def Evolution(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist  → (initData: D) → ExprDist
@@ -324,8 +328,8 @@ do
     -- group by lhs
     let mut provedEqual : HashMap Expr (FinDist Expr) := HashMap.empty
     -- initial equalities
-    for (e, w) in init.terms.toArray do -- may as well use proofs, get triples
-      match (← inferType e).eq? with
+    for (l, e, w) in init.proofsArr do -- may as well use proofs, get triples
+      match l.eq? with
       | none => ()
       | some (α , lhs, rhs) => 
         unless lhs == rhs do -- use isDefEq
@@ -413,6 +417,8 @@ def refineWeight(weight? : Expr → TermElabM (Option Nat)):
   return finalDist
 
 def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist => do
+    logInfo m!"number of terms : {dist.termsArr.size}"
+    logInfo m!"number of proofs: {dist.proofsArr.size}"
     for g in goals do
       logInfo m!"goal: {g}"
       let statement ←  (dist.termsArr.findM? $ fun (s, _) => isDefEq s g)
@@ -498,7 +504,7 @@ match s with
   let nameDist? ← nameDist?.mapM  $ fun nameDist => parseNameMap nameDist
   let nameDist := nameDist?.getD #[]
   let nameDist := FinDist.fromList (nameDist.toList)
-  let initData : FullData := (nameDist, [])
+  let initData : FullData := (nameDist, [], [])
   let goals? ← goals?.mapM $ fun goals => parseExprList goals
   let goals := goals?.getD #[]
   let ev := ev.fixedPoint.evolve.andThenM (logResults goals)

@@ -29,7 +29,8 @@ syntax (name:=genOne) "gen1!" term : term
       for (x, w) in m3.terms.toArray do
         logInfo m!"{x} : {w}" 
       logInfo "Full Evolved state"
-      let m4 ← (egEvolverFull).evolve 12 100 (← ExprDist.fromTermsM m) (HashMap.empty, [])
+      let m4 ← (egEvolverFull).evolve 12 100 (← ExprDist.fromTermsM m) 
+                                          (HashMap.empty, [], [])
       for (x, w) in m4.terms.toArray do
         logInfo m!"{x} : {w}" 
       return x
@@ -84,4 +85,4 @@ def eveg(α : Type):= fun (f g: α →  α) (a: α) =>
 #reduce eveg
 
 def egEqProp(a b c: Nat)(p: a = b)(q: a = c) :=
-    evolve! ^[eq-closure] %[b = c, b = a] %{(p, 0), (q, 0)} 4 1000
+    evolve! ^[eq-closure] %[b = c, b = a, a = b] %{(p, 0), (q, 0)} 4 1000
