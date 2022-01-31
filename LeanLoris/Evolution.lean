@@ -335,38 +335,50 @@ def allIsleEvolver(D: Type)[IsNew D][IsleData D] : RecEvolverM D := fun wb c ini
 def eqSymmTransEvolver (D: Type)[IsNew D] : EvolutionM D := fun wb card init d => 
 do
     logInfo m!"eqSymmTrans called: weight-bound {wb}, cardinality: {card}"
-    let mut eqs := ExprDist.empty
-    let mut pfs : HashMap (Expr × Expr) Expr := HashMap.empty
-    -- group by lhs
-    let mut provedEqual : HashMap Expr (FinDist Expr) := HashMap.empty
-    -- initial equalities
-    for (l, e, w) in init.proofsArr do -- may as well use proofs, get triples
+    let mut eqs := ExprDist.empty -- new equations only
+    let mut allEquations := ExprDist.empty
+    -- initial equations
+    for (l, pf, w) in init.proofsArr do
+      if l.isEq then allEquations := allEquations.pushProof l pf w
+    -- symmetrize
+    for (l, pf, w) in allEquations.proofsArr do
       match l.eq? with
       | none => ()
-      | some (α , lhs, rhs) => 
-        unless lhs == rhs do -- use isDefEq
-        let lhsMap := provedEqual.findD lhs (FinDist.empty)
-        provedEqual := provedEqual.insert lhs (lhsMap.update rhs w) 
-        pfs := pfs.insert (lhs, rhs) e
-        eqs ← eqs.updateExprM e w -- original to avoid complicated proofs
-    logInfo m!"initial equalities: {eqs.proofsArr.size}"
-    -- symmetrize
-    let initeqs := provedEqual.toArray
-    for (lhs, m) in initeqs do
-      for (rhs, w) in m.toArray do
-        let rhsMap := provedEqual.findD rhs (FinDist.empty) -- use isDefEq
-        unless rhsMap.exists lhs w do
-          provedEqual := provedEqual.insert rhs (rhsMap.insert lhs w)
-          let pf := pfs.find! (lhs, rhs) 
-          let flip ← whnf (← mkAppM ``Eq.symm #[pf])
-          Term.synthesizeSyntheticMVarsNoPostponing
-          pfs := pfs.insert (rhs, lhs) flip
-          eqs ← eqs.updateExprM flip (w + 1)
-    logInfo m!"equalities after flip: {eqs.proofsArr.size}"
-    -- count cumulative weights of pairs, deleting reflexive pairs
+      | some (_, lhs, rhs) =>
+        let flipProp ← mkEq rhs lhs
+        let flip ← whnf (← mkAppM ``Eq.symm #[pf])
+        match ← allEquations.updatedProofM? flipProp flip (w + 1) with
+        | none => ()
+        | some dist => 
+          allEquations := dist
+          eqs ← eqs.pushProof flipProp flip (w + 1)
+    /- group equations, for y we have proofs of x = y and then y = z,
+        record array of (x, pf, w) and array of (z, pf, z)
+    -/
+    let mut grouped : 
+          Array (Expr × (Array (Expr × Expr × Nat)) × (Array (Expr × Expr × Nat))) := #[]
+    for (l, pf, w) in allEquations.proofsArr do
+      match l.eq? with
+      | none => ()
+      | some (_, lhs, rhs) =>
+        -- update first component, i.e. y = rhs
+        match ← grouped.findIdxM? <| fun (y, _, _) => isDefEq y rhs with
+        | none => -- no equation involving rhs
+          grouped := grouped.push (rhs, #[(lhs, pf, w)], #[])
+        | some j =>
+          let (y, withRhs, withLhs) := grouped.get! j 
+          grouped := grouped.set! j (y, withRhs.push (lhs, pf, w), withLhs)
+        -- update second component
+        match ← grouped.findIdxM? <| fun (y, _, _) => isDefEq y lhs with
+        | none => -- no equation involving rhs
+          grouped := grouped.push (lhs, #[], #[(rhs, pf, w)])
+        | some j =>
+          let (y, withRhs, withLhs) := grouped.get! j 
+          grouped := grouped.set! j (y, withRhs, withLhs.push (rhs, pf, w))
+    -- count cumulative weights of pairs, deleting reflexive pairs (assuming symmetry)
     let mut cumPairCount : HashMap Nat Nat := HashMap.empty
-    for (lhs, m) in provedEqual.toArray do
-      let weights := m.toArray.map <| fun (_, w) => w
+    for (_, m ,_) in grouped do
+      let weights := m.map <| fun (_, _, w) => w
       for w1 in weights do
         for w2 in weights do 
           for j in [w1 + w2 +1:wb + 1] do
@@ -375,20 +387,17 @@ do
         for j in [w1 + w1 + 1:wb + 1] do
           cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 - 1)
     logInfo m!"cumulative pair count: {cumPairCount.toArray}"
-    -- make equations by transitivity
-    for (lhs, m) in provedEqual.toArray do
-      for (rhs1, w1) in m.toArray do
-        let rhsMap := provedEqual.findD rhs1 (FinDist.empty)
-        for (rhs2, w2) in rhsMap.toArray do
-          unless rhs2 == lhs do
-            let w := w1 + w2 + 1
+    for (y, withRhs, withLhs) in grouped do
+      for (x, eq1, w1) in withRhs do
+        for (z, eq2, w2) in withLhs do
+        let w := w1 + w2 + 1
             if w ≤ wb && (cumPairCount.findD w 0) ≤ card * 2 then 
-              let eq1 := pfs.find! (lhs, rhs1)
-              let eq2 := pfs.find! (rhs1, rhs2)
+            unless ← isDefEq x z do
               let eq3 ← whnf (←   mkAppM ``Eq.trans #[eq1, eq2]) 
+              let prop ← mkEq x z
               Term.synthesizeSyntheticMVarsNoPostponing
-              eqs ← eqs.updateExprM eq3 w
-    logInfo m!"equalities after transitivity: {eqs.proofsArr.size}"
+              unless ← allEquations.existsPropM prop w do
+                eqs ← eqs.pushProof prop eq3 w   
     return eqs
 
 

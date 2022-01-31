@@ -132,6 +132,10 @@ def existsM(dist: ExprDist)(elem: Expr)(weight: Nat) : TermElabM Bool :=
       dist.termsArr.anyM <| fun (t, w) => 
               do pure (decide <| w ≤ weight) <&&> isDefEq t elem
 
+def existsPropM(dist: ExprDist)(prop: Expr)(weight: Nat) : TermElabM Bool :=
+    dist.proofsArr.anyM <| fun (l, _, w) => 
+              do pure (decide <| w ≤ weight) <&&> isDefEq l prop
+
 def terms(dist: ExprDist) : FinDist Expr := 
       FinDist.fromArray dist.termsArr
 
