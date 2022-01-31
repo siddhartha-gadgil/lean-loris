@@ -47,6 +47,42 @@ def updateExprM
     else 
       updateTermM m x d
 
+def pushTerm(m: ExprDist)(x: Expr)(d: Nat) : ExprDist :=
+  ⟨m.termsArr.push (x, d), m.proofsArr⟩
+
+def pushProof(m: ExprDist)(prop x: Expr)(d: Nat) : ExprDist :=
+  ⟨m.termsArr, m.proofsArr.push (prop, x, d)⟩
+
+def updatedProofM?(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM (Option ExprDist) := do
+  match ← (m.proofsArr.findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
+      | some j => 
+          let (l, p, w) := m.proofsArr.get! j
+          if w ≤ d then return none
+          else return some ⟨m.termsArr, m.proofsArr.insertAt j (prop, x, d)⟩
+      | none => 
+        return some ⟨m.termsArr, m.proofsArr.push (prop, x, d)⟩
+
+def updatedTermM?(m: ExprDist) (x: Expr) (d: Nat) : TermElabM (Option ExprDist) := 
+  do
+    match ← (m.termsArr.findIdxM? <| fun (t, w) => isDefEq t x) with
+      | some j =>
+        let (t, w) := m.termsArr.get! j 
+        if w ≤ j then return none
+        else return some ⟨m.termsArr.insertAt j (x, d), m.proofsArr⟩
+      | none => 
+          return some ⟨m.termsArr.push (x, d), m.proofsArr⟩
+
+def updatedExprM?
+    (m: ExprDist) (x: Expr) (d: Nat) : TermElabM (Option ExprDist) := 
+  do
+    if ← isProof x then
+      let prop ← whnf (← inferType x)
+      Term.synthesizeSyntheticMVarsNoPostponing
+      updatedProofM? m prop x d
+    else 
+      updatedTermM? m x d
+
+
 def mapM(dist: ExprDist)(f: Expr → TermElabM Expr) : TermElabM ExprDist := do
   let termsArrBase ← dist.termsArr.mapM <| fun (e, n) => do
     let e ← f e
