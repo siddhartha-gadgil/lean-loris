@@ -18,27 +18,34 @@ namespace ExprDist
 
 def empty : ExprDist := ⟨Array.empty, Array.empty⟩
 
-def updateExprM
-    (m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist := 
-  do
-    if ← isProof x then
-      let prop ← whnf (← inferType x)
-      Term.synthesizeSyntheticMVarsNoPostponing
-      match ← (m.proofsArr.findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
+def updateProofM(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM ExprDist := do
+  match ← (m.proofsArr.findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
       | some j => 
           let (l, p, w) := m.proofsArr.get! j
           if w ≤ d then return m 
           else return ⟨m.termsArr, m.proofsArr.insertAt j (prop, x, d)⟩
       | none => 
         return ⟨m.termsArr, m.proofsArr.push (prop, x, d)⟩
-    else 
-      match ← (m.termsArr.findIdxM? <| fun (t, w) => isDefEq t x) with
+
+def updateTermM(m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist := 
+  do
+    match ← (m.termsArr.findIdxM? <| fun (t, w) => isDefEq t x) with
       | some j =>
         let (t, w) := m.termsArr.get! j 
         if w ≤ j then return m
         else return ⟨m.termsArr.insertAt j (x, d), m.proofsArr⟩
       | none => 
           return ⟨m.termsArr.push (x, d), m.proofsArr⟩
+
+def updateExprM
+    (m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist := 
+  do
+    if ← isProof x then
+      let prop ← whnf (← inferType x)
+      Term.synthesizeSyntheticMVarsNoPostponing
+      updateProofM m prop x d
+    else 
+      updateTermM m x d
 
 def mapM(dist: ExprDist)(f: Expr → TermElabM Expr) : TermElabM ExprDist := do
   let termsArrBase ← dist.termsArr.mapM <| fun (e, n) => do

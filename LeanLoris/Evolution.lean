@@ -361,7 +361,7 @@ do
           let flip ← whnf (← mkAppM ``Eq.symm #[pf])
           Term.synthesizeSyntheticMVarsNoPostponing
           pfs := pfs.insert (rhs, lhs) flip
-          eqs ← eqs.updateExprM flip w
+          eqs ← eqs.updateExprM flip (w + 1)
     logInfo m!"equalities after flip: {eqs.proofsArr.size}"
     -- count cumulative weights of pairs, deleting reflexive pairs
     let mut cumPairCount : HashMap Nat Nat := HashMap.empty
@@ -414,8 +414,12 @@ def weightByType(cost: Nat): ExprDist → TermElabM ExprDist := fun init => do
   let mut finalDist := init
   for (x, w) in init.termsArr do
     let α := ← whnf (← inferType x)
-    match init.terms.find? α   with
-    | some w  => finalDist ←  ExprDist.updateExprM finalDist x (w + cost)
+    match ← init.termsArr.findM? <| fun (typ, _) => isDefEq α typ  with
+    | some (_, w)  => finalDist ←  ExprDist.updateTermM finalDist x (w + cost)
+    | _ => ()
+  for (α , x, w) in init.proofsArr do
+    match ← init.termsArr.findM? <| fun (typ, _) => isDefEq α typ  with
+    | some (_, w)  => finalDist ←  ExprDist.updateProofM finalDist α x (w + cost)
     | _ => ()
   return finalDist
 
@@ -424,7 +428,11 @@ def refineWeight(weight? : Expr → TermElabM (Option Nat)):
   let mut finalDist := init
   for (x, w) in init.termsArr do
     match ← weight? x   with
-    | some w  => finalDist ←  finalDist.updateExprM x (w)
+    | some w  => finalDist ←  finalDist.updateTermM x (w)
+    | _ => ()
+  for (prop, x, w) in init.proofsArr do
+    match ← weight? x   with
+    | some w  => finalDist ←  finalDist.updateProofM prop x (w)
     | _ => ()
   return finalDist
 
@@ -436,7 +444,7 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
       let statement ←  (dist.termsArr.findM? $ fun (s, _) => isDefEq s g)
       let statement ←  statement.mapM $ fun (e, w) => do (← whnf e, w) 
       if ← isProp g then
-        logInfo m!"statement generated: {← statement}"
+        logInfo m!"proposition generated: {← statement}"
         let proof ←  dist.proofsArr.findM? $ fun (l, t, w) => 
                 do isDefEq l g
         logInfo m!"proof generated: {proof}"
