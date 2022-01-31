@@ -1,4 +1,5 @@
 import LeanLoris.FinDist
+import LeanLoris.ExprDist
 import Lean.Meta
 import Lean.Elab
 import Std
@@ -176,7 +177,73 @@ def isWhiteListed (declName : Name) : TermElabM Bool := do
   let bl ← isBlackListed  declName
   return !bl
 
+-- return Boolean pair (is-new, not-external)
+class NewElem (α D: Type) where
+  newElem: D → α → Nat → TermElabM (Bool × Bool)
+
+def newElem{α D : Type}[c: NewElem α D](d : D)(a : α)(n : Nat) : 
+    TermElabM (Bool × Bool) := c.newElem d a n
+
+def constNewElem{α D: Type}: Bool × Bool →  NewElem α D
+  | ans => ⟨fun d a wb => pure ans⟩
+
 -- generating distributions by combining
+
+
+def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α][ToMessageData β]
+    (compose: α → β → TermElabM (Option Expr))
+    (maxWeight card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
+    (data: D) : TermElabM (ExprDist) := do 
+    let mut w := ExprDist.empty
+    let fstAbove := weightAbove fst maxWeight
+    let sndAbove := weightAbove snd maxWeight
+    let fstTagged : Array (α × Nat × Bool × Bool) ← 
+            fst.mapM (fun (a, w) => do (a, w, ←  newElem data a w))
+    let sndTagged : Array (β × Nat × Bool × Bool) ←
+            snd.mapM (fun (b, w) => do (b, w, ←  newElem data b w))
+    if maxWeight > 0 then
+      for (e1, w1, b1, be1) in fstTagged do
+        for (e2, w2, b2, be2) in sndTagged do
+        -- logInfo m!"trying:  ({e1}, {w1}) and ({e2}, {w2}); {maxWeight - w1 - w2}"
+        if (((b1 || b2) &&  w1 + w2 + 1 ≤ maxWeight) -- at least one is new
+            || ((be1 || be2) &&  w1 + w2 + 1 = maxWeight)) -- weight sharp
+             && 
+          (fstAbove.findD w1 0) * (sndAbove.findD w2 0) ≤ card then
+          match ← compose e1 e2 with
+          | some e3 =>
+              -- logInfo m!"generated:  {e3}"
+              w ←  ExprDist.updateExprM w e3 (w1 + w2 + 1)
+          | none => 
+              ()-- logInfo m!"not generated from  {e1} and {e2}"
+    return w
+
+def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ D]
+    (compose: α → β → γ → TermElabM (Option Expr))
+    (maxWeight card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
+    (third : Array (γ × Nat))(data: D) : TermElabM (ExprDist) := do 
+    let mut w := ExprDist.empty
+    let fstAbove := weightAbove fst maxWeight
+    let sndAbove := weightAbove snd maxWeight
+    let thirdAbove := weightAbove third maxWeight
+    let fstTagged : Array (α × Nat × Bool × Bool) ← 
+            fst.mapM (fun (a, w) => do (a, w, ←  newElem data a w))
+    let sndTagged : Array (β × Nat × Bool × Bool) ←
+            snd.mapM (fun (b, w) => do (b, w, ←  newElem data b w))
+    let thirdTagged : Array (γ × Nat × Bool × Bool) ←
+            third.mapM (fun (c, w) => do (c, w, ←  newElem data c w))
+    if maxWeight > 0 then
+      for (e1, w1, b1, be1) in fstTagged do
+      for (e2, w2, b2, be2) in sndTagged do
+      for (e3, w3, b3, be3) in thirdTagged do
+        if (((b1 || b2 || b3) &&  w1 + w2 + w3 + 1 ≤ maxWeight) -- at least one is new
+            || ((be1 || be2 || be3) && w1 + w2 + w3 + 1 = maxWeight)) -- none new but weight sharp
+             &&  
+          (fstAbove.find! w1) * (sndAbove.find! w2) * (thirdAbove.find! w3) ≤ card then
+          match ← compose e1 e2 e3 with
+          | some e4 =>
+              w ←  ExprDist.updateExprM w e4 (w1 + w2 + w3 + 1)
+          | none => ()
+    return w
 
 
 def prodGenM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
@@ -187,10 +254,9 @@ def prodGenM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
     if maxWeight > 0 then
       let fstBdd := fst.bound (maxWeight - 1) card
       let fstCount := fstBdd.cumulWeightCount maxWeight
-      let fstTop := (fstCount.toList.map (fun (k, v) => v)).maximum?.getD 1 
       for (key, val) in fstBdd.toArray do
       if maxWeight - val > 0 then
-        let fstNum := fstCount.findD val 0
+        let fstNum := fstCount.find! val 
         let sndCard := card / fstNum
         let sndBdd := snd.bound (maxWeight - val - 1) sndCard
         for (key2, val2) in sndBdd.toArray do
@@ -201,7 +267,6 @@ def prodGenM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
             | none => ()
           -- else logWarning m!"newPair failed {val} {val2} ; {maxWeight}"
     return w
-
 
 def tripleProdGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
     [Hashable γ][BEq γ]

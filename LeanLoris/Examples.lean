@@ -21,15 +21,16 @@ syntax (name:=genOne) "gen1!" term : term
       let m1 ← prodGenM  applyOpt 4 100 m m (fun _ _ _ _ => true)
       for (x, w) in m1.terms.toArray do
         logInfo m!"{x} : {w}" 
-      let m2 ← egEvolver  4 100 ⟨m, HashMap.empty⟩ ()
+      let m2 ← egEvolver  4 100 (← ExprDist.fromTermsM m) ()
       for (x, w) in m2.terms.toArray do
         logInfo m!"{x} : {w}" 
       logInfo "Evolved state"
-      let m3 ← (egEvolver).evolve 12 100 ⟨m, HashMap.empty⟩ ()
+      let m3 ← (egEvolver).evolve 12 100 (← ExprDist.fromTermsM m) ()
       for (x, w) in m3.terms.toArray do
         logInfo m!"{x} : {w}" 
       logInfo "Full Evolved state"
-      let m4 ← (egEvolverFull).evolve 12 100 ⟨m, HashMap.empty⟩ (HashMap.empty, [])
+      let m4 ← (egEvolverFull).evolve 12 100 (← ExprDist.fromTermsM m) 
+                                          (HashMap.empty, [], [])
       for (x, w) in m4.terms.toArray do
         logInfo m!"{x} : {w}" 
       return x
@@ -84,4 +85,4 @@ def eveg(α : Type):= fun (f g: α →  α) (a: α) =>
 #reduce eveg
 
 def egEqProp(a b c: Nat)(p: a = b)(q: a = c) :=
-    evolve! ^[eq-closure %[a = c, c= a]] %[b = c, b = a] %{(p, 0), (q, 0)} 4 1000
+    evolve! ^[eq-closure] %[b = c, b = a, a = b] %{(p, 0), (q, 0)} 5 1000

@@ -303,7 +303,7 @@ end ProdSeq
 initialize exprDistCache : IO.Ref (HashMap Name (Expr × ExprDist)) 
                           ← IO.mkRef (HashMap.empty)
 
-def saveExprDist (name: Name)(es: ExprDist) : TermElabM (Unit) := do
+def ExprDist.save (es: ExprDist)(name: Name) : TermElabM (Unit) := do
   let lctx ← getLCtx
   let fvarIds ← lctx.getFVarIds
   let fvIds ← fvarIds.filterM $ fun fid => isWhiteListed ((lctx.get! fid).userName) 
@@ -317,7 +317,7 @@ def saveExprDist (name: Name)(es: ExprDist) : TermElabM (Unit) := do
   exprDistCache.set (cache.insert name (varPack, es))
   return ()
 
-def loadExprArr (name: Name) : TermElabM (ExprDist) := do
+def ExprDist.load (name: Name) : TermElabM (ExprDist) := do
   let cache ← exprDistCache.get
   match cache.find? name with
   | some (varPack, es) =>
