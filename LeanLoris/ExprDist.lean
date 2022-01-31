@@ -23,7 +23,7 @@ def updateProofM(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM ExprDist := do
       | some j => 
           let (l, p, w) := m.proofsArr.get! j
           if w ≤ d then return m 
-          else return ⟨m.termsArr, m.proofsArr.insertAt j (prop, x, d)⟩
+          else return ⟨m.termsArr, m.proofsArr.set! j (prop, x, d)⟩
       | none => 
         return ⟨m.termsArr, m.proofsArr.push (prop, x, d)⟩
 
@@ -33,7 +33,7 @@ def updateTermM(m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist :=
       | some j =>
         let (t, w) := m.termsArr.get! j 
         if w ≤ j then return m
-        else return ⟨m.termsArr.insertAt j (x, d), m.proofsArr⟩
+        else return ⟨m.termsArr.set! j (x, d), m.proofsArr⟩
       | none => 
           return ⟨m.termsArr.push (x, d), m.proofsArr⟩
 
@@ -58,7 +58,7 @@ def updatedProofM?(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM (Option ExprDi
       | some j => 
           let (l, p, w) := m.proofsArr.get! j
           if w ≤ d then return none
-          else return some ⟨m.termsArr, m.proofsArr.insertAt j (prop, x, d)⟩
+          else return some ⟨m.termsArr, m.proofsArr.set! j (prop, x, d)⟩
       | none => 
         return some ⟨m.termsArr, m.proofsArr.push (prop, x, d)⟩
 
@@ -68,7 +68,7 @@ def updatedTermM?(m: ExprDist) (x: Expr) (d: Nat) : TermElabM (Option ExprDist) 
       | some j =>
         let (t, w) := m.termsArr.get! j 
         if w ≤ j then return none
-        else return some ⟨m.termsArr.insertAt j (x, d), m.proofsArr⟩
+        else return some ⟨m.termsArr.set! j (x, d), m.proofsArr⟩
       | none => 
           return some ⟨m.termsArr.push (x, d), m.proofsArr⟩
 
