@@ -250,14 +250,18 @@ def applyEvolver(D: Type)[NewElem Expr D] : EvolutionM D := fun wb c init d =>
   do
     let funcs ← init.termsArr.filterM $ fun (e, _) => 
        do Expr.isForall <| ← inferType e
-    prodGenArrM applyOpt wb c funcs init.termsArr d 
+    let pfFuncs ← init.proofsArr.filterMapM <| fun (l, f, w) =>
+      do if (← l.isForall) then some (f, w) else none
+    prodGenArrM applyOpt wb c (funcs ++ pfFuncs) init.termsArr d 
 
 def applyPairEvolver(D: Type)[cs : IsNew D][NewElem Expr D]: EvolutionM D := 
   fun wb c init d =>
   do
     let funcs ← init.termsArr.filterM $ fun (e, _) => 
        do Expr.isForall <| ← inferType e
-    tripleProdGenArrM applyPairOpt wb c funcs init.termsArr init.termsArr d
+    let pfFuncs ← init.proofsArr.filterMapM <| fun (l, f, w) =>
+      do if (← l.isForall) then some (f, w) else none
+    tripleProdGenArrM applyPairOpt wb c (funcs ++ pfFuncs) init.termsArr init.termsArr d
 
 def nameApplyEvolver(D: Type)[IsNew D][GetNameDist D][NewElem Expr D]: EvolutionM D := fun wb c init d =>
   do
@@ -283,9 +287,11 @@ def congrEvolver(D: Type)[IsNew D][NewElem Expr D] : EvolutionM D := fun wb c in
   do
     let funcs ←   init.termsArr.filterM $ fun (e, _) => 
        do Expr.isForall <| ← inferType e
+    let pfFuncs ← init.proofsArr.filterMapM <| fun (l, f, w) =>
+      do if (← l.isForall) then some (f, w) else none
     let eqls  ←  init.proofsArr.filterMapM  $ fun (l, e, w) => 
        do if l.isEq then some (e, w) else none
-    prodGenArrM congrArgOpt wb c funcs eqls d
+    prodGenArrM congrArgOpt wb c (funcs ++ pfFuncs) eqls d
 
 def eqIsleEvolver(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM D := 
   fun wb c init d evolve => 
