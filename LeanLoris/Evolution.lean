@@ -363,28 +363,27 @@ do
         record array of (x, pf, w) and array of (z, pf, z)
     -/
     let mut grouped : 
-          Array (Expr × (Array (Expr × Expr × Nat)) × (Array (Expr × Expr × Nat))) := #[]
+          HashMap Expr <| (Array (Expr × Expr × Nat)) × (Array (Expr × Expr × Nat)) := 
+              HashMap.empty
     for (l, pf, w) in allEquations.proofsArr do
       match l.eq? with
       | none => ()
       | some (_, lhs, rhs) =>
         -- update first component, i.e. y = rhs
-        match ← grouped.findIdxM? <| fun (y, _, _) => isDefEq y rhs with
+        match ← grouped.find?  rhs with
         | none => -- no equation involving rhs
-          grouped := grouped.push (rhs, #[(lhs, pf, w)], #[])
-        | some j =>
-          let (y, withRhs, withLhs) := grouped.get! j 
-          grouped := grouped.set! j (y, withRhs.push (lhs, pf, w), withLhs)
+          grouped := grouped.insert rhs (#[(lhs, pf, w)], #[])
+        | some (withRhs, withLhs) => 
+          grouped := grouped.insert rhs (withRhs.push (lhs, pf, w), withLhs)
         -- update second component
-        match ← grouped.findIdxM? <| fun (y, _, _) => isDefEq y lhs with
-        | none => -- no equation involving rhs
-          grouped := grouped.push (lhs, #[], #[(rhs, pf, w)])
-        | some j =>
-          let (y, withRhs, withLhs) := grouped.get! j 
-          grouped := grouped.set! j (y, withRhs, withLhs.push (rhs, pf, w))
+        match ← grouped.find?  lhs with
+        | none => -- no equation involving lhs
+          grouped := grouped.insert lhs (#[], #[(rhs, pf, w)])
+        | some (withRhs, withLhs) =>
+          grouped := grouped.insert lhs (withRhs, withLhs.push (rhs, pf, w))
     -- count cumulative weights of pairs, deleting reflexive pairs (assuming symmetry)
     let mut cumPairCount : HashMap Nat Nat := HashMap.empty
-    for (_, m ,_) in grouped do
+    for (_, m ,_) in grouped.toArray do
       let weights := m.map <| fun (_, _, w) => w
       for w1 in weights do
         for w2 in weights do 
@@ -394,7 +393,7 @@ do
         for j in [w1 + w1 + 1:wb + 1] do
           cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 - 1)
     logInfo m!"cumulative pair count: {cumPairCount.toArray}"
-    for (y, withRhs, withLhs) in grouped do
+    for (y, withRhs, withLhs) in grouped.toArray do
       for (x, eq1, w1) in withRhs do
         for (z, eq2, w2) in withLhs do
         let w := w1 + w2 + 1
