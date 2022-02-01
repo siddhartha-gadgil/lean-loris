@@ -224,7 +224,8 @@ def parseExprMap : Syntax → TermElabM (Array (Expr × Nat))
           let m : Array (Expr × Nat) ←  xs.mapM (fun s => do
               match s with 
               | `(exprWt|($x:term , $n:numLit)) => 
-                  let expr ← elabTerm x none
+                  let expr ← whnf <| ←  elabTerm x none
+                  Term.synthesizeSyntheticMVarsNoPostponing
                   return (expr, (Syntax.isNatLit? n).get!)
               | _ =>
                 throwError m!"{s} is not a valid exprWt"
@@ -252,7 +253,8 @@ syntax "%[" term,* "]" : expr_list
 def parseExprList : Syntax → TermElabM (Array Expr)
   | `(expr_list|%[$[$xs],*]) =>
     do
-          let m : Array Expr ←  xs.mapM <| fun s => elabTerm s none
+          let m : Array Expr ←  xs.mapM <| fun s => do whnf <| ← elabTerm s none
+          Term.synthesizeSyntheticMVarsNoPostponing
           return m
   | _ => throwIllFormedSyntax
 
