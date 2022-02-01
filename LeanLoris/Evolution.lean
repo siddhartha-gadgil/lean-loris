@@ -398,7 +398,7 @@ do
         for (z, eq2, w2) in withLhs do
         let w := w1 + w2 + 1
             if w ≤ wb && (cumPairCount.findD w 0) ≤ card * 2 then 
-            unless ← isDefEq x z do
+            unless x == z do
               let eq3 ← whnf (←   mkAppM ``Eq.trans #[eq1, eq2]) 
               let prop ← mkEq x z
               Term.synthesizeSyntheticMVarsNoPostponing
@@ -429,12 +429,12 @@ def weightByType(cost: Nat): ExprDist → TermElabM ExprDist := fun init => do
   let mut finalDist := init
   for (x, w) in init.termsArr do
     let α := ← whnf (← inferType x)
-    match ← init.termsArr.findM? <| fun (typ, _) => isDefEq α typ  with
-    | some (_, w)  => finalDist ←  ExprDist.updateTermM finalDist x (w + cost)
+    match ← init.termsMap.find?  α   with
+    | some w  => finalDist ←  ExprDist.updateTermM finalDist x (w + cost)
     | _ => ()
   for (α , x, w) in init.proofsArr do
-    match ← init.termsArr.findM? <| fun (typ, _) => isDefEq α typ  with
-    | some (_, w)  => finalDist ←  ExprDist.updateProofM finalDist α x (w + cost)
+    match ← init.termsMap.find?  α   with
+    | some w  => finalDist ←  ExprDist.updateProofM finalDist α x (w + cost)
     | _ => ()
   return finalDist
 
