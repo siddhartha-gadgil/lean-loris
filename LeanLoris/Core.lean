@@ -201,7 +201,6 @@ def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α
     (compose: α → β → TermElabM (Option Expr))
     (maxWeight card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
     (data: D) : TermElabM (ExprDist) := do 
-    let mut w := ExprDist.empty
     let fstAbove := weightAbove fst maxWeight
     let sndAbove := weightAbove snd maxWeight
     let fstTagged : Array (α × Nat × Bool × Bool) ← 
@@ -209,20 +208,26 @@ def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α
     let sndTagged : Array (β × Nat × Bool × Bool) ←
             snd.mapM (fun (b, w) => do (b, w, ←  newElem data b w))
     if maxWeight > 0 then
-      for (e1, w1, b1, be1) in fstTagged do
-        for (e2, w2, b2, be2) in sndTagged do
-        -- logInfo m!"trying:  ({e1}, {w1}) and ({e2}, {w2}); {maxWeight - w1 - w2}"
-        if (((b1 || b2) &&  w1 + w2 + 1 ≤ maxWeight) -- at least one is new
-            || ((be1 || be2) &&  w1 + w2 + 1 = maxWeight)) -- weight sharp
-             && 
-          (fstAbove.findD w1 0) * (sndAbove.findD w2 0) ≤ card then
-          match ← compose e1 e2 with
-          | some e3 =>
-              -- logInfo m!"generated:  {e3}"
-              w ←  ExprDist.updateExprM w e3 (w1 + w2 + 1)
-          | none => 
-              ()-- logInfo m!"not generated from  {e1} and {e2}"
-    return w
+      fstTagged.foldlM (
+        fun dist1 (e1, w1, b1, be1) => 
+          sndTagged.foldlM (
+            fun dist2 (e2, w2, b2, be2) => 
+            do
+              if (((b1 || b2) &&  w1 + w2 + 1 ≤ maxWeight) -- at least one is new
+                  || ((be1 || be2) &&  w1 + w2 + 1 = maxWeight)) -- weight sharp
+                  && 
+                (fstAbove.findD w1 0) * (sndAbove.findD w2 0) ≤ card then
+                match ← compose e1 e2 with
+                | some e3 =>
+                    -- logInfo m!"generated:  {e3}"
+                    ExprDist.updateExprM dist2 e3 (w1 + w2 + 1)
+                | none => 
+                    dist2-- logInfo m!"not generated from  {e1} and {e2}"
+              else dist2
+            ) 
+          dist1
+          ) ExprDist.empty 
+    else return ExprDist.empty
 
 def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ D]
     (compose: α → β → γ → TermElabM (Option Expr))
@@ -239,18 +244,25 @@ def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ 
     let thirdTagged : Array (γ × Nat × Bool × Bool) ←
             third.mapM (fun (c, w) => do (c, w, ←  newElem data c w))
     if maxWeight > 0 then
-      for (e1, w1, b1, be1) in fstTagged do
-      for (e2, w2, b2, be2) in sndTagged do
-      for (e3, w3, b3, be3) in thirdTagged do
-        if (((b1 || b2 || b3) &&  w1 + w2 + w3 + 1 ≤ maxWeight) -- at least one is new
-            || ((be1 || be2 || be3) && w1 + w2 + w3 + 1 = maxWeight)) -- none new but weight sharp
-             &&  
-          (fstAbove.find! w1) * (sndAbove.find! w2) * (thirdAbove.find! w3) ≤ card then
-          match ← compose e1 e2 e3 with
-          | some e4 =>
-              w ←  ExprDist.updateExprM w e4 (w1 + w2 + w3 + 1)
-          | none => ()
-    return w
+      fstTagged.foldlM (
+        fun dist1 (e1, w1, b1, be1) => 
+        sndTagged.foldlM (
+          fun dist2 (e2, w2, b2, be2) => 
+          thirdTagged.foldlM (    
+            fun dist3 (e3, w3, b3, be3) =>  
+            do
+            if (((b1 || b2 || b3) &&  w1 + w2 + w3 + 1 ≤ maxWeight) -- at least one is new
+            || ((be1 || be2 || be3) && w1 + w2 + w3 + 1 = maxWeight))
+             &&  (fstAbove.find! w1) * (sndAbove.find! w2) * (thirdAbove.find! w3) ≤ card 
+            then
+              match ← compose e1 e2 e3 with
+              | some e4 =>
+                  ExprDist.updateExprM dist3 e4 (w1 + w2 + w3 + 1)
+              | none => dist3
+            else dist3
+                ) 
+            dist2) dist1) ExprDist.empty 
+    else return ExprDist.empty
 
 
 def prodGenM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
