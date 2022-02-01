@@ -1,5 +1,7 @@
 import LeanLoris.Evolution
+import Lean.Meta
 universe u
+open Lean Meta
 
 variable {M: Type u}[Mul M]
 
@@ -22,6 +24,10 @@ set_option maxHeartbeats 10000000
 
 def mul(m n: M) := m * n
 
+#eval defCnt
+
+def chosen(n: Nat) : IO (Expr × Expr) := do (← notBEq).get! n
+
 def exploreProofs(ax1 : ∀ a b : M, (a * b) * b = a)(ax2 : ∀ a b : M, a * (a * b) = b)
                   (m n: M) := 
                   let lem1! := (m * n) * n = m 
@@ -36,6 +42,21 @@ def exploreProofs(ax1 : ∀ a b : M, (a * b) * b = a)(ax2 : ∀ a b : M, a * (a 
                   -- let seek4 := evolve! ^[app, name-app, name-binop, eq-isles, binop] %[lem1!, lem4!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0), (m *n, 0)} !{(mul, 0), (Eq, 0)} 4 2000
                   -- let seek5 := evolve! ^[app, name-app, name-binop, eq-isles, binop, eq-closure] %[lem2!, lem4!, lem5!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0), (m *n, 0)} !{(mul, 0), (Eq, 0)} 5 3000
                   -- seek5
-                  ()
-             
-#check exploreProofs
+                  chosen 60
+
+#eval defCnt
+#eval defTime             
+#check @exploreProofs Nat (inferInstance)
+def sz : IO Nat := do (← notBEq).size
+#eval sz
+
+#eval chosen 10
+def first(n: Nat) : IO Expr  := do ((← notBEq).get! n).1
+def second(n: Nat) : IO Expr := do ((← notBEq).get! n).2
+#eval first 1
+#eval second 1
+
+#check @mul
+
+def inst : Mul Nat := inferInstance
+#check inst.mul

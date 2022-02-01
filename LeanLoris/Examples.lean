@@ -86,3 +86,5 @@ def eveg(α : Type):= fun (f g: α →  α) (a: α) =>
 
 def egEqProp(a b c: Nat)(p: a = b)(q: a = c) :=
     evolve! ^[eq-closure] %[b = c, b = a, a = b] %{(p, 0), (q, 0)} 5 1000
+
+#eval notBEq

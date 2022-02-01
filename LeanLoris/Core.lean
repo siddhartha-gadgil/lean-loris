@@ -43,6 +43,7 @@ def applyOpt (f x : Expr) : TermElabM (Option Expr) :=
       let expr ← elabAppArgs f #[] #[Arg.expr x] none (explicit := false) (ellipsis := false)
       let exprType ← inferType expr
       if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  then 
+        Term.synthesizeSyntheticMVarsNoPostponing
         return some <| ← whnf expr
       else return none
     catch e =>
@@ -55,6 +56,7 @@ def applyPairOpt (f x y : Expr) : TermElabM (Option Expr) :=
                     (explicit := false) (ellipsis := false)
       let exprType ← inferType expr
       if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  then 
+        Term.synthesizeSyntheticMVarsNoPostponing
         return some <| ← whnf expr
       else return none
     catch e =>
@@ -68,7 +70,8 @@ def nameApplyOpt (f: Name) (x : Expr) : TermElabM (Option Expr) :=
       let exprType ← inferType expr
       if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  then 
         -- Elab.logInfo m!"from name, arg : {expr}"
-        return some expr
+        Term.synthesizeSyntheticMVarsNoPostponing
+        return some <| ← whnf expr
       else
       Elab.logWarning m!"not type correct : {expr} = {f} ({x})" 
       return none
@@ -85,7 +88,8 @@ def nameApplyPairOpt (f: Name) (x y: Expr) : TermElabM (Option Expr) :=
       let exprType ← inferType expr
       if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  then 
         -- Elab.logInfo m!"from name, arg : {expr}"
-        return some expr
+        Term.synthesizeSyntheticMVarsNoPostponing
+        return some <| ← whnf expr
       else
       Elab.logWarning m!"not type correct : {expr} = {f}({x}, {y})" 
       return none

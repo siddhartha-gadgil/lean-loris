@@ -225,6 +225,8 @@ def parseExprMap : Syntax → TermElabM (Array (Expr × Nat))
               match s with 
               | `(exprWt|($x:term , $n:numLit)) => 
                   let expr ← elabTerm x none
+                  let expr ← whnf <| expr
+                  Term.synthesizeSyntheticMVarsNoPostponing
                   return (expr, (Syntax.isNatLit? n).get!)
               | _ =>
                 throwError m!"{s} is not a valid exprWt"

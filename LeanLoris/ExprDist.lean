@@ -10,6 +10,59 @@ open Std
 open Std.HashMap
 open Nat
 
+initialize defEqCount : IO.Ref (HashMap Name Nat) ← IO.mkRef <| HashMap.empty
+initialize defEqTime : IO.Ref Nat ← IO.mkRef 0
+initialize notBEqExpr : IO.Ref (Array (Expr × Expr)) ← IO.mkRef #[]
+
+def defCnt : IO (Array (Name × Nat)) := do return (← defEqCount.get).toArray
+def defTime : IO Nat := defEqTime.get
+def notBEq : IO (Array (Expr × Expr)) := notBEqExpr.get
+
+namespace hide
+
+def isBlackListed  (declName : Name) : TermElabM  Bool := do
+  let env ← getEnv
+  declName.isInternal
+  <||> isAuxRecursor env declName
+  <||> isNoConfusion env declName
+  <||> isRecCore env declName
+  <||> isMatcherCore env declName
+
+def isAux (declName : Name) : TermElabM  Bool := do
+  let env ← getEnv
+  isAuxRecursor env declName
+  <||> isNoConfusion env declName
+  
+def isNotAux  (declName : Name) : TermElabM  Bool := do
+  let nAux ← isAux declName
+  return (not nAux)
+
+def isWhiteListed (declName : Name) : TermElabM Bool := do
+  let bl ← isBlackListed  declName
+  return !bl
+end hide
+open hide
+
+def wrapDefEq (fst snd : Expr) (name: Name) : TermElabM Bool := do
+  let cntRef ← defEqCount.get
+  let timeRef ← defEqTime.get
+  let nbeq ← notBEqExpr.get
+  let start ← IO.monoMsNow
+  let res ← isDefEq fst snd
+  let finish ← IO.monoMsNow
+  defEqCount.set <| cntRef.insert name ((cntRef.findD name 0) + 1)
+  defEqTime.set <| timeRef + (finish - start)
+  if res && !(fst == snd) then
+        let lctx ← getLCtx
+        let fvarIds ← lctx.getFVarIds
+        -- let fvIds ← fvarIds.filterM $ fun fid => isWhiteListed ((lctx.get! fid).userName)
+        let fvars := fvarIds.map mkFVar
+        Term.synthesizeSyntheticMVarsNoPostponing 
+        let fst ← whnf <| ←  mkLambdaFVars fvars fst
+        let snd ← whnf <| ←  mkLambdaFVars fvars snd
+        notBEqExpr.set (nbeq.push (fst, snd))
+  return res
+
 -- proofs will not also be stored as terms
 structure ExprDist where
   termsArr : Array (Expr × Nat)
@@ -19,7 +72,7 @@ namespace ExprDist
 def empty : ExprDist := ⟨Array.empty, Array.empty⟩
 
 def updateProofM(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM ExprDist := do
-  match ← (m.proofsArr.findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
+  match ← (m.proofsArr.findIdxM? <| fun (l, _, w) =>  wrapDefEq l prop `updateProofM)  with
       | some j => 
           let (l, p, w) := m.proofsArr.get! j
           if w ≤ d then return m 
@@ -29,7 +82,7 @@ def updateProofM(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM ExprDist := do
 
 def updateTermM(m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist := 
   do
-    match ← (m.termsArr.findIdxM? <| fun (t, w) => isDefEq t x) with
+    match ← (m.termsArr.findIdxM? <| fun (t, w) => wrapDefEq t x `updateTermM) with
       | some j =>
         let (t, w) := m.termsArr.get! j 
         if w ≤ j then return m
@@ -54,7 +107,7 @@ def pushProof(m: ExprDist)(prop x: Expr)(d: Nat) : ExprDist :=
   ⟨m.termsArr, m.proofsArr.push (prop, x, d)⟩
 
 def updatedProofM?(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM (Option ExprDist) := do
-  match ← (m.proofsArr.findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
+  match ← (m.proofsArr.findIdxM? <| fun (l, _, w) =>  wrapDefEq l prop `updatedProofM?)  with
       | some j => 
           let (l, p, w) := m.proofsArr.get! j
           if w ≤ d then return none
@@ -64,7 +117,7 @@ def updatedProofM?(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM (Option ExprDi
 
 def updatedTermM?(m: ExprDist) (x: Expr) (d: Nat) : TermElabM (Option ExprDist) := 
   do
-    match ← (m.termsArr.findIdxM? <| fun (t, w) => isDefEq t x) with
+    match ← (m.termsArr.findIdxM? <| fun (t, w) => wrapDefEq t x `updatedTermM?) with
       | some j =>
         let (t, w) := m.termsArr.get! j 
         if w ≤ j then return none
@@ -95,7 +148,7 @@ def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
     let mut ⟨fstTerms, fstProofs⟩ := fst
     let mut ⟨sndTerms, sndProofs⟩ := ExprDist.empty
     for (prop, x, d) in snd.proofsArr do
-      match ← (fstProofs.findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
+      match ← (fstProofs.findIdxM? <| fun (l, _, w) =>  wrapDefEq l prop `mergeM)  with
       | some j => 
           let (l, p, w) := fstProofs.get! j
           if w ≤ d then ()
@@ -105,7 +158,7 @@ def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
       | none => 
           sndProofs := sndProofs.push (prop, x, d)
     for (x, d) in snd.termsArr do
-      match ← (fstTerms.findIdxM? <| fun (t, w) =>  isDefEq t x)  with
+      match ← (fstTerms.findIdxM? <| fun (t, w) =>  wrapDefEq t x `mergeM)  with
       | some j => 
           let (t, w) := fstTerms.get! j
           if w ≤ d then ()
@@ -127,14 +180,14 @@ def existsM(dist: ExprDist)(elem: Expr)(weight: Nat) : TermElabM Bool :=
     if ← isProof elem then
       let prop ← inferType elem
       dist.proofsArr.anyM <| fun (l, _, w) => 
-              do pure (decide <| w ≤ weight) <&&> isDefEq l prop
+              do pure (decide <| w ≤ weight) <&&> wrapDefEq l prop `existsM
     else 
       dist.termsArr.anyM <| fun (t, w) => 
-              do pure (decide <| w ≤ weight) <&&> isDefEq t elem
+              do pure (decide <| w ≤ weight) <&&> wrapDefEq t elem `existsM
 
 def existsPropM(dist: ExprDist)(prop: Expr)(weight: Nat) : TermElabM Bool :=
     dist.proofsArr.anyM <| fun (l, _, w) => 
-              do pure (decide <| w ≤ weight) <&&> isDefEq l prop
+              do pure (decide <| w ≤ weight) <&&> wrapDefEq l prop `existsMProp
 
 def terms(dist: ExprDist) : FinDist Expr := 
       FinDist.fromArray dist.termsArr
