@@ -315,17 +315,20 @@ def eqIsleEvolver(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM D 
         let ic := c / (eqsCum.find! w) -- should not be missing
         let isleDist ←   isleM type evolve (wb -w -1) ic init d false true false true
         isleDistMap := isleDistMap.insert type isleDist
-    let mut finalDist: ExprDist := ExprDist.empty
-    for (eq, type, weq) in eqTriples do
-      if wb - weq > 0 then
-        let isleDistBase := isleDistMap.findD type ExprDist.empty
-        let xc := c / (eqsCum.find! weq) -- should not be missing
-        let isleDist := isleDistBase.terms.bound (wb -weq -1) xc
-        for (f, wf) in isleDist.toArray do
-          match ← congrArgOpt f eq with 
-          | none => ()
-          | some y => finalDist ←  finalDist.updateExprM y (wf + weq + 1)
-    return finalDist
+    let finDists : Array ExprDist ←  
+        (eqTriples.filter (fun (_, _, weq) => wb - weq > 0)).mapM <|
+          fun (eq, type, weq) => 
+            let isleDistBase := isleDistMap.findD type ExprDist.empty
+            let xc := c / (eqsCum.find! weq) -- should not be missing
+            let isleDist := isleDistBase.terms.bound (wb -weq -1) xc
+            isleDist.toArray.foldlM (
+                fun d (f, wf) => do 
+                  match ← congrArgOpt f eq with 
+                  | none => d
+                  | some y => 
+                      d.updateExprM y (wf + weq + 1)
+                ) ExprDist.empty
+    finDists.foldlM (fun x y => x ++ y) ExprDist.empty
 
 def allIsleEvolver(D: Type)[IsNew D][IsleData D] : RecEvolverM D := fun wb c init d evolve => 
   do
