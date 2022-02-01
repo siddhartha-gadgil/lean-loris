@@ -32,7 +32,7 @@ def updateTermM(m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist :=
     match ← (m.termsArr.findIdxM? <| fun (t, w) => isDefEq t x) with
       | some j =>
         let (t, w) := m.termsArr.get! j 
-        if w ≤ j then return m
+        if w ≤ d then return m
         else return ⟨m.termsArr.set! j (x, d), m.proofsArr⟩
       | none => 
           return ⟨m.termsArr.push (x, d), m.proofsArr⟩
@@ -67,7 +67,7 @@ def updatedTermM?(m: ExprDist) (x: Expr) (d: Nat) : TermElabM (Option ExprDist) 
     match ← (m.termsArr.findIdxM? <| fun (t, w) => isDefEq t x) with
       | some j =>
         let (t, w) := m.termsArr.get! j 
-        if w ≤ j then return none
+        if w ≤ d then return none
         else return some ⟨m.termsArr.set! j (x, d), m.proofsArr⟩
       | none => 
           return some ⟨m.termsArr.push (x, d), m.proofsArr⟩
