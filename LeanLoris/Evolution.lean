@@ -365,8 +365,8 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolut
   := fun wb card init d => 
   do
     logInfo m!"eqSymmTrans called: weight-bound {wb}, cardinality: {card}"
-    logInfo m!"initial terms: {init.termsMap.size}"
-    logInfo m!"initial proofs: {init.proofsMap.size}"
+    logInfo m!"initial terms: {init.termsArr.size}"
+    logInfo m!"initial proofs: {init.proofsArr.size}"
     let mut eqs := ExprDist.empty -- new equations only
     let mut allEquations := ExprDist.empty
     -- initial equations
@@ -465,11 +465,11 @@ def weightByType(cost: Nat): ExprDist → TermElabM ExprDist := fun init => do
   let mut finalDist := init
   for (x, w) in init.termsArr do
     let α := ← whnf (← inferType x)
-    match ← init.termsMap.find? α   with
+    match ← init.terms.find? α   with
     | some w  => finalDist ←  ExprDist.updateTermM finalDist x (w + cost)
     | _ => ()
   for (α , x, w) in init.proofsArr do
-    match ← init.termsMap.find? α  with
+    match ← init.terms.find? α  with
     | some w  => finalDist ←  ExprDist.updateProofM finalDist α x (w + cost)
     | _ => ()
   return finalDist
