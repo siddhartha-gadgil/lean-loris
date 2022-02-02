@@ -236,9 +236,8 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolutionM D)(weightBound: 
               evl ←  ExprDist.updateExprM evl y w
           let evt ← evl.termsArr.filterM (fun (x, _) => liftMetaM (isType x))
           let exported ← evl.mapM (fun e => mkLambdaFVars #[x] e)
-          let fe := FinDist.fromArray <|
-                   ← evt.mapM (fun (e, w) => do pure ( ← mkForallFVars #[x] e, w))
-          let exportedPi : ExprDist := ⟨fe, HashMap.empty⟩ -- pi-types are never proofs
+          let fe ← evt.mapM (fun (e, w) => do pure ( ← mkForallFVars #[x] e, w))
+          let exportedPi : ExprDist := ⟨fe, #[]⟩ -- pi-types are never proofs
           let res := 
             if includePi then 
                 if excludeLambda then exportedPi else ← exported ++ exportedPi 
