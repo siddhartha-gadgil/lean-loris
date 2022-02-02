@@ -391,32 +391,32 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolut
         record array of (x, pf, w) and array of (z, pf, z)
     -/
     let mut grouped : 
-          HashMap Expr <| (Array (Expr × Expr × Nat)) × (Array (Expr × Expr × Nat)) := 
-              HashMap.empty
+          Array (Expr × (Array (Expr × Expr × Nat)) × (Array (Expr × Expr × Nat))) := #[]
     for (l, pf, w) in allEquations.proofsArr do
       match l.eq? with
       | none => ()
       | some (_, lhs, rhs) =>
         -- update first component, i.e. y = rhs
-        match ← grouped.find?  rhs with
+        match ← grouped.findIdxM? <| fun (y, _, _) => isDefEq y rhs with
         | none => -- no equation involving rhs
           let weight := Nat.min w (init.terms.findD lhs w)
-          grouped := grouped.insert rhs (#[(lhs, pf, weight)], #[])
-        | some (withRhs, withLhs) => 
+          grouped := grouped.push (rhs, #[(lhs, pf, weight)] , #[])
+        | some j => 
+          let (y, withRhs, withLhs) := grouped.get! j
           let weight := Nat.min w (init.terms.findD lhs w)
-          grouped := grouped.insert rhs (withRhs.push (lhs, pf, weight), withLhs)
+          grouped := grouped.set! j (rhs, withRhs.push (lhs, pf, weight) , withLhs)
         -- update second component
-        match ← grouped.find?  lhs with
+        match ← grouped.findIdxM? <| fun (y, _, _) => isDefEq y lhs with
         | none => -- no equation involving lhs
           let weight := Nat.min w (init.terms.findD rhs w)
-          grouped := grouped.insert lhs (#[], #[(rhs, pf, weight)])
-        | some (withRhs, withLhs) =>
+          grouped := grouped.push (lhs, #[], #[(rhs, pf, weight)])
+        | some j => 
+          let (y, withRhs, withLhs) := grouped.get! j
           let weight := Nat.min w (init.terms.findD rhs w)
-          grouped := grouped.insert lhs (withRhs, withLhs.push (rhs, pf, weight))
+          grouped := grouped.set! j (lhs, withRhs, withLhs.push (rhs, pf, weight))
     -- count cumulative weights of pairs, deleting reflexive pairs (assuming symmetry)
     let mut cumPairCount : HashMap Nat Nat := HashMap.empty
-    for (y, m ,_) in grouped.toArray do
-      -- if m.size > 1 then logInfo m!"{y} is in {m.size} equations"
+    for (_, m ,_) in grouped do
       let weights := m.map <| fun (_, _, w) => w
       for w1 in weights do
         for w2 in weights do 
@@ -429,7 +429,7 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolut
     for g in goalterms do
       logInfo m!"goalterm: {g},  {init.terms.find? g}" 
       logInfo m!"{← init.termsArr.findM? <| fun (t, w) => isDefEq t g}"
-    for (y, withRhs, withLhs) in grouped.toArray do
+    for (y, withRhs, withLhs) in grouped do
       for (x, eq1, w1) in withRhs do
         for (z, eq2, w2) in withLhs do
         let w := w1 + w2 + 1
