@@ -237,6 +237,7 @@ def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ 
     let mut fstTagGrouped: HashMap Nat (Array (α × Bool × Bool)) := HashMap.empty
     let mut sndTagGrouped: HashMap Nat (Array (β × Bool × Bool)) := HashMap.empty
     let mut thirdTagGrouped: HashMap Nat (Array (γ × Bool × Bool)) := HashMap.empty
+    logInfo m!"grouping and tagging: {← IO.monoMsNow}"
     for (a, w1) in fst do
       let prev := fstTagGrouped.findD w1 #[]
       fstTagGrouped := fstTagGrouped.insert w1 <| prev.push (a, ← newElem data a w1)
@@ -257,25 +258,23 @@ def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ 
             third.mapM (fun (c, w) => do (c, w, ←  newElem data c w))
     if maxWeight > 0 then
       logInfo m!"computing weighted triples: {← IO.monoMsNow}"
-      logInfo m!"looping thorugh {fstTagged.size} × {sndTagged.size} ×{thirdTagged.size} triples"
+      logInfo m!"looping through {fstTagged.size} × {sndTagged.size} ×{thirdTagged.size} triples with selection"
       logInfo m!"first above: {fstAbove.toArray}"
       logInfo m!"second above: {sndAbove.toArray}"
       logInfo m!"third above: {thirdAbove.toArray}"
-      let wtdTriples : Array (α × β × γ  × Nat) := 
-        fstTagged.foldl (
-          fun dist1 (e1, w1, b1, be1) => 
-          sndTagged.foldl (
-            fun dist2 (e2, w2, b2, be2) => 
-            thirdTagged.foldl (    
-              fun dist3 (e3, w3, b3, be3) =>                
-              if (((b1 || b2 || b3) &&  w1 + w2 + w3 + 1 ≤ maxWeight) -- at least one is new
-              || ((be1 || be2 || be3) && w1 + w2 + w3 + 1 = maxWeight))
-              &&  (fstAbove.find! w1) * (sndAbove.find! w2) * (thirdAbove.find! w3) ≤ card 
-              then
-                  dist3.push (e1, e2, e3, w1 + w2 + w3 + 1)
-              else dist3
-                  ) 
-              dist2) dist1) #[]
+      let mut wtdTriples : Array (α × β × γ  × Nat) := #[]
+      for w1 in [0:maxWeight] do
+        for w2 in [0:maxWeight-w1] do
+          for w3 in [0:maxWeight-w1-w2] do
+          if (fstAbove.findD w1 0) * (sndAbove.findD w2 0) * (thirdAbove.findD w3 0) ≤ card
+          then 
+            for (e1, b1, be1) in fstTagGrouped.findD w1 #[] do 
+              for (e2, b2, be2) in sndTagGrouped.findD w2 #[] do 
+                for (e3, b3, be3) in thirdTagGrouped.findD w3 #[] do 
+                  if (((b1 || b2 || b3))
+                    || ((be1 || be2 || be3) && w1 + w2 + w3 + 1 = maxWeight)) 
+                  then
+                    wtdTriples := wtdTriples.push (e1, e2, e3, w1 + w2 + w3 + 1)
       logInfo m!"obtained {wtdTriples.size} weighted triples: {← IO.monoMsNow}"
       let arr1 : Array (TermElabM (Option (Expr × Nat))) := 
           wtdTriples.map <| fun (e1, e2, e3, w) => 
