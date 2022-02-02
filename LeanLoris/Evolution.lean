@@ -428,7 +428,7 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolut
           cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 - 1)
     logInfo m!"cumulative pair count: {cumPairCount.toArray}"
     for g in goalterms do
-      logInfo m!"goalterm: {g}, {grouped.find? g}, {init.terms.find? g}" 
+      logInfo m!"goalterm: {g},  {init.terms.find? g}" 
       logInfo m!"{← init.termsArr.findM? <| fun (t, w) => isDefEq t g}"
     for (y, withRhs, withLhs) in grouped.toArray do
       for (x, eq1, w1) in withRhs do
