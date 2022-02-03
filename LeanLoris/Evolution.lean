@@ -173,8 +173,11 @@ def iterateAux{D: Type}[DataUpdate D](stepEv : RecEvolverM D)(incWt accumWt card
                      | 0 => fun initDist _ _ => return initDist
                      | m + 1 => fun initDist d evo => 
                       do
+                        logInfo m!"step: wb = {accumWt+ 1} cardBound = {cardBound} time = {← IO.monoMsNow} "
                         let newDist ←  stepEv (accumWt + 1) cardBound initDist d evo
+                        logInfo m!"step completed: wb = {accumWt+ 1} cardBound = {cardBound} time = {← IO.monoMsNow} "
                         let newData := dataUpdate initDist accumWt cardBound d
+                        logInfo m!"data updated: wb = {accumWt+ 1} cardBound = {cardBound} time = {← IO.monoMsNow} "
                         iterateAux stepEv m (accumWt + 1) cardBound newDist newData evo
 
 def iterate{D: Type}[DataUpdate D](stepEv : RecEvolverM D): RecEvolverM D := 
@@ -226,22 +229,26 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolutionM D)(weightBound: 
     withLocalDecl Name.anonymous BinderInfo.default (type)  $ fun x => 
         do
           let dist ←  init.updateExprM x 0
-          -- logInfo m!"initial in isle: {l}"
+          logInfo m!"entered isle: {← IO.monoMsNow} "
           let evb ← evolve weightBound cardBound dist 
                   (isleData initData dist weightBound cardBound) 
+          logInfo m!"inner isle distribution obtained: {← IO.monoMsNow} "
           let mut evl : ExprDist := ExprDist.empty
           for (y, w) in evb.termsArr do
             unless excludeProofs && (← (isProof y)<||> isDefEq y x) ||
             (excludeConstants && (← init.existsM y w)) do
               evl ←  ExprDist.updateExprM evl y w
           let evt ← evl.termsArr.filterM (fun (x, _) => liftMetaM (isType x))
+          logInfo m!"inner isle distribution merged: {← IO.monoMsNow} "
           let exported ← evl.mapM (fun e => mkLambdaFVars #[x] e)
           let fe ← evt.mapM (fun (e, w) => do pure ( ← mkForallFVars #[x] e, w))
           let exportedPi : ExprDist := ⟨fe, #[]⟩ -- pi-types are never proofs
+          logInfo m!"inner isle distribution exported: {← IO.monoMsNow} "
           let res := 
             if includePi then 
                 if excludeLambda then exportedPi else ← exported ++ exportedPi 
               else  exported
+          logInfo m!"outer isle distribution obtained: {← IO.monoMsNow} "
           return res
 
 -- Some evolution cases; just one step (so update not needed)

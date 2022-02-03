@@ -91,7 +91,7 @@ def mapM(dist: ExprDist)(f: Expr → TermElabM Expr) : TermElabM ExprDist := do
     do dist.updateExprM e n) empty
 
 def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
-    logInfo m!"merging time: {← IO.monoMsNow}; sizes: ({fst.termsArr.size}, {fst.proofsArr.size}) ({snd.termsArr.size}, {snd.proofsArr.size})"
+    logInfo m!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArr.size}, {fst.proofsArr.size}) ({snd.termsArr.size}, {snd.proofsArr.size})"
     let mut dist := fst
     let mut ⟨fstTerms, fstProofs⟩ := fst
     let mut ⟨sndTerms, sndProofs⟩ := ExprDist.empty
@@ -115,8 +115,9 @@ def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
            sndTerms := sndTerms.push (x, d)
       | none => 
           sndTerms := sndTerms.push (x, d)
-    logInfo m!"merged arrays obtained time: {← IO.monoMsNow}; size: {fstTerms.size + sndTerms.size}; {fstProofs.size + sndProofs.size}"
-    return ⟨fstTerms ++ sndTerms, fstProofs ++ sndProofs⟩
+    let res := ⟨fstTerms ++ sndTerms, fstProofs ++ sndProofs⟩
+    logInfo m!"merged arrays obtained; time: {← IO.monoMsNow}; size: {fstTerms.size + sndTerms.size}; {fstProofs.size + sndProofs.size}"
+    return res
 
 instance : HAppend ExprDist ExprDist (TermElabM ExprDist) := 
   ⟨ExprDist.mergeM⟩
