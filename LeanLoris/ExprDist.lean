@@ -125,6 +125,9 @@ instance : HAppend ExprDist ExprDist (TermElabM ExprDist) :=
 def fromTermsM(dist: FinDist Expr): TermElabM ExprDist := do
   dist.foldM  (fun m e n => m.updateExprM e n) ExprDist.empty
 
+def fromArray(arr: Array (Expr× Nat)): TermElabM ExprDist :=
+  arr.foldlM (fun dist (e, w) => ExprDist.updateExprM dist e w) ExprDist.empty
+
 def existsM(dist: ExprDist)(elem: Expr)(weight: Nat) : TermElabM Bool :=
   do
     if ← isProof elem then

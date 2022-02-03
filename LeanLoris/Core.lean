@@ -232,7 +232,7 @@ def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α
                       oe.map (fun e4 => (e4, w) ))
       let arr2 ←  arr1.filterMapM <| fun t => t
       logInfo m!"obtained resulting compositions {← IO.monoMsNow}; size: {arr2.size}"
-      let res ← arr2.foldlM (fun dist (e, w) => ExprDist.updateExprM dist e w) ExprDist.empty 
+      let res ← ExprDist.fromArray arr2 
       logInfo m!"obtained merged result {← IO.monoMsNow}; size : {res.termsArr.size} + {res.proofsArr.size}"
       return res
     else return ExprDist.empty
@@ -279,7 +279,7 @@ def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ 
                       oe.map (fun e4 => (e4, w) ))
       let arr2 ←  arr1.filterMapM <| fun t => t
       logInfo m!"obtained resulting compositions {← IO.monoMsNow}; size: {arr2.size}"
-      let res ← arr2.foldlM (fun dist (e, w) => ExprDist.updateExprM dist e w) ExprDist.empty
+      let res ← ExprDist.fromArray arr2
       logInfo m!"obtained merged result {← IO.monoMsNow}; size : {res.termsArr.size} + {res.proofsArr.size}"
       return res
     else return ExprDist.empty
