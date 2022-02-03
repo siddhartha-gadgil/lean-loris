@@ -10,6 +10,13 @@ open Std
 open Std.HashMap
 open Nat
 
+def Array.oddEven {α : Type}(arr: Array α) : (Array α) × (Array α) :=
+  let (odds, evens, _) : (Array α) × (Array α) × Bool := arr.foldl ( fun (arr1, arr2, b) x =>
+      if b then (arr1.push x, arr2, !b) else (arr1, arr2.push x, !b) ) (#[], #[], false) 
+  (odds, evens)
+
+#eval #[3, 7, 12, 13, 14, 1, 4].oddEven
+
 -- proofs will not also be stored as terms
 structure ExprDist where
   termsArr : Array (Expr × Nat)
@@ -95,24 +102,34 @@ def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
     let mut dist := fst
     let mut ⟨fstTerms, fstProofs⟩ := fst
     let mut ⟨sndTerms, sndProofs⟩ := ExprDist.empty
-    for (prop, x, d) in snd.proofsArr do
-      match ← (fstProofs.findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
+    let termIndexMatchesAux :=  snd.termsArr.map ( fun (x, _) =>
+        (Task.spawn (fun _ =>    (fst.termsArr.findIdxM? <| fun (t, w) =>  isDefEq t x))
+        Task.Priority.dedicated 
+        ))
+    let proofIndexMatchesAux := snd.proofsArr.map ( fun (prop , _, _) =>
+        Task.spawn (fun _ =>    (fst.proofsArr.findIdxM? <| fun (l, _, w) =>  isDefEq l prop))
+        Task.Priority.dedicated
+        )
+    logInfo m!"created index find tasks; time: {← IO.monoMsNow}"
+    let termIndexMatches ← termIndexMatchesAux.mapM <| fun b => b.get
+    let proofIndexMatches ← proofIndexMatchesAux.mapM <| fun b => b.get
+    logInfo m!"obtained optional indices; time: {← IO.monoMsNow}"
+    for ((prop, x, d), opt) in (snd.proofsArr.zip (proofIndexMatches)) do
+      match opt  with
       | some j => 
           let (l, p, w) := fstProofs.get! j
           if w ≤ d then ()
           else 
-           fstProofs := fstProofs.eraseIdx j 
-           sndProofs := sndProofs.push (prop, x, d)
+           fstProofs := fstProofs.set! j (prop, x, d) 
       | none => 
           sndProofs := sndProofs.push (prop, x, d)
-    for (x, d) in snd.termsArr do
-      match ← (fstTerms.findIdxM? <| fun (t, w) =>  isDefEq t x)  with
+    for ((x, d), opt) in (snd.termsArr.zip termIndexMatches) do
+      match opt  with
       | some j => 
           let (t, w) := fstTerms.get! j
           if w ≤ d then ()
           else 
-           fstTerms := fstTerms.eraseIdx j 
-           sndTerms := sndTerms.push (x, d)
+           fstTerms := fstTerms.set! j (x, d) 
       | none => 
           sndTerms := sndTerms.push (x, d)
     let res := ⟨fstTerms ++ sndTerms, fstProofs ++ sndProofs⟩
@@ -125,8 +142,14 @@ instance : HAppend ExprDist ExprDist (TermElabM ExprDist) :=
 def fromTermsM(dist: FinDist Expr): TermElabM ExprDist := do
   dist.foldM  (fun m e n => m.updateExprM e n) ExprDist.empty
 
-def fromArray(arr: Array (Expr× Nat)): TermElabM ExprDist :=
-  arr.foldlM (fun dist (e, w) => ExprDist.updateExprM dist e w) ExprDist.empty
+partial def fromArray(arr: Array (Expr× Nat)): TermElabM ExprDist :=
+  if arr.size < 10 then
+    arr.foldlM (fun dist (e, w) => ExprDist.updateExprM dist e w) ExprDist.empty
+  else do
+    let (odds, evens) := arr.oddEven
+    let oddDistT := Task.spawn fun _ => fromArray odds
+    let evenDistT := Task.spawn fun _ => fromArray evens  
+    mergeM (← oddDistT.get) (← evenDistT.get)
 
 def existsM(dist: ExprDist)(elem: Expr)(weight: Nat) : TermElabM Bool :=
   do
