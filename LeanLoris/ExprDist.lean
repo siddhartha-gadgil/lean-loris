@@ -152,3 +152,19 @@ def allSorts(dist: ExprDist) : TermElabM (FinDist Expr) := do
   return FinDist.fromArray <| types ++ props
 
 end ExprDist
+
+structure HashExprDist where
+  termsMap : FinDist UInt64
+  propsMap : FinDist UInt64
+
+def ExprDist.hashDist(expr: ExprDist) : HashExprDist := 
+  { termsMap := FinDist.fromArray (expr.termsArr.map <| fun (e, w) => (hash e, w)),
+    propsMap := FinDist.fromArray (expr.proofsArr.map <| fun (l, e, w) => (hash e, w)) }
+
+def HashExprDist.existsM(dist: HashExprDist)(elem: Expr)(weight: Nat) : TermElabM Bool :=
+  do
+    if ← isProof elem then
+      let prop ← inferType elem
+      dist.propsMap.exists (hash prop) weight
+    else 
+      dist.termsMap.exists (hash elem) weight

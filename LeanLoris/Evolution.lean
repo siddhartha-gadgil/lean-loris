@@ -17,7 +17,7 @@ open ProdSeq
 structure GenDist where
   weight: Nat
   card : Nat
-  exprDist : ExprDist
+  exprDist : HashExprDist
 
 class DataUpdate (D: Type) where
   update: ExprDist → Nat → Nat → D → D
@@ -70,7 +70,7 @@ instance : NewElem Expr NameDist := constNewElem (true, true)
 
 class DistHist (D: Type) where
   distHist: D → List GenDist
-  extHist : D → List ExprDist
+  extHist : D → List HashExprDist
 
 def newFromHistory {D: Type}[cl: DistHist D] : IsNew D :=
   ⟨fun d wb c e w => do
@@ -107,7 +107,7 @@ instance : IsleData Unit := idIsleData
 
 instance : IsleData NameDist := idIsleData
 
-abbrev FullData := NameDist × (List GenDist) × (List ExprDist)
+abbrev FullData := NameDist × (List GenDist) × (List HashExprDist)
 
 instance : DistHist FullData := ⟨fun (nd, hist, ehist) => hist,
                                 fun (nd, hist, ehist) => ehist⟩
@@ -115,10 +115,10 @@ instance : DistHist FullData := ⟨fun (nd, hist, ehist) => hist,
 instance : GetNameDist FullData := ⟨fun (nd, _) => nd⟩
 
 instance : DataUpdate FullData := ⟨fun d w c (nd, hist, ehist) => 
-                                                        (nd, [⟨w, c, d⟩], ehist)⟩
+                                                        (nd, [⟨w, c, d.hashDist⟩], ehist)⟩
 
 instance : IsleData FullData :=
-  ⟨fun ⟨nd, hist, ehist⟩ d w c => (nd, [⟨w, c, d⟩], [d])⟩ 
+  ⟨fun ⟨nd, hist, ehist⟩ d w c => (nd, [⟨w, c, d.hashDist⟩], [d.hashDist])⟩ 
 
 -- same signature for full evolution and single step, with ExprDist being initial state or accumulated state and the weight bound that for the result or the accumulated state
 def Evolution(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist  → (initData: D) → ExprDist
