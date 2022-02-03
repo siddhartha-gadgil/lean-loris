@@ -233,21 +233,24 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolutionM D)(weightBound: 
           let evb ← evolve weightBound cardBound dist 
                   (isleData initData dist weightBound cardBound) 
           logInfo m!"inner isle distribution obtained: {← IO.monoMsNow} "
+          let innerTerms : Array (Expr × Nat) :=  if excludeProofs 
+          then ← evb.termsArr.filterM ( fun (t, _) => do
+              let b ← isDefEq t x
+              return !b)
+          else evb.termsArr
+          let innerTypes ← innerTerms.filterM (fun (t, _) => liftMetaM (isType t))
+          let lambdaTerms ← innerTerms.mapM (fun (t, w) =>
+              return (← mkLambdaFVars #[x] t, w))  
+          let piTypes ←  innerTypes.mapM (fun (t, w) =>
+              return (← mkForallFVars #[x] t, w))
+          let proofs ← evb.proofsArr.mapM (fun (prop, pf, w) => 
+            return (← mkForallFVars #[x] prop, ← mkLambdaFVars #[x] pf, w))
           let mut evl : ExprDist := ExprDist.empty
-          for (y, w) in evb.termsArr do
-            unless excludeProofs && (← (isProof y)<||> isDefEq y x) ||
-            (excludeConstants && (← init.existsM y w)) do
-              evl ←  ExprDist.updateExprM evl y w
-          let evt ← evl.termsArr.filterM (fun (x, _) => liftMetaM (isType x))
-          logInfo m!"inner isle distribution merged: {← IO.monoMsNow} "
-          let exported ← evl.mapM (fun e => mkLambdaFVars #[x] e)
-          let fe ← evt.mapM (fun (e, w) => do pure ( ← mkForallFVars #[x] e, w))
-          let exportedPi : ExprDist := ⟨fe, #[]⟩ -- pi-types are never proofs
           logInfo m!"inner isle distribution exported: {← IO.monoMsNow} "
           let res := 
-            if includePi then 
-                if excludeLambda then exportedPi else ← exported ++ exportedPi 
-              else  exported
+            ⟨if includePi then 
+                if excludeLambda then piTypes else lambdaTerms ++ piTypes  
+              else  lambdaTerms, if excludeProofs then #[] else proofs⟩
           logInfo m!"outer isle distribution obtained: {← IO.monoMsNow} "
           return res
 
