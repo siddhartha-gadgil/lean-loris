@@ -410,20 +410,20 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolut
         -- update first component, i.e. y = rhs
         match ← grouped.findIdxM? <| fun (y, _, _) => isDefEq y rhs with
         | none => -- no equation involving rhs
-          let weight := Nat.min w (init.terms.findD lhs w)
+          let weight := Nat.min w (← init.findD lhs w)
           grouped := grouped.push (rhs, #[(lhs, pf, weight)] , #[])
         | some j => 
           let (y, withRhs, withLhs) := grouped.get! j
-          let weight := Nat.min w (init.terms.findD lhs w)
+          let weight := Nat.min w (← init.findD lhs w)
           grouped := grouped.set! j (rhs, withRhs.push (lhs, pf, weight) , withLhs)
         -- update second component
         match ← grouped.findIdxM? <| fun (y, _, _) => isDefEq y lhs with
         | none => -- no equation involving lhs
-          let weight := Nat.min w (init.terms.findD rhs w)
+          let weight := Nat.min w (← init.findD rhs w)
           grouped := grouped.push (lhs, #[], #[(rhs, pf, weight)])
         | some j => 
           let (y, withRhs, withLhs) := grouped.get! j
-          let weight := Nat.min w (init.terms.findD rhs w)
+          let weight := Nat.min w (← init.findD rhs w)
           grouped := grouped.set! j (lhs, withRhs, withLhs.push (rhs, pf, weight))
     -- count cumulative weights of pairs, deleting reflexive pairs (assuming symmetry)
     let mut cumPairCount : HashMap Nat Nat := HashMap.empty
@@ -438,8 +438,7 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolut
           cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 - 1)
     logInfo m!"cumulative pair count: {cumPairCount.toArray}"
     for g in goalterms do
-      logInfo m!"goalterm: {g},  {init.terms.find? g}" 
-      logInfo m!"{← init.termsArr.findM? <| fun (t, w) => isDefEq t g}"
+      logInfo m!"goalterm: {g},  {← init.getTerm? g}" 
     for (y, withRhs, withLhs) in grouped do
       for (x, eq1, w1) in withRhs do
         for (z, eq2, w2) in withLhs do
@@ -598,9 +597,7 @@ match s with
   let wb ← parseNat wb
   let card ← parseNat card
   let finalDist ← ev wb card (← ExprDist.fromTermsM initDist) initData
-  let reportDist ← finalDist.terms.filterM <| fun e => do
-    goals.anyM $ fun g => do
-      isDefEq e g <||>  isDefEq (← inferType e) g
+  let reportDist ← goals.filterMapM $ fun g => finalDist.getProof? g
   return ← (ppackWeighted reportDist.toList)
 | _ => throwIllFormedSyntax
 

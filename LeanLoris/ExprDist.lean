@@ -155,6 +155,18 @@ def allSorts(dist: ExprDist) : TermElabM (FinDist Expr) := do
   let props := dist.proofsArr.map <| fun (l, _, w) => (l, w)
   return FinDist.fromArray <| types ++ props
 
+def getProof?(dist: ExprDist)(prop: Expr) : TermElabM (Option (Expr ×  Nat)) := do
+  let opt ←  dist.proofsArr.findM? <| fun (l, p, w) => isDefEq l prop
+  return opt.map <| fun (_, p, w) => (p, w)
+
+def getTerm?(dist: ExprDist)(elem: Expr) : TermElabM (Option (Expr ×  Nat)) := do
+  dist.termsArr.findM? <| fun (t, w) => isDefEq t elem
+
+def findD(dist: ExprDist)(elem: Expr)(default: Nat) : TermElabM Nat := do
+  match ← getTerm? dist elem with
+  | some (t, w) => pure w
+  | none => pure default
+
 end ExprDist
 
 structure HashExprDist where
