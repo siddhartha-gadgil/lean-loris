@@ -586,7 +586,6 @@ match s with
 | `(evolve! $evolvers $(goals?)? $initDist $(nameDist?)? $wb $card) => do
   let ev ← parseEvolverList evolvers
   let initDist ← parseExprMap initDist
-  let initDist := FinDist.fromList (initDist.toList)
   let nameDist? ← nameDist?.mapM  $ fun nameDist => parseNameMap nameDist
   let nameDist := nameDist?.getD #[]
   let nameDist := FinDist.fromList (nameDist.toList)
@@ -596,7 +595,7 @@ match s with
   let ev := ev.fixedPoint.evolve.andThenM (logResults goals)
   let wb ← parseNat wb
   let card ← parseNat card
-  let finalDist ← ev wb card (← ExprDist.fromTermsM initDist) initData
+  let finalDist ← ev wb card (← ExprDist.fromArray initDist) initData
   let reportDist ← goals.filterMapM $ fun g => finalDist.getProof? g
   return ← (ppackWeighted reportDist.toList)
 | _ => throwIllFormedSyntax

@@ -272,7 +272,7 @@ def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ 
                     || ((be1 || be2 || be3) && w1 + w2 + w3 + 1 = maxWeight)) 
                   then
                     wtdTriples := wtdTriples.push (e1, e2, e3, w1 + w2 + w3 + 1)
-      logInfo m!"obtained weighted triples {← IO.monoMsNow}"
+      logInfo m!"obtained weighted triples {← IO.monoMsNow}; size : {wtdTriples.size}"
       let arr1 : Array (TermElabM (Option (Expr × Nat))) := 
           wtdTriples.map <| fun (e1, e2, e3, w) => 
                 (compose e1 e2 e3).map (fun oe => 

@@ -39,4 +39,4 @@ def exploreProofs(ax1 : ∀ a b : M, (a * b) * b = a)(ax2 : ∀ a b : M, a * (a 
                   -- seek5
                   ()
              
-#check exploreProofs
+#check @exploreProofs

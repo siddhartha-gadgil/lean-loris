@@ -16,14 +16,22 @@ open Nat
 open ProdSeq
 
 namespace ElabCzSl
+constant M : Type
 
-universe u
+instance : Inhabited (M → M → M) := ⟨fun x _ => x⟩
 
-variable {M: Type u}[Mul M]
+constant mul : M → M → M
 
-theorem CzSlOly : (∀ a b : M, (a * b) * b = a) → (∀ a b : M, a * (a * b) = b) →
-            (m n: M) → m * n = n * m := by
-              intros ax1 ax2 m n
+
+noncomputable instance : Mul M := ⟨mul⟩
+
+axiom ax1 : (∀ a b : M, (a * b) * b = a)
+axiom ax2 : (∀ a b : M, a * (a * b) = b)
+axiom m : M
+axiom n : M
+
+
+theorem CzSlOly : m * n = n * m := by
               have lem1 : (m * n) * n = m := ax1 m n
               have lem2 : (m * n) * ((m * n) * n) = n := ax2 (m * n) n
               have lem3 : ((m * n) * m) * m = m * n  := ax1 (m * n) m
@@ -38,25 +46,36 @@ theorem CzSlOly : (∀ a b : M, (a * b) * b = a) → (∀ a b : M, a * (a * b) =
               assumption 
 
 set_option maxHeartbeats 100000000
+set_option maxRecDepth 10000
 
-def mul(m n: M) : M := m * n
 
-def explore(ax1 : ∀ a b : M, (a * b) * b = a)(ax2 : ∀ a b : M, a * (a * b) = b)
-                  (m n: M) : TermElabM Nat := do
+def explore : TermElabM <| Array (String ×  Nat) := do
                   let lem1! := (m * n) * n = m 
                   let lem2! := (m * n) * ((m * n) * n) = n 
                   let lem3! := ((m * n) * m) * m = m * n
-                  let ev0 ← parseEvolverList (← `(evolver_list|^[app, name-app]))
+                  let ev0 ← parseEvolverList (← `(evolver_list|^[app, name-app, name-binop]))
                   let init0 ← parseExprMap (← `(expr_dist|%{(m, 0), (n, 0)}))
-                  let goals ← parseExprList (← `(expr_list|%[m* n]))
-                  let nameDist ← parseNameMap (← `(name_dist|!{(mul, 0)}))
+                  let goals0 ← parseExprList (← `(expr_list|%[m * n, m]))
+                  let nameDist := #[(``mul, 0)]
                   let initData : FullData := (FinDist.fromArray nameDist, [], [])
-                  let ev0 ← ev0.fixedPoint.evolve.andThenM (logResults goals)
-                  let finalDist ← ev0 5 1000 (← ExprDist.fromTermsM (FinDist.fromArray init0)) initData
-                  let reportDist ← goals.filterMapM $ fun g => finalDist.getProof? g
-                  let pp ← (ppackWeighted reportDist.toList)
-                  return reportDist.size
+                  let ev0 ← ev0.fixedPoint.evolve.andThenM (logResults goals0)
+                  let finalDist ← ev0 2 1000 (← ExprDist.fromArray init0) initData
+                  let reportDist ← goals0.filterMapM $ fun g => finalDist.getTerm? g
+                  return reportDist.map <| fun (x, w) => (s!"{x}", w)
 
-#check explore
+#eval explore  
+
+syntax (name:=mulmn) "ml!" "(" term "," term ")"  : term
+@[termElab mulmn] def mulmnImpl : TermElab := 
+      fun stx _ => do
+      match stx with
+      | `(ml! ($x, $y)) => do
+        let m ← elabTerm x none
+        let n ← elabTerm y none
+        let e ← mkAppM ``mul #[m , n]
+        return e
+      | _ => throwIllFormedSyntax
+
+#check ml! (m, n)
 
 end ElabCzSl
