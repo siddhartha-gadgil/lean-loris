@@ -144,6 +144,7 @@ def mapM(dist: ExprDist)(f: Expr → TermElabM Expr) : TermElabM ExprDist := do
     do dist.updateExprM e n) empty
 
 def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
+    logInfo m!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArr.size}, {fst.proofsArr.size}) ({snd.termsArr.size}, {snd.proofsArr.size})"
     let mut dist := fst
     let mut ⟨fstTerms, fstProofs⟩ := fst
     let mut ⟨sndTerms, sndProofs⟩ := ExprDist.empty
@@ -167,13 +168,18 @@ def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
            sndTerms := sndTerms.push (x, d)
       | none => 
           sndTerms := sndTerms.push (x, d)
-    return ⟨fstTerms ++ sndTerms, fstProofs ++ sndProofs⟩
+    let res := ⟨fstTerms ++ sndTerms, fstProofs ++ sndProofs⟩
+    logInfo m!"merged arrays obtained; time: {← IO.monoMsNow}; size: {fstTerms.size + sndTerms.size}; {fstProofs.size + sndProofs.size}"
+    return res
 
 instance : HAppend ExprDist ExprDist (TermElabM ExprDist) := 
   ⟨ExprDist.mergeM⟩
 
 def fromTermsM(dist: FinDist Expr): TermElabM ExprDist := do
   dist.foldM  (fun m e n => m.updateExprM e n) ExprDist.empty
+
+def fromArray(arr: Array (Expr× Nat)): TermElabM ExprDist :=
+  arr.foldlM (fun dist (e, w) => ExprDist.updateExprM dist e w) ExprDist.empty
 
 def existsM(dist: ExprDist)(elem: Expr)(weight: Nat) : TermElabM Bool :=
   do
@@ -202,4 +208,39 @@ def allSorts(dist: ExprDist) : TermElabM (FinDist Expr) := do
   let props := dist.proofsArr.map <| fun (l, _, w) => (l, w)
   return FinDist.fromArray <| types ++ props
 
+def getProof?(dist: ExprDist)(prop: Expr) : TermElabM (Option (Expr ×  Nat)) := do
+  let opt ←  dist.proofsArr.findM? <| fun (l, p, w) => isDefEq l prop
+  return opt.map <| fun (_, p, w) => (p, w)
+
+def getTerm?(dist: ExprDist)(elem: Expr) : TermElabM (Option (Expr ×  Nat)) := do
+  dist.termsArr.findM? <| fun (t, w) => isDefEq t elem
+
+def getGoals(dist: ExprDist)(goals : Array Expr) : TermElabM (Array (Expr × Nat )) := 
+  do
+    goals.filterMapM <| fun g => do 
+      let wpf ← dist.getProof? g
+      let wt ← dist.getTerm? g
+      return wpf.orElse (fun _ => wt)
+
+def findD(dist: ExprDist)(elem: Expr)(default: Nat) : TermElabM Nat := do
+  match ← getTerm? dist elem with
+  | some (t, w) => pure w
+  | none => pure default
+
 end ExprDist
+
+structure HashExprDist where
+  termsMap : FinDist UInt64
+  propsMap : FinDist UInt64
+
+def ExprDist.hashDist(expr: ExprDist) : HashExprDist := 
+  { termsMap := FinDist.fromArray (expr.termsArr.map <| fun (e, w) => (hash e, w)),
+    propsMap := FinDist.fromArray (expr.proofsArr.map <| fun (l, e, w) => (hash e, w)) }
+
+def HashExprDist.existsM(dist: HashExprDist)(elem: Expr)(weight: Nat) : TermElabM Bool :=
+  do
+    if ← isProof elem then
+      let prop ← inferType elem
+      dist.propsMap.exists (hash prop) weight
+    else 
+      dist.termsMap.exists (hash elem) weight

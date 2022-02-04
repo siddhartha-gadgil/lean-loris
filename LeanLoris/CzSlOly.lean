@@ -20,7 +20,7 @@ theorem CzSlOly : (∀ a b : M, (a * b) * b = a) → (∀ a b : M, a * (a * b) =
                     congrArg (fun x => x * m) lem5 
               rw [lem3] at lem6
               assumption 
-set_option maxHeartbeats 10000000
+set_option maxHeartbeats 100000000
 
 def mul(m n: M) := m * n
 
@@ -36,27 +36,14 @@ def exploreProofs(ax1 : ∀ a b : M, (a * b) * b = a)(ax2 : ∀ a b : M, a * (a 
                   -- let seek123 := evolve! ^[app, name-app] %[lem1!, lem2!, lem3!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0)} !{(mul, 0)} 5 1000
                   let seekmn := evolve! ^[app, name-app] %[m * n] %{(m, 0), (n, 0)} !{(mul, 0)} 5 1000
                   let seek123mn := evolve! ^[app, name-app, name-binop, binop] %[lem1!, lem2!, lem3!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0), (m *n, 0)} !{(mul, 0), (Eq, 0)} 3 1000
+                  let ⟨⟨lem1, w1⟩, ⟨lem2, w2⟩, ⟨lem3, w3⟩, _⟩ := seek123mn
                   let lem4! := (m * n) * ((m * n) * n) = (m * n) * m
                   let lem4flip! := (m * n) * m = (m * n) * ((m * n) * n)
                   let lem5! := (m * n) * m = n
-                  -- let seek4 := evolve! ^[app, name-app, name-binop, eq-isles, binop] %[lem1!, lem4!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0), (m *n, 0)} !{(mul, 0), (Eq, 0)} 4 2000
-                  -- let seek5 := evolve! ^[app, name-app, name-binop, eq-isles, binop, eq-closure] %[lem2!, lem4!, lem5!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0), (m *n, 0)} !{(mul, 0), (Eq, 0)} 5 3000
+                  let seek4 := evolve! ^[app, name-app, name-binop, eq-isles, binop] %[lem1!, lem4!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0), (m *n, 0)} !{(mul, 0), (Eq, 0)} 4 2000
+                  let ⟨_, ⟨lem4, w4⟩, _⟩ := seek4
+                  let seek5 := evolve! ^[name-binop, eq-closure %[n, (m * n) * ((m * n) * n)]] %[m * n * n, (m * n) * ((m * n) * n), lem2!, lem4!, lem5!] %{(m, 0), (n, 0), (m *n, 0), (lem2, 1), (lem4, 3)} !{(mul, 0)} 4 2000
                   -- seek5
-                  chosen 60
-
-#eval defCnt
-#eval defTime             
-#check @exploreProofs Nat (inferInstance)
-def sz : IO Nat := do (← notBEq).size
-#eval sz
-
-#eval chosen 10
-def first(n: Nat) : IO Expr  := do ((← notBEq).get! n).1
-def second(n: Nat) : IO Expr := do ((← notBEq).get! n).2
-#eval first 1
-#eval second 1
-
-#check @mul
-
-def inst : Mul Nat := inferInstance
-#check inst.mul
+                  ()
+             
+#check @exploreProofs
