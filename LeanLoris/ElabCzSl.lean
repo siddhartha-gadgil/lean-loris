@@ -68,7 +68,7 @@ def fin0 : TermElabM ExprDist := do
                   (← ev0) 2 1000 (← ExprDist.fromArray <| ←  init0) initData
 def rep0 : TermElabM (Array (Expr × Nat)) := do
                   (← fin0).getGoals (← goals0)
-#eval rep0
+-- #eval rep0
 
 def goals1 : TermElabM (Array Expr) := do
                   parseExprList (← `(expr_list|%[lem1!, lem2!, lem3!]))
@@ -84,7 +84,11 @@ def fin1 : TermElabM ExprDist := do
 def rep1 : TermElabM (Array (Expr × Nat)) := do
                   (← fin1).getGoals (← goals1)
 
-#eval rep1
+def coreList(l : TermElabM (Array (Expr × Nat))) : CoreM  (Array (Expr × Nat)) := do
+
+      let m := l.run'
+      m.run'
+-- #eval coreList rep1
 
 
 end ElabCzSl
