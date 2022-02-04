@@ -1,3 +1,6 @@
+import Lean.Meta
+import Lean.Elab
+open Lean Meta Elab Term
 open Nat
 
 def slowFib (id : Nat) : Nat → Nat
@@ -20,4 +23,35 @@ def conc2 : Nat :=
   let res := tsks.map fun t => t.get
   res.foldl (fun acc n => acc + n) 0
 
-#eval conc2
+-- #eval conc2
+
+def exprSeq : TermElabM (Array Expr) := do
+  let mut arr ← Array.mk []
+  for i in [0:400000] do
+    let e ← ToExpr.toExpr (i % 100)
+    arr := arr.push e
+  return arr
+
+def count (e: Expr) : TermElabM Nat := do
+  let arr ← exprSeq
+  let farr ← arr.filterM <| fun exp => isDefEq exp e 
+  return farr.size
+
+def countsSerial: TermElabM (Array Nat) := do
+  let mut arr : Array Nat := #[]
+  for i in [0:8] do arr := arr.push i
+  let cntsAux := arr.map <| fun i => count (ToExpr.toExpr i)
+  let cnts ←  cntsAux.mapM <| fun t => t
+  return cnts
+
+def counts: TermElabM (Array Nat) := do
+  let arr : Array Nat := #[1, 2, 3, 4, 5, 6]
+  let cntsAux := arr.map <| fun i => Task.spawn fun _ => count (ToExpr.toExpr i)
+  let cntsAux2 := cntsAux.map <| fun t => t.get
+  let cnts ←  cntsAux.mapM <| fun t => t.get
+  return cnts
+
+set_option maxHeartbeats 100000000
+
+-- #eval counts
+

@@ -56,26 +56,19 @@ def explore : TermElabM <| Array (String ×  Nat) := do
                   let ev0 ← parseEvolverList (← `(evolver_list|^[app, name-app, name-binop]))
                   let init0 ← parseExprMap (← `(expr_dist|%{(m, 0), (n, 0)}))
                   let goals0 ← parseExprList (← `(expr_list|%[m * n, m]))
-                  let nameDist := #[(``mul, 0)]
+                  let nameDist := #[(``mul, 0), (``ax1, 0), (``ax2, 0)]
                   let initData : FullData := (FinDist.fromArray nameDist, [], [])
                   let ev0 ← ev0.fixedPoint.evolve.andThenM (logResults goals0)
-                  let finalDist ← ev0 2 1000 (← ExprDist.fromArray init0) initData
-                  let reportDist ← goals0.filterMapM $ fun g => finalDist.getTerm? g
+                  let dist1 ← ev0 2 1000 (← ExprDist.fromArray init0) initData
+                  let reportDist ← goals0.filterMapM $ fun g => dist1.getTerm? g
+                  let goals1 ← parseExprList (← `(expr_list|%[lem1!, lem2!, lem3!]))
+                  let init1 ← parseExprMap (← `(expr_dist|%{(m, 0), (n, 0), (m *n, 0)}))
+                  let ev1 ← parseEvolverList (← `(evolver_list|^[name-app, name-binop]))
+                  let ev1 ← ev1.fixedPoint.evolve.andThenM (logResults goals1)
+                  let dist2 ← ev1 3 1000 (← ExprDist.fromArray init1) initData
+                  let reportDist ← goals1.filterMapM $ fun g => dist2.getProof? g
                   return reportDist.map <| fun (x, w) => (s!"{x}", w)
-
-#eval explore  
-
-syntax (name:=mulmn) "ml!" "(" term "," term ")"  : term
-@[termElab mulmn] def mulmnImpl : TermElab := 
-      fun stx _ => do
-      match stx with
-      | `(ml! ($x, $y)) => do
-        let m ← elabTerm x none
-        let n ← elabTerm y none
-        let e ← mkAppM ``mul #[m , n]
-        return e
-      | _ => throwIllFormedSyntax
-
-#check ml! (m, n)
+                  
+-- #eval explore  
 
 end ElabCzSl
