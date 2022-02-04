@@ -162,6 +162,13 @@ def getProof?(dist: ExprDist)(prop: Expr) : TermElabM (Option (Expr ×  Nat)) :=
 def getTerm?(dist: ExprDist)(elem: Expr) : TermElabM (Option (Expr ×  Nat)) := do
   dist.termsArr.findM? <| fun (t, w) => isDefEq t elem
 
+def getGoals(dist: ExprDist)(goals : Array Expr) : TermElabM (Array (Expr × Nat )) := 
+  do
+    goals.filterMapM <| fun g => do 
+      let wpf ← dist.getProof? g
+      let wt ← dist.getTerm? g
+      return wpf.orElse (fun _ => wt)
+
 def findD(dist: ExprDist)(elem: Expr)(default: Nat) : TermElabM Nat := do
   match ← getTerm? dist elem with
   | some (t, w) => pure w

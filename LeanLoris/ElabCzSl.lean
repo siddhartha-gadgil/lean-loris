@@ -45,30 +45,46 @@ theorem CzSlOly : m * n = n * m := by
               rw [lem3] at lem6
               assumption 
 
-set_option maxHeartbeats 100000000
-set_option maxRecDepth 10000
+set_option maxHeartbeats 10000000
+set_option maxRecDepth 1000
 
+def lem1! := (m * n) * n = m 
+def lem2! := (m * n) * ((m * n) * n) = n
+def lem3! := ((m * n) * m) * m = m * n
+def lem4! := (m * n) * ((m * n) * n) = (m * n) * m
+def lem5! := (m * n) * m = n
+def evr0 : TermElabM (RecEvolverM FullData) := do
+                  parseEvolverList (← `(evolver_list|^[name-app, name-binop]))
+def init0 : TermElabM (Array (Expr × Nat)) := do
+                  parseExprMap (← `(expr_dist|%{(m, 0), (n, 0)}))
+def goals0 : TermElabM (Array Expr) := do
+                  parseExprList (← `(expr_list|%[m * n, m]))
+#eval init0
+def nameDist := #[(``mul, 0), (``ax1, 0), (``ax2, 0)]
+def initData : FullData := (FinDist.fromArray nameDist, [], [])
+def ev0 : TermElabM (EvolutionM FullData) := do
+                  (← evr0).fixedPoint.evolve.andThenM (logResults <| ←  goals0)
+def fin0 : TermElabM ExprDist := do
+                  (← ev0) 2 1000 (← ExprDist.fromArray <| ←  init0) initData
+def rep0 : TermElabM (Array (Expr × Nat)) := do
+                  (← fin0).getGoals (← goals0)
+#eval rep0
 
-def explore : TermElabM <| Array (String ×  Nat) := do
-                  let lem1! := (m * n) * n = m 
-                  let lem2! := (m * n) * ((m * n) * n) = n 
-                  let lem3! := ((m * n) * m) * m = m * n
-                  let ev0 ← parseEvolverList (← `(evolver_list|^[app, name-app, name-binop]))
-                  let init0 ← parseExprMap (← `(expr_dist|%{(m, 0), (n, 0)}))
-                  let goals0 ← parseExprList (← `(expr_list|%[m * n, m]))
-                  let nameDist := #[(``mul, 0), (``ax1, 0), (``ax2, 0)]
-                  let initData : FullData := (FinDist.fromArray nameDist, [], [])
-                  let ev0 ← ev0.fixedPoint.evolve.andThenM (logResults goals0)
-                  let dist1 ← ev0 2 1000 (← ExprDist.fromArray init0) initData
-                  let reportDist ← goals0.filterMapM $ fun g => dist1.getTerm? g
-                  let goals1 ← parseExprList (← `(expr_list|%[lem1!, lem2!, lem3!]))
-                  let init1 ← parseExprMap (← `(expr_dist|%{(m, 0), (n, 0), (m *n, 0)}))
-                  let ev1 ← parseEvolverList (← `(evolver_list|^[name-app, name-binop]))
-                  let ev1 ← ev1.fixedPoint.evolve.andThenM (logResults goals1)
-                  let dist2 ← ev1 3 1000 (← ExprDist.fromArray init1) initData
-                  let reportDist ← goals1.filterMapM $ fun g => dist2.getProof? g
-                  return reportDist.map <| fun (x, w) => (s!"{x}", w)
-                  
--- #eval explore  
+def goals1 : TermElabM (Array Expr) := do
+                  parseExprList (← `(expr_list|%[lem1!, lem2!, lem3!]))
+#eval goals1
+def init1 : TermElabM (Array (Expr × Nat)) := do
+                  parseExprMap (← `(expr_dist|%{(m, 0), (n, 0), (m *n, 0)}))
+def evr1 : TermElabM (RecEvolverM FullData) := do
+                  parseEvolverList (← `(evolver_list|^[name-app, name-binop]))                  
+def ev1 : TermElabM (EvolutionM FullData) := do
+                  (← evr1).fixedPoint.evolve.andThenM (logResults <| ←  goals1)
+def fin1 : TermElabM ExprDist := do
+                  (← ev1) 3 1000 (← ExprDist.fromArray <| ←  init1) initData
+def rep1 : TermElabM (Array (Expr × Nat)) := do
+                  (← fin1).getGoals (← goals1)
+
+#eval rep1
+
 
 end ElabCzSl
