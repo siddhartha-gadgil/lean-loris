@@ -253,8 +253,12 @@ syntax "%[" term,* "]" : expr_list
 def parseExprList : Syntax → TermElabM (Array Expr)
   | `(expr_list|%[$[$xs],*]) =>
     do
-          let m : Array Expr ←  xs.mapM <| fun s => do whnf <| ← elabTerm s none
-          Term.synthesizeSyntheticMVarsNoPostponing
+          let m : Array Expr ←  xs.mapM <| fun s => 
+            do 
+              let exp ← elabTerm s none
+              let exp ← whnf <| exp
+              Term.synthesizeSyntheticMVarsNoPostponing
+              exp
           return m
   | _ => throwIllFormedSyntax
 

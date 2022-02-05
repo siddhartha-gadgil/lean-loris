@@ -377,7 +377,7 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolut
   do
     -- logInfo m!"eqSymmTrans called: weight-bound {wb}, cardinality: {card}"
     -- logInfo m!"initial terms: {init.termsArr.size}"
-    -- logInfo m!"initial proofs: {init.proofsArr.size}"
+    -- logInfo m!"initial proofs: {init.proofsArr.size}"        
     let mut eqs := ExprDist.empty -- new equations only
     let mut allEquations := ExprDist.empty
     -- initial equations
@@ -407,6 +407,9 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolut
       match l.eq? with
       | none => ()
       | some (_, lhs, rhs) =>
+        let lhs ← whnf lhs
+        let rhs ← whnf rhs
+        Term.synthesizeSyntheticMVarsNoPostponing
         -- update first component, i.e. y = rhs
         match ← grouped.findIdxM? <| fun (y, _, _) => isDefEq y rhs with
         | none => -- no equation involving rhs

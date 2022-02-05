@@ -59,7 +59,7 @@ def init0 : TermElabM (Array (Expr × Nat)) := do
                   parseExprMap (← `(expr_dist|%{(m, 0), (n, 0)}))
 def goals0 : TermElabM (Array Expr) := do
                   parseExprList (← `(expr_list|%[m * n, m]))
-#eval init0
+-- #eval init0
 def nameDist := #[(``mul, 0), (``ax1, 0), (``ax2, 0)]
 def initData : FullData := (FinDist.fromArray nameDist, [], [])
 def ev0 : TermElabM (EvolutionM FullData) := do
@@ -72,7 +72,7 @@ def rep0 : TermElabM (Array (Expr × Nat)) := do
 
 def goals1 : TermElabM (Array Expr) := do
                   parseExprList (← `(expr_list|%[lem1!, lem2!, lem3!]))
-#eval goals1
+-- #eval goals1
 def init1 : TermElabM (Array (Expr × Nat)) := do
                   parseExprMap (← `(expr_dist|%{(m, 0), (n, 0), (m *n, 0)}))
 def evr1 : TermElabM (RecEvolverM FullData) := do
@@ -105,10 +105,13 @@ def rep2 : TermElabM (Array (Expr × Nat)) := do
                   (← fin2).getGoals (← goals2)
 
 def evr3 : TermElabM (RecEvolverM FullData) := do
-                  parseEvolverList (← `(evolver_list|^[eq-closure]))
+                  parseEvolverList 
+                        (← `(evolver_list|^[eq-closure %[n, (m * n) * ((m * n) * n)]]))
 
 def goals3 : TermElabM (Array Expr) := do
                   parseExprList (← `(expr_list|%[lem5!]))
+
+-- #eval goals3
 
 def ev3 : TermElabM (EvolutionM FullData) := do
                   (← evr3).fixedPoint.evolve.andThenM (logResults <| ←  goals3) 
