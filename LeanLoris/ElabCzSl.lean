@@ -90,5 +90,32 @@ def coreList(l : TermElabM (Array (Expr × Nat))) : CoreM  (Array (Expr × Nat))
       m.run'
 -- #eval coreList rep1
 
+def evr2 : TermElabM (RecEvolverM FullData) := do
+                  parseEvolverList (← `(evolver_list|^[name-app, name-binop, eq-isles]))
+
+def goals2 : TermElabM (Array Expr) := do
+                  parseExprList (← `(expr_list|%[lem1!, lem4!]))
+
+def ev2 : TermElabM (EvolutionM FullData) := do
+                  (← evr2).fixedPoint.evolve.andThenM (logResults <| ←  goals2) 
+
+def fin2 : TermElabM ExprDist := do
+                  (← ev2) 3 2000 (← ExprDist.fromArray <| ←  init1) initData
+def rep2 : TermElabM (Array (Expr × Nat)) := do
+                  (← fin2).getGoals (← goals2)
+
+def evr3 : TermElabM (RecEvolverM FullData) := do
+                  parseEvolverList (← `(evolver_list|^[eq-closure]))
+
+def goals3 : TermElabM (Array Expr) := do
+                  parseExprList (← `(expr_list|%[lem5!]))
+
+def ev3 : TermElabM (EvolutionM FullData) := do
+                  (← evr3).fixedPoint.evolve.andThenM (logResults <| ←  goals3) 
+
+def fin3 : TermElabM ExprDist := do
+                  (← ev3) 2 6000 (← fin2) initData
+def rep3 : TermElabM (Array (Expr × Nat)) := do
+                  (← fin3).getGoals (← goals3)
 
 end ElabCzSl
