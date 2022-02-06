@@ -434,10 +434,10 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolut
       let weights := m.map <| fun (_, _, w) => w
       for w1 in weights do
         for w2 in weights do 
-          for j in [w1 + w2 +1:wb + 1] do
+          for j in [w1 + w2:wb + 1] do
             cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 + 1)
       for w1 in weights do 
-        for j in [w1 + w1 + 1:wb + 1] do
+        for j in [w1 + w1:wb + 1] do
           cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 - 1)
     -- logInfo m!"cumulative pair count: {cumPairCount.toArray}"
     -- for g in goalterms do
@@ -445,7 +445,7 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolut
     for (y, withRhs, withLhs) in grouped do
       for (x, eq1, w1) in withRhs do
         for (z, eq2, w2) in withLhs do
-        let w := w1 + w2 + 1
+        let w := w1 + w2
             if w ≤ wb && (cumPairCount.findD w 0) ≤ card * 2 then 
             unless x == z do
               let eq3 ← whnf (←   mkAppM ``Eq.trans #[eq1, eq2]) 

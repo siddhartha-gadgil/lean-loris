@@ -53,6 +53,8 @@ def lem2! := (m * n) * ((m * n) * n) = n
 def lem3! := ((m * n) * m) * m = m * n
 def lem4! := (m * n) * ((m * n) * n) = (m * n) * m
 def lem5! := (m * n) * m = n
+def lem6! := ((m * n) * m) * m = n * m
+def thm! := m * n = n * m
 def evr0 : TermElabM (RecEvolverM FullData) := do
                   parseEvolverList (← `(evolver_list|^[name-app, name-binop]))
 def init0 : TermElabM (Array (Expr × Nat)) := do
@@ -117,8 +119,30 @@ def ev3 : TermElabM (EvolutionM FullData) := do
                   (← evr3).fixedPoint.evolve.andThenM (logResults <| ←  goals3) 
 
 def fin3 : TermElabM ExprDist := do
-                  (← ev3) 2 6000 (← fin2) initData
+                  (← ev3) 1 6000 (← fin2) initData
 def rep3 : TermElabM (Array (Expr × Nat)) := do
                   (← fin3).getGoals (← goals3)
 
+def goals4 : TermElabM (Array Expr) := do
+                  parseExprList (← `(expr_list|%[lem6!]))
+def evr4 : TermElabM (RecEvolverM FullData) := evr2
+
+def ev4 : TermElabM (EvolutionM FullData) := do
+                  (← evr4).fixedPoint.evolve.andThenM (logResults <| ←  goals4) 
+def fin4 : TermElabM ExprDist := do
+                  (← ev4) 3 6000 (← fin3) initData
+def rep4 : TermElabM (Array (Expr × Nat)) := do
+                  (← fin4).getGoals (← goals4)
+def goals5 : TermElabM (Array Expr) := do
+                  parseExprList (← `(expr_list|%[thm!]))
+def evr5 : TermElabM (RecEvolverM FullData) := do
+                  parseEvolverList 
+                        (← `(evolver_list|^[eq-closure]))
+
+def ev5 : TermElabM (EvolutionM FullData) := do
+                  (← evr5).fixedPoint.evolve.andThenM (logResults <| ←  goals5) 
+def fin5 : TermElabM ExprDist := do
+                  (← ev5) 1 6000 (← fin4) initData
+def rep5 : TermElabM (Array (Expr × Nat)) := do
+                  (← fin5).getGoals (← goals5)
 end ElabCzSl
