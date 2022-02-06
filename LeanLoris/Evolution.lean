@@ -2,12 +2,14 @@ import LeanLoris.FinDist
 import LeanLoris.ExprDist
 import LeanLoris.Core
 import LeanLoris.ProdSeq
+import Lean
 import Lean.Meta
 import Lean.Elab
 import Std
 open Lean
 open Meta
 open Elab
+open Lean.PrettyPrinter
 open Lean.Elab.Term
 open Std
 open Std.HashMap
@@ -500,18 +502,28 @@ def refineWeight(weight? : Expr → TermElabM (Option Nat)):
     | _ => ()
   return finalDist
 
+
 def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist => do
     IO.println s!"number of terms : {dist.termsArr.size}"
     IO.println s!"number of proofs: {dist.proofsArr.size}"
     for g in goals do
-      IO.println s!"goal: {g}"
+      let stx ← delab (← getCurrNamespace) (← getOpenDecls) g
+      let fmt ← PrettyPrinter.ppTerm stx
+      let pp ← fmt.pretty
+      IO.println s!"goal: {pp}"
       let statement ←  (dist.termsArr.findM? $ fun (s, _) => isDefEq s g)
       let statement ←  statement.mapM $ fun (e, w) => do (← whnf e, w) 
       if ← isProp g then
         IO.println s!"proposition generated: {← statement}"
         let proof ←  dist.proofsArr.findM? $ fun (l, t, w) => 
                 do isDefEq l g
-        IO.println s!"proof generated: {proof}"
+        match proof with
+        | some (_, pf, w) =>
+          let stx ← delab (← getCurrNamespace) (← getOpenDecls) pf
+          let fmt ← PrettyPrinter.ppTerm stx
+          let pp ← fmt.pretty
+          IO.println s!"proof generated: {pp}, weight : {w}"
+        | none => IO.println s!"no proof generated"
       else
         IO.println s!"term generated: {statement}"
 

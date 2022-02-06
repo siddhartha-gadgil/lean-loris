@@ -15,7 +15,7 @@ open Std.HashMap
 open Nat
 open ProdSeq
 
-namespace ElabCzSl
+namespace CzSl
 constant M : Type
 
 instance : Inhabited (M → M → M) := ⟨fun x _ => x⟩
@@ -145,4 +145,4 @@ def fin5 : TermElabM ExprDist := do
                   (← ev5) 1 6000 (← fin4) initData
 def rep5 : TermElabM (Array (Expr × Nat)) := do
                   (← fin5).getGoals (← goals5)
-end ElabCzSl
+end CzSl
