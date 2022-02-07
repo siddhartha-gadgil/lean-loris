@@ -513,6 +513,7 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
       let fmt ← PrettyPrinter.ppTerm stx
       let pp ← fmt.pretty
       IO.println s!"goal {count}: {pp}"
+      IO.println s!"argList : {← argList g}"
       let statement ←  (dist.termsArr.findM? $ fun (s, _) => isDefEq s g)
       let statement ←  statement.mapM $ fun (e, w) => do (← whnf e, w) 
       if ← isProp g then
@@ -525,6 +526,7 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
           let fmt ← PrettyPrinter.ppTerm stx
           let pp ← fmt.pretty
           IO.println s!"proof generated: {pp}, weight : {w}"
+          IO.println s!"argList : {← argList pf}"
         | none => IO.println s!"no proof generated"
       else
         IO.println s!"term generated: {statement}"
