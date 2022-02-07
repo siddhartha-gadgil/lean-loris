@@ -175,11 +175,11 @@ def iterateAux{D: Type}[DataUpdate D](stepEv : RecEvolverM D)(incWt accumWt card
                      | 0 => fun initDist _ _ => return initDist
                      | m + 1 => fun initDist d evo => 
                       do
-                        IO.println s!"step: wb = {accumWt+ 1} cardBound = {cardBound} time = {← IO.monoMsNow} "
+                        IO.println s!"Evolver step: weight-bound = {accumWt+ 1} cardinality-bound = {cardBound} mono-time = {← IO.monoMsNow}"
                         let newDist ←  stepEv (accumWt + 1) cardBound initDist d evo
-                        IO.println s!"step completed: wb = {accumWt+ 1} cardBound = {cardBound} time = {← IO.monoMsNow} "
+                        IO.println s!"step completed: weight-bound = {accumWt+ 1} cardinality-bound = {cardBound} mono-time = {← IO.monoMsNow}"
                         let newData := dataUpdate initDist accumWt cardBound d
-                        IO.println s!"data updated: wb = {accumWt+ 1} cardBound = {cardBound} time = {← IO.monoMsNow} "
+                        -- IO.println s!"data updated: wb = {accumWt+ 1} cardBound = {cardBound} time = {← IO.monoMsNow} "
                         iterateAux stepEv m (accumWt + 1) cardBound newDist newData evo
 
 def iterate{D: Type}[DataUpdate D](stepEv : RecEvolverM D): RecEvolverM D := 

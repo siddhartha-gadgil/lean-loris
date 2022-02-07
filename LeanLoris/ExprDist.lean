@@ -2,7 +2,9 @@ import LeanLoris.FinDist
 import Lean.Meta
 import Lean.Elab
 import Std
+import Lean
 open Lean
+open PrettyPrinter
 open Meta
 open Elab
 open Lean.Elab.Term
@@ -168,6 +170,22 @@ def getGoals(dist: ExprDist)(goals : Array Expr) : TermElabM (Array (Expr × Nat
       let wpf ← dist.getProof? g
       let wt ← dist.getTerm? g
       return wpf.orElse (fun _ => wt)
+
+def viewGoals(dist: ExprDist)(goals : Array Expr) : TermElabM String :=
+  do
+    let pfs ← getGoals dist goals
+    let view : Array String ←  pfs.mapM <| fun (pf, w) => do
+      let stx ← delab (← getCurrNamespace) (← getOpenDecls) pf
+      let fmt ← PrettyPrinter.ppTerm stx
+      let pp ← fmt.pretty
+      s!"proof: {pp}, weight : {w}"
+    let s := view.foldl (fun acc e => acc ++ "\n" ++ e) "Proofs obtained:\n"
+    return s
+
+def coreView(l : TermElabM String) : CoreM  String := do
+
+      let m := l.run'
+      m.run'
 
 def findD(dist: ExprDist)(elem: Expr)(default: Nat) : TermElabM Nat := do
   match ← getTerm? dist elem with

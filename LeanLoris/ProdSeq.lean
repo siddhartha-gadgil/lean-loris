@@ -118,7 +118,7 @@ syntax (name:= roundtripWtd) "roundtrip-weighted!" term : term
       return ee
   | _ => throwIllFormedSyntax
 
-#eval roundtrip-weighted! (((), 9), (2, 7), ("Hello", 12), ())
+-- #eval roundtrip-weighted! (((), 9), (2, 7), ("Hello", 12), ())
 
 partial def unpack (expr: Expr) : TermElabM (List Expr) :=
     do
@@ -163,7 +163,7 @@ syntax (name := prodHead) "prodHead!" term : term
       | none => throwAbortTerm    
   | _ => throwIllFormedSyntax
 
-#eval prodHead! (10, 12, 15, 13)
+-- #eval prodHead! (10, 12, 15, 13)
 
 
 syntax (name := prodlHead) "prodlHead!" term : term
@@ -178,7 +178,7 @@ syntax (name := prodlHead) "prodlHead!" term : term
       return l.head!   
   | _ => throwIllFormedSyntax
 
-#eval prodlHead! (3, 10, 12, 13, ())
+-- #eval prodlHead! (3, 10, 12, 13, ())
 
 syntax (name:= roundtrip) "roundtrip!" term : term
 @[termElab roundtrip] def roundtripImpl : TermElab := fun stx expectedType =>
@@ -210,7 +210,7 @@ infixr:65 ":::" => PProd.mk
 
 #check roundtrip!  (rfl : 1 = 1) ::: "this" ::: 4 ::: 3 ::: ()
 
-#eval terms! "hello" ::: (rfl : 1 = 1) ::: "this" ::: 4 ::: 3 ::: ()
+-- #eval terms! "hello" ::: (rfl : 1 = 1) ::: "this" ::: 4 ::: 3 ::: ()
 
 declare_syntax_cat expr_dist 
 
@@ -242,8 +242,8 @@ syntax (name:= exprDistPack) "packdist!" expr_dist : term
           packWeighted m.toList
     | _ => throwIllFormedSyntax
 
-#eval packdist! %{(1, 2), ("Hello", 4)}
-#check packdist! %{(1, 2), ("Hello", 4)}
+-- #eval packdist! %{(1, 2), ("Hello", 4)}
+-- #check packdist! %{(1, 2), ("Hello", 4)}
 
 #reduce (fun x y : Nat => packdist!%{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
 
