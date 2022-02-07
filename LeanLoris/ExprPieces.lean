@@ -1,4 +1,4 @@
-import LeanLoris.Core
+import LeanLoris.Utils
 import Lean.Meta
 import Lean.Elab
 import Std
@@ -112,6 +112,7 @@ partial def argList : Expr → TermElabM (List Name) :=
           argList b
       | _ => []
     return res
+
 
 
 partial def subExpr?(withDoms: Bool)(parent: Expr): Expr → TermElabM Bool := 

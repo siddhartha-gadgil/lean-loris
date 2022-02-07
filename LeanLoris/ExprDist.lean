@@ -1,4 +1,5 @@
 import LeanLoris.FinDist
+import LeanLoris.ExprPieces
 import Lean.Meta
 import Lean.Elab
 import Std
@@ -24,6 +25,8 @@ def updateProofM(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM ExprDist := do
   match ← (m.proofsArr.findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
       | some j => 
           let (l, p, w) := m.proofsArr.get! j
+          if !((← argList l) == (← argList prop)) then 
+            IO.println s!"{l} = {prop} but {← argList l} != {← argList prop}"
           if w ≤ d then return m 
           else return ⟨m.termsArr, m.proofsArr.set! j (prop, x, d)⟩
       | none => 
@@ -34,6 +37,8 @@ def updateTermM(m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist :=
     match ← (m.termsArr.findIdxM? <| fun (t, w) => isDefEq t x) with
       | some j =>
         let (t, w) := m.termsArr.get! j 
+        if !((← argList x) == (← argList t)) then 
+            IO.println s!"{x} = {t} but {← argList x} != {← argList t}"
         if w ≤ j then return m
         else return ⟨m.termsArr.set! j (x, d), m.proofsArr⟩
       | none => 
@@ -59,6 +64,8 @@ def updatedProofM?(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM (Option ExprDi
   match ← (m.proofsArr.findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
       | some j => 
           let (l, p, w) := m.proofsArr.get! j
+          if !((← argList l) == (← argList prop)) then 
+            IO.println s!"{l} = {prop} but {← argList l} != {← argList prop}"
           if w ≤ d then return none
           else return some ⟨m.termsArr, m.proofsArr.set! j (prop, x, d)⟩
       | none => 
@@ -69,6 +76,8 @@ def updatedTermM?(m: ExprDist) (x: Expr) (d: Nat) : TermElabM (Option ExprDist) 
     match ← (m.termsArr.findIdxM? <| fun (t, w) => isDefEq t x) with
       | some j =>
         let (t, w) := m.termsArr.get! j 
+        if !((← argList x) == (← argList t)) then 
+            IO.println s!"{x} = {t} but {← argList x} != {← argList t}"
         if w ≤ j then return none
         else return some ⟨m.termsArr.set! j (x, d), m.proofsArr⟩
       | none => 
@@ -101,6 +110,8 @@ def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
       match ← (fstProofs.findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
       | some j => 
           let (l, p, w) := fstProofs.get! j
+          if !((← argList l) == (← argList prop)) then 
+            IO.println s!"{l} = {prop} but {← argList l} != {← argList prop}"
           if w ≤ d then ()
           else 
            fstProofs := fstProofs.eraseIdx j 
@@ -111,6 +122,8 @@ def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
       match ← (fstTerms.findIdxM? <| fun (t, w) =>  isDefEq t x)  with
       | some j => 
           let (t, w) := fstTerms.get! j
+          if !((← argList x) == (← argList t)) then 
+            IO.println s!"{x} = {t} but {← argList x} != {← argList t}"
           if w ≤ d then ()
           else 
            fstTerms := fstTerms.eraseIdx j 
@@ -142,7 +155,12 @@ def existsM(dist: ExprDist)(elem: Expr)(weight: Nat) : TermElabM Bool :=
 
 def existsPropM(dist: ExprDist)(prop: Expr)(weight: Nat) : TermElabM Bool :=
     dist.proofsArr.anyM <| fun (l, _, w) => 
-              do pure (decide <| w ≤ weight) <&&> isDefEq l prop
+              do 
+              let res ←  pure (decide <| w ≤ weight) <&&> isDefEq l prop
+              if res then 
+                if !((← argList l) == (← argList prop)) then 
+                IO.println s!"{l} = {prop} but {← argList l} != {← argList prop}"
+              return res
 
 def terms(dist: ExprDist) : FinDist Expr := 
       FinDist.fromArray dist.termsArr
