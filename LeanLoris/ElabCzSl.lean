@@ -59,73 +59,43 @@ def thm! := m * n = n * m
 def nameDist := #[(``mul, 0), (``ax1, 0), (``ax2, 0)]
 def initData : FullData := (FinDist.fromArray nameDist, [], [])
 
-def goals1 : TermElabM (Array Expr) := do
-                  parseExprList (← `(expr_list|%[lem1!, lem2!, lem3!]))
+def goals : TermElabM (Array Expr) := do
+                  parseExprList (← 
+                  `(expr_list|%[lem1!, lem2!, lem3!, lem4!, lem5!, lem6!, thm!]))
+
+
 -- #eval goals1
 def init1 : TermElabM (Array (Expr × Nat)) := do
                   parseExprMap (← `(expr_dist|%{(m, 0), (n, 0), (m *n, 0)}))
-def evStep1 : TermElabM (RecEvolverM FullData) := do
-                  parseEvolverList (← `(evolver_list|^[name-app, name-binop]))                  
-def ev1 : TermElabM (EvolutionM FullData) := do
-                  (← evStep1).fixedPoint.evolve.andThenM (logResults <| ←  goals1)
-def dist1 : TermElabM ExprDist := do
-                  (← ev1) 3 1000 (← ExprDist.fromArray <| ←  init1) initData
-def rep1 : TermElabM (Array (Expr × Nat)) := do
-                  (← dist1).getGoals (← goals1)
 
-def evStep2 : TermElabM (RecEvolverM FullData) := do
+def evStep1 : TermElabM (RecEvolverM FullData) := do
                   parseEvolverList (← `(evolver_list|^[name-app, name-binop, eq-isles]))
 
-def goals2 : TermElabM (Array Expr) := do
-                  parseExprList (← `(expr_list|%[lem1!, lem4!]))
 
-def ev2 : TermElabM (EvolutionM FullData) := do
-                  (← evStep2).fixedPoint.evolve.andThenM (logResults <| ←  goals2) 
+def ev1 : TermElabM (EvolutionM FullData) := do
+                  (← evStep1).fixedPoint.evolve.andThenM (logResults <| ←  goals) 
 
-def dist2 : TermElabM ExprDist := do
-                  (← ev2) 3 2000 (← ExprDist.fromArray <| ←  init1) initData
-def rep2 : TermElabM (Array (Expr × Nat)) := do
-                  (← dist2).getGoals (← goals2)
+def dist1 : TermElabM ExprDist := do
+                  (← ev1) 3 2000 (← ExprDist.fromArray <| ←  init1) initData
 
-def evStep3 : TermElabM (RecEvolverM FullData) := do
-                  parseEvolverList 
-                        (← `(evolver_list|^[eq-closure %[n, (m * n) * ((m * n) * n)]]))
-
-def goals3 : TermElabM (Array Expr) := do
-                  parseExprList (← `(expr_list|%[lem5!]))
-
--- #eval goals3
-
-def ev3 : TermElabM (EvolutionM FullData) := do
-                  (← evStep3).fixedPoint.evolve.andThenM (logResults <| ←  goals3) 
-
-def dist3 : TermElabM ExprDist := do
-                  (← ev3) 1 6000 (← dist2) initData
-def rep3 : TermElabM (Array (Expr × Nat)) := do
-                  (← dist3).getGoals (← goals3)
-
-def goals4 : TermElabM (Array Expr) := do
-                  parseExprList (← `(expr_list|%[lem6!]))
-def evStep4 : TermElabM (RecEvolverM FullData) := evStep2
-
-def ev4 : TermElabM (EvolutionM FullData) := do
-                  (← evStep4).fixedPoint.evolve.andThenM (logResults <| ←  goals4) 
-def dist4 : TermElabM ExprDist := do
-                  (← ev4) 3 6000 (← dist3) initData
-def rep4 : TermElabM (Array (Expr × Nat)) := do
-                  (← dist4).getGoals (← goals4)
-def goals5 : TermElabM (Array Expr) := do
-                  parseExprList (← `(expr_list|%[thm!]))
-def evStep5 : TermElabM (RecEvolverM FullData) := do
+def evStep2 : TermElabM (RecEvolverM FullData) := do
                   parseEvolverList 
                         (← `(evolver_list|^[eq-closure]))
 
-def ev5 : TermElabM (EvolutionM FullData) := do
-                  (← evStep5).fixedPoint.evolve.andThenM (logResults <| ←  goals5) 
-def dist5 : TermElabM ExprDist := do
-                  (← ev5) 1 6000 (← dist4) initData
-def rep5 : TermElabM (Array (Expr × Nat)) := do
-                  (← dist5).getGoals (← goals5)
-def view5 : TermElabM String := do
-                  (← dist5).viewGoals (← goals5)                
+
+def ev2 : TermElabM (EvolutionM FullData) := do
+                  (← evStep2).fixedPoint.evolve.andThenM (logResults <| ←  goals) 
+
+def dist2 : TermElabM ExprDist := do
+                  (← ev2) 1 6000 (← dist1) initData
+
+def dist3 : TermElabM ExprDist := do
+                  (← ev1) 3 6000 (← dist2) initData
+def goals4 : TermElabM (Array Expr) := do
+                  parseExprList (← `(expr_list|%[thm!]))
+def dist4 : TermElabM ExprDist := do
+                  (← ev2) 1 6000 (← dist3) initData
+
+def view4 : TermElabM String := do
+                  (← dist4).viewGoals (← goals4)                
 end CzSl

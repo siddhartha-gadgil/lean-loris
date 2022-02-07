@@ -8,7 +8,7 @@ set_option maxHeartbeats 10000000
 set_option maxRecDepth 1000
 set_option compiler.extract_closed false
 def main : IO Unit := do
-  let c := coreView view5
+  let c := coreView view4
   initSearchPath (← Lean.findSysroot?) ["build/lib"]
   let env ← importModules [{module := `LeanLoris.ElabCzSl}] {}
   let ei := c.run' {maxHeartbeats := 100000000000} {env}

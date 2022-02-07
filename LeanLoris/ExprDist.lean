@@ -164,22 +164,26 @@ def getProof?(dist: ExprDist)(prop: Expr) : TermElabM (Option (Expr ×  Nat)) :=
 def getTerm?(dist: ExprDist)(elem: Expr) : TermElabM (Option (Expr ×  Nat)) := do
   dist.termsArr.findM? <| fun (t, w) => isDefEq t elem
 
-def getGoals(dist: ExprDist)(goals : Array Expr) : TermElabM (Array (Expr × Nat )) := 
+def getGoals(dist: ExprDist)(goals : Array Expr) : TermElabM (Array (Expr × Expr × Nat )) := 
   do
     goals.filterMapM <| fun g => do 
       let wpf ← dist.getProof? g
       let wt ← dist.getTerm? g
-      return wpf.orElse (fun _ => wt)
+      let res ←  wpf.orElse (fun _ => wt)
+      return res.map (fun (x, w) => (g, x, w))
 
 def viewGoals(dist: ExprDist)(goals : Array Expr) : TermElabM String :=
   do
     let pfs ← getGoals dist goals
-    let view : Array String ←  pfs.mapM <| fun (pf, w) => do
+    let view : Array String ←  pfs.mapM <| fun (g, pf, w) => do
       let stx ← delab (← getCurrNamespace) (← getOpenDecls) pf
       let fmt ← PrettyPrinter.ppTerm stx
       let pp ← fmt.pretty
-      s!"proof: {pp}, weight : {w}"
-    let s := view.foldl (fun acc e => acc ++ "\n" ++ e) "Proofs obtained:\n"
+      let stx ← delab (← getCurrNamespace) (← getOpenDecls) g
+      let fmt ← PrettyPrinter.ppTerm stx
+      let pg ← fmt.pretty
+      s!"goal : {pg}\nproof: {pp}, weight : {w}"
+    let s := view.foldl (fun acc e => acc ++ "\n" ++ e) "Proofs obtained:"
     return s
 
 def coreView(l : TermElabM String) : CoreM  String := do

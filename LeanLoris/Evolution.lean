@@ -175,9 +175,9 @@ def iterateAux{D: Type}[DataUpdate D](stepEv : RecEvolverM D)(incWt accumWt card
                      | 0 => fun initDist _ _ => return initDist
                      | m + 1 => fun initDist d evo => 
                       do
-                        IO.println s!"Evolver step: weight-bound = {accumWt+ 1} cardinality-bound = {cardBound} mono-time = {← IO.monoMsNow}"
+                        IO.println s!"Evolver step: weight-bound = {accumWt+ 1}; cardinality-bound = {cardBound}; mono-time = {← IO.monoMsNow}"
                         let newDist ←  stepEv (accumWt + 1) cardBound initDist d evo
-                        IO.println s!"step completed: weight-bound = {accumWt+ 1} cardinality-bound = {cardBound} mono-time = {← IO.monoMsNow}"
+                        IO.println s!"step completed: weight-bound = {accumWt+ 1}; cardinality-bound = {cardBound}; mono-time = {← IO.monoMsNow}"
                         let newData := dataUpdate initDist accumWt cardBound d
                         -- IO.println s!"data updated: wb = {accumWt+ 1} cardBound = {cardBound} time = {← IO.monoMsNow} "
                         iterateAux stepEv m (accumWt + 1) cardBound newDist newData evo
@@ -506,15 +506,17 @@ def refineWeight(weight? : Expr → TermElabM (Option Nat)):
 def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist => do
     IO.println s!"number of terms : {dist.termsArr.size}"
     IO.println s!"number of proofs: {dist.proofsArr.size}"
+    let mut count := 0
     for g in goals do
+      count := count + 1
       let stx ← delab (← getCurrNamespace) (← getOpenDecls) g
       let fmt ← PrettyPrinter.ppTerm stx
       let pp ← fmt.pretty
-      IO.println s!"goal: {pp}"
+      IO.println s!"goal {count}: {pp}"
       let statement ←  (dist.termsArr.findM? $ fun (s, _) => isDefEq s g)
       let statement ←  statement.mapM $ fun (e, w) => do (← whnf e, w) 
       if ← isProp g then
-        IO.println s!"proposition generated: {← statement}"
+        -- IO.println s!"proposition generated: {← statement}"
         let proof ←  dist.proofsArr.findM? $ fun (l, t, w) => 
                 do isDefEq l g
         match proof with
