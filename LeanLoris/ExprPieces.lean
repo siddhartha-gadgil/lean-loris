@@ -83,6 +83,37 @@ partial def exprNames (withDoms : Bool): Expr → TermElabM (List Name) :=
     cacheName withDoms e res
     return res
 
+partial def argList : Expr → TermElabM (List Name) :=
+  fun e => do
+    let res ← match e with
+      | Expr.const name _ _  =>
+        do
+        let type ← inferType e
+        if ← type.isForall then return []
+        else
+        if ← (isWhiteListed name) 
+          then [name] 
+          else
+          if ← (isNotAux  name)  then
+            match ← nameExpr?  name with
+            | some e => argList e
+            | none => []
+          else []        
+      | Expr.app f a _ => 
+          do  
+            let ftype ← inferType f 
+            let expl := ftype.data.binderInfo.isExplicit
+            if !expl then pure [] else return (← argList f) ++ (← argList a)
+      | Expr.lam _ t b _ => 
+          argList b 
+      | Expr.forallE _ t b _ => do
+          argList b 
+      | Expr.letE _ t v b _ => 
+          argList b
+      | _ => []
+    return res
+
+
 partial def subExpr?(withDoms: Bool)(parent: Expr): Expr → TermElabM Bool := 
     fun e => do
       if ← isDefEq parent e then return true
