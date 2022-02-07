@@ -381,80 +381,96 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolut
     -- logInfo m!"initial terms: {init.termsArr.size}"
     -- logInfo m!"initial proofs: {init.proofsArr.size}"        
     let mut eqs := ExprDist.empty -- new equations only
-    let mut allEquations := ExprDist.empty
+    let mut allEquationGroups : HashMap (List Name) ExprDist := HashMap.empty
+    -- let mut allEquations := ExprDist.empty
     -- initial equations
     for (l, pf, w) in init.proofsArr do
       match l.eq? with
         | some (_, lhs, rhs) => if !(lhs == rhs) then  
-          allEquations := allEquations.pushProof l pf w
+          let key ← argList l
+          allEquationGroups := allEquationGroups.insert key <|
+              (allEquationGroups.findD key ExprDist.empty).pushProof l pf w
         | none => ()
     -- symmetrize
-    for (l, pf, w) in allEquations.proofsArr do
-      match l.eq? with
-      | none => ()
-      | some (_, lhs, rhs) =>
-        let flipProp ← mkEq rhs lhs
-        let flip ← whnf (← mkAppM ``Eq.symm #[pf])
-        match ← allEquations.updatedProofM? flipProp flip (w + 1) with
+    for (key, allEquations) in allEquationGroups.toArray do
+      for (l, pf, w) in allEquations.proofsArr do
+        match l.eq? with
         | none => ()
-        | some dist => 
-          allEquations := dist
-          eqs ← eqs.pushProof flipProp flip (w + 1)
+        | some (_, lhs, rhs) =>
+          let flipProp ← mkEq rhs lhs
+          let flip ← whnf (← mkAppM ``Eq.symm #[pf])
+          match ← allEquations.updatedProofM? flipProp flip (w + 1) with
+          | none => ()
+          | some dist => 
+            allEquationGroups := allEquationGroups.insert key dist
+            eqs ← eqs.pushProof flipProp flip (w + 1)
     /- group equations, for y we have proofs of x = y and then y = z,
         record array of (x, pf, w) and array of (z, pf, z)
     -/
-    let mut grouped : 
-          Array (Expr × (Array (Expr × Expr × Nat)) × (Array (Expr × Expr × Nat))) := #[]
-    for (l, pf, w) in allEquations.proofsArr do
-      match l.eq? with
-      | none => ()
-      | some (_, lhs, rhs) =>
-        let lhs ← whnf lhs
-        let rhs ← whnf rhs
-        Term.synthesizeSyntheticMVarsNoPostponing
-        -- update first component, i.e. y = rhs
-        match ← grouped.findIdxM? <| fun (y, _, _) => isDefEq y rhs with
-        | none => -- no equation involving rhs
-          let weight := Nat.min w (← init.findD lhs w)
-          grouped := grouped.push (rhs, #[(lhs, pf, weight)] , #[])
-        | some j => 
-          let (y, withRhs, withLhs) := grouped.get! j
-          let weight := Nat.min w (← init.findD lhs w)
-          grouped := grouped.set! j (rhs, withRhs.push (lhs, pf, weight) , withLhs)
-        -- update second component
-        match ← grouped.findIdxM? <| fun (y, _, _) => isDefEq y lhs with
-        | none => -- no equation involving lhs
-          let weight := Nat.min w (← init.findD rhs w)
-          grouped := grouped.push (lhs, #[], #[(rhs, pf, weight)])
-        | some j => 
-          let (y, withRhs, withLhs) := grouped.get! j
-          let weight := Nat.min w (← init.findD rhs w)
-          grouped := grouped.set! j (lhs, withRhs, withLhs.push (rhs, pf, weight))
+    let mut grouped : HashMap (List Name)
+          (Array (Expr × (Array (Expr × Expr × Nat)) × (Array (Expr × Expr × Nat)))) := 
+      HashMap.empty
+    for (key, allEquations) in allEquationGroups.toArray do
+      for (l, pf, w) in allEquations.proofsArr do
+        match l.eq? with
+        | none => ()
+        | some (_, lhs, rhs) =>
+          let lhs ← whnf lhs
+          let rhs ← whnf rhs
+          Term.synthesizeSyntheticMVarsNoPostponing
+          -- update first component, i.e. y = rhs
+          let key ← argList rhs
+          match ← (grouped.findD key  #[]).findIdxM? <| fun (y, _, _) => isDefEq y rhs with
+          | none => -- no equation involving rhs
+            let weight := Nat.min w (← init.findD lhs w)
+            grouped := grouped.insert key <|
+              (grouped.findD key  #[]).push (rhs, #[(lhs, pf, weight)] , #[])
+          | some j => 
+            let (y, withRhs, withLhs) := (grouped.findD key  #[]).get! j
+            let weight := Nat.min w (← init.findD lhs w)
+            grouped := grouped.insert key <|
+              (grouped.findD key  #[]).set! j (rhs, withRhs.push (lhs, pf, weight) , withLhs)
+          -- update second component
+          let key ← argList lhs
+          match ← (grouped.findD key  #[]).findIdxM? <| fun (y, _, _) => isDefEq y lhs with
+          | none => -- no equation involving lhs
+            let weight := Nat.min w (← init.findD rhs w)
+            grouped := grouped.insert key <|
+              (grouped.findD key  #[]).push (lhs, #[], #[(rhs, pf, weight)])
+          | some j => 
+            let (y, withRhs, withLhs) := (grouped.findD key  #[]).get! j
+            let weight := Nat.min w (← init.findD rhs w)
+            grouped := grouped.insert key <|
+              (grouped.findD key  #[]).set! j (lhs, withRhs, withLhs.push (rhs, pf, weight))
     -- count cumulative weights of pairs, deleting reflexive pairs (assuming symmetry)
+    IO.println s!"grouped; mono-time {←  IO.monoMsNow}"
     let mut cumPairCount : HashMap Nat Nat := HashMap.empty
-    for (_, m ,_) in grouped do
-      let weights := m.map <| fun (_, _, w) => w
-      for w1 in weights do
-        for w2 in weights do 
-          for j in [w1 + w2:wb + 1] do
-            cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 + 1)
-      for w1 in weights do 
-        for j in [w1 + w1:wb + 1] do
-          cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 - 1)
+    for (key, group) in grouped.toArray do
+      for (_, m ,_) in group do
+        let weights := m.map <| fun (_, _, w) => w
+        for w1 in weights do
+          for w2 in weights do 
+            for j in [w1 + w2:wb + 1] do
+              cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 + 1)
+        for w1 in weights do 
+          for j in [w1 + w1:wb + 1] do
+            cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 - 1)
     -- logInfo m!"cumulative pair count: {cumPairCount.toArray}"
     -- for g in goalterms do
     --   logInfo m!"goalterm: {g},  {← init.getTerm? g}" 
-    for (y, withRhs, withLhs) in grouped do
-      for (x, eq1, w1) in withRhs do
-        for (z, eq2, w2) in withLhs do
-        let w := w1 + w2
-            if w ≤ wb && (cumPairCount.findD w 0) ≤ card * 2 then 
-            unless x == z do
-              let eq3 ← whnf (←   mkAppM ``Eq.trans #[eq1, eq2]) 
-              let prop ← mkEq x z
-              Term.synthesizeSyntheticMVarsNoPostponing
-              unless ← allEquations.existsPropM prop w do
-                eqs ← eqs.pushProof prop eq3 w   
+    for (key, group) in grouped.toArray do
+      for (y, withRhs, withLhs) in group do
+        for (x, eq1, w1) in withRhs do
+          for (z, eq2, w2) in withLhs do
+          let w := w1 + w2
+              if w ≤ wb && (cumPairCount.findD w 0) ≤ card * 2 then 
+              unless x == z do
+                let eq3 ← whnf (←   mkAppM ``Eq.trans #[eq1, eq2]) 
+                let prop ← mkEq x z
+                Term.synthesizeSyntheticMVarsNoPostponing
+                let key ← argList prop
+                unless ← (allEquationGroups.findD key ExprDist.empty).existsPropM prop w do
+                  eqs ← eqs.pushProof prop eq3 w   
     return eqs
 
 
