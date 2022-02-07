@@ -161,29 +161,6 @@ def congrArgOpt (f: Expr)(eq : Expr) : TermElabM (Option Expr) :=
     catch e => 
       return none 
 
--- Auxiliary functions mainly from lean source for finding subexpressions
-
-def isBlackListed  (declName : Name) : TermElabM  Bool := do
-  let env ← getEnv
-  declName.isInternal
-  <||> isAuxRecursor env declName
-  <||> isNoConfusion env declName
-  <||> isRecCore env declName
-  <||> isMatcherCore env declName
-
-def isAux (declName : Name) : TermElabM  Bool := do
-  let env ← getEnv
-  isAuxRecursor env declName
-  <||> isNoConfusion env declName
-  
-def isNotAux  (declName : Name) : TermElabM  Bool := do
-  let nAux ← isAux declName
-  return (not nAux)
-
-def isWhiteListed (declName : Name) : TermElabM Bool := do
-  let bl ← isBlackListed  declName
-  return !bl
-
 -- return Boolean pair (is-new, not-external)
 class NewElem (α D: Type) where
   newElem: D → α → Nat → TermElabM (Bool × Bool)
