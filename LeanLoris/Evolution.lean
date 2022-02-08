@@ -387,16 +387,11 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolut
     for (l, pf, w) in init.proofsArr do
       match l.eq? with
         | some (_, lhs, rhs) => if !(← isDefEq lhs rhs) then
-          if ← goalterms.anyM <| fun t => isDefEq t lhs then 
-            IO.println s!"focus as lhs, rhs = {rhs}, weight: {w}"
-          if ← goalterms.anyM <| fun t => isDefEq t rhs then 
-            IO.println s!"focus as rhs, lhs = {lhs}, weight: {w}"  
           let key ← argList l
           allEquationGroups := allEquationGroups.insert key <|
               (allEquationGroups.findD key ExprDist.empty).pushProof l pf w
         | none => ()
     -- symmetrize
-    IO.println "Before symmetrization:"
     let eqnArray := allEquationGroups.toArray
     for (key, allEquations) in eqnArray do
       for (l, pf, w) in allEquations.proofsArr do
@@ -464,14 +459,13 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolut
           for j in [w1 + w1:wb + 1] do
             cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 - 1)
     -- logInfo m!"cumulative pair count: {cumPairCount.toArray}"
-    IO.println s!"goal terms: {goalterms.size}"
-    for g in goalterms do
-      IO.println s!"goalterm: {g},  {← init.getTerm? g}" 
+    -- for g in goalterms do
+    --   IO.println s!"goalterm: {g},  {← init.getTerm? g}" 
     for (key, group) in grouped.toArray do
       for (y, withRhs, withLhs) in group do
-        let focus ← goalterms.anyM <| fun t => isDefEq t y
-        if focus then 
-          IO.println s!"y: {y}, withRhs: {withRhs.size}, withLhs: {withLhs.size}"
+        -- let focus ← goalterms.anyM <| fun t => isDefEq t y
+        -- if focus then 
+        --   IO.println s!"y: {y}, withRhs: {withRhs.size}, withLhs: {withLhs.size}"
         for (x, eq1, w1) in withRhs do
           for (z, eq2, w2) in withLhs do
           let w := w1 + w2
@@ -542,7 +536,7 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
       let fmt ← PrettyPrinter.ppTerm stx
       let pp ← fmt.pretty
       IO.println s!"goal {count}: {pp}"
-      IO.println s!"argList : {← argList g}"
+      -- IO.println s!"argList : {← argList g}"
       let statement ←  (dist.termsArr.findM? $ fun (s, _) => isDefEq s g)
       let statement ←  statement.mapM $ fun (e, w) => do (← whnf e, w) 
       if ← isProp g then

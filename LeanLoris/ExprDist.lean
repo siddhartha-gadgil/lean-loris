@@ -135,7 +135,7 @@ def flattenDists(m: HashMap (List Name) ExprDist) : TermElabM ExprDist := do
   -- IO.println s!"pfList = {pfList.length}"
   return ⟨termList.toArray, pfList.toArray⟩
 
-def mergeMGrouped(fst snd: ExprDist) : TermElabM ExprDist := do
+def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
     -- logInfo m!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArr.size}, {fst.proofsArr.size}) ({snd.termsArr.size}, {snd.proofsArr.size})"
     let mut dist := fst
     let ⟨fstTerms, fstProofs⟩ := fst
@@ -218,7 +218,7 @@ def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
     return res
 
 instance : HAppend ExprDist ExprDist (TermElabM ExprDist) := 
-  ⟨ExprDist.mergeMGrouped⟩
+  ⟨ExprDist.mergeGroupedM⟩
 
 def fromTermsM(dist: FinDist Expr): TermElabM ExprDist := do
   dist.foldM  (fun m e n => m.updateExprM e n) ExprDist.empty
