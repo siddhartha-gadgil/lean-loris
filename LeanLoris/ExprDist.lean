@@ -25,8 +25,8 @@ def updateProofM(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM ExprDist := do
   match ← (m.proofsArr.findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
       | some j => 
           let (l, p, w) := m.proofsArr.get! j
-          if !((← argList l) == (← argList prop)) then 
-            IO.println s!"{l} = {prop} but {← argList l} != {← argList prop}"
+          -- if !((← argList l) == (← argList prop)) then 
+          --   IO.println s!"{l} = {prop} but {← argList l} != {← argList prop}"
           if w ≤ d then return m 
           else return ⟨m.termsArr, m.proofsArr.set! j (prop, x, d)⟩
       | none => 
@@ -37,8 +37,8 @@ def updateTermM(m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist :=
     match ← (m.termsArr.findIdxM? <| fun (t, w) => isDefEq t x) with
       | some j =>
         let (t, w) := m.termsArr.get! j 
-        if !((← argList x) == (← argList t)) then 
-            IO.println s!"{x} = {t} but {← argList x} != {← argList t}"
+        -- if !((← argList x) == (← argList t)) then 
+        --     IO.println s!"{x} = {t} but {← argList x} != {← argList t}"
         if w ≤ j then return m
         else return ⟨m.termsArr.set! j (x, d), m.proofsArr⟩
       | none => 
@@ -64,8 +64,8 @@ def updatedProofM?(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM (Option ExprDi
   match ← (m.proofsArr.findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
       | some j => 
           let (l, p, w) := m.proofsArr.get! j
-          if !((← argList l) == (← argList prop)) then 
-            IO.println s!"{l} = {prop} but {← argList l} != {← argList prop}"
+          -- if !((← argList l) == (← argList prop)) then 
+          --   IO.println s!"{l} = {prop} but {← argList l} != {← argList prop}"
           if w ≤ d then return none
           else return some ⟨m.termsArr, m.proofsArr.set! j (prop, x, d)⟩
       | none => 
@@ -76,8 +76,8 @@ def updatedTermM?(m: ExprDist) (x: Expr) (d: Nat) : TermElabM (Option ExprDist) 
     match ← (m.termsArr.findIdxM? <| fun (t, w) => isDefEq t x) with
       | some j =>
         let (t, w) := m.termsArr.get! j 
-        if !((← argList x) == (← argList t)) then 
-            IO.println s!"{x} = {t} but {← argList x} != {← argList t}"
+        -- if !((← argList x) == (← argList t)) then 
+        --     IO.println s!"{x} = {t} but {← argList x} != {← argList t}"
         if w ≤ j then return none
         else return some ⟨m.termsArr.set! j (x, d), m.proofsArr⟩
       | none => 
@@ -101,17 +101,52 @@ def mapM(dist: ExprDist)(f: Expr → TermElabM Expr) : TermElabM ExprDist := do
   termsArrBase.foldlM (fun  dist (e, n) => 
     do dist.updateExprM e n) empty
 
+def groupTermsByArgs(terms : Array (Expr × Nat)) : 
+      TermElabM (HashMap (List Name) (Array (Expr × Nat))) := do
+      terms.foldlM (fun m (e, w) => 
+        do
+          let key ← argList e
+          m.insert key ((m.findD key #[]).push (e, w))
+          ) HashMap.empty
+
+def groupProofsByArgs(proofs : Array (Expr × Expr × Nat)) : 
+      TermElabM (HashMap (List Name) (Array (Expr × Expr × Nat))) := do
+      proofs.foldlM (fun m (l, pf, w) => 
+        do
+          let key ← argList l
+          m.insert key ((m.findD key #[]).push (l, pf, w))
+          ) HashMap.empty
+
+def groupDistByArgs(arr: Array (Expr × Nat)) : TermElabM (HashMap (List Name) ExprDist) := do
+  arr.foldlM (fun m (e, w) => do       
+      if ← isProof e then
+        let l ← inferType e
+        let key ← argList l
+        m.insert key ((m.findD key ExprDist.empty).pushProof l e w)
+        else 
+        let key ← argList e
+        m.insert key ((m.findD key ExprDist.empty).pushTerm e w)
+      ) HashMap.empty
+
+def flattenDists(m: HashMap (List Name) ExprDist) : TermElabM ExprDist := do
+  let termList := m.toList.bind (fun (_, d) => d.termsArr.toList)
+  let pfList := m.toList.bind (fun (_, d) => d.proofsArr.toList)
+  -- IO.println s!"termList = {termList.length}"
+  -- IO.println s!"pfList = {pfList.length}"
+  return ⟨termList.toArray, pfList.toArray⟩
+
 def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
     -- logInfo m!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArr.size}, {fst.proofsArr.size}) ({snd.termsArr.size}, {snd.proofsArr.size})"
     let mut dist := fst
     let mut ⟨fstTerms, fstProofs⟩ := fst
     let mut ⟨sndTerms, sndProofs⟩ := ExprDist.empty
     for (prop, x, d) in snd.proofsArr do
+      let key ← argList prop
       match ← (fstProofs.findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
       | some j => 
           let (l, p, w) := fstProofs.get! j
-          if !((← argList l) == (← argList prop)) then 
-            IO.println s!"{l} = {prop} but {← argList l} != {← argList prop}"
+          -- if !((← argList l) == (← argList prop)) then 
+          --   IO.println s!"{l} = {prop} but {← argList l} != {← argList prop}"
           if w ≤ d then ()
           else 
            fstProofs := fstProofs.eraseIdx j 
@@ -119,11 +154,12 @@ def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
       | none => 
           sndProofs := sndProofs.push (prop, x, d)
     for (x, d) in snd.termsArr do
+      let key ← argList x
       match ← (fstTerms.findIdxM? <| fun (t, w) =>  isDefEq t x)  with
       | some j => 
           let (t, w) := fstTerms.get! j
-          if !((← argList x) == (← argList t)) then 
-            IO.println s!"{x} = {t} but {← argList x} != {← argList t}"
+          -- if !((← argList x) == (← argList t)) then 
+          --   IO.println s!"{x} = {t} but {← argList x} != {← argList t}"
           if w ≤ d then ()
           else 
            fstTerms := fstTerms.eraseIdx j 
@@ -140,8 +176,29 @@ instance : HAppend ExprDist ExprDist (TermElabM ExprDist) :=
 def fromTermsM(dist: FinDist Expr): TermElabM ExprDist := do
   dist.foldM  (fun m e n => m.updateExprM e n) ExprDist.empty
 
-def fromArray(arr: Array (Expr× Nat)): TermElabM ExprDist :=
-  arr.foldlM (fun dist (e, w) => ExprDist.updateExprM dist e w) ExprDist.empty
+def fromArray(arr: Array (Expr× Nat)): TermElabM ExprDist := do 
+  let mut (terms, pfs) : (Array (Expr × Nat)) × (Array (Expr × Expr × Nat)) := 
+    (#[], #[])
+  for (e, n) in arr do
+    if !(← isProof e) then
+      terms := terms.push (e, n)
+    else
+      let l ← inferType e
+      pfs := pfs.push (l, e, n)
+  -- IO.println s!"terms = {terms.size}; pfs = {pfs.size}"
+  let gpTerms ←  groupTermsByArgs terms
+  let gpPfs ←  groupProofsByArgs pfs
+  let mut gpdDists : HashMap (List Name) ExprDist := HashMap.empty
+  for (key, termarr) in gpTerms.toArray do
+    for (x, w) in termarr do
+      gpdDists :=  
+        gpdDists.insert key (← (gpdDists.findD key ExprDist.empty).updateTermM x w)
+  for (key, pfarr) in gpPfs.toArray do
+    for (l, pf, w) in pfarr do
+      gpdDists :=  
+        gpdDists.insert key (← (gpdDists.findD key ExprDist.empty).updateProofM l pf w)
+  -- IO.println s!"{gpdDists.size} groups"
+  flattenDists gpdDists
 
 def existsM(dist: ExprDist)(elem: Expr)(weight: Nat) : TermElabM Bool :=
   do
@@ -157,9 +214,9 @@ def existsPropM(dist: ExprDist)(prop: Expr)(weight: Nat) : TermElabM Bool :=
     dist.proofsArr.anyM <| fun (l, _, w) => 
               do 
               let res ←  pure (decide <| w ≤ weight) <&&> isDefEq l prop
-              if res then 
-                if !((← argList l) == (← argList prop)) then 
-                IO.println s!"{l} = {prop} but {← argList l} != {← argList prop}"
+              -- if res then 
+              --   if !((← argList l) == (← argList prop)) then 
+              --   IO.println s!"{l} = {prop} but {← argList l} != {← argList prop}"
               return res
 
 def terms(dist: ExprDist) : FinDist Expr := 

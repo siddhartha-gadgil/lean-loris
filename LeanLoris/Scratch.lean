@@ -54,4 +54,3 @@ def counts: TermElabM (Array Nat) := do
 set_option maxHeartbeats 100000000
 
 -- #eval counts
-
