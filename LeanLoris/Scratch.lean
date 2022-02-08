@@ -51,6 +51,41 @@ def counts: TermElabM (Array Nat) := do
   let cnts ←  cntsAux.mapM <| fun t => t.get
   return cnts
 
+def countIO (env: Environment)(n: Nat) : IO (Option Nat) := do
+    let el := count (ToExpr.toExpr n)
+    let m := el.run'
+    let c := m.run'
+    let ei := c.run' {maxHeartbeats := 100000000000} {env}
+    match ←  ei.toIO' with
+  | Except.ok n => 
+      return some n
+  | Except.error e =>
+      return none
+
 set_option maxHeartbeats 100000000
 
--- #eval counts
+def countsPar(env: Environment) : IO (Nat) := do
+  let arr : Array Nat := #[1, 2, 3, 4, 5, 6]
+  let eg ←  (countIO env 3).asTask.toIO
+  let ego := eg.get
+  let egopt := match ego with
+      | Except.ok n => n
+      | Except.error e => none 
+  let cntsAux := arr.map <| fun i =>  
+    ((countIO env i).asTask (Task.Priority.dedicated)).toIO
+  let cnts ←  cntsAux.mapM <| fun iot => do 
+        let tsk ← iot
+        let eio := tsk.get
+        match eio with
+          | Except.ok n => return n
+          | Except.error e => return none
+  let total := cnts.foldl (fun acc nopt => 
+      match nopt with
+      | some k => acc + k 
+      | none => acc) 0
+  return total
+
+def countsM : MetaM Nat := do
+  countsPar (← getEnv)
+
+-- #eval countsM
