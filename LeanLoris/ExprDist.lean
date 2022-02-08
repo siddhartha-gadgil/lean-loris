@@ -218,7 +218,7 @@ def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
     return res
 
 instance : HAppend ExprDist ExprDist (TermElabM ExprDist) := 
-  ⟨ExprDist.mergeM⟩
+  ⟨ExprDist.mergeMGrouped⟩
 
 def fromTermsM(dist: FinDist Expr): TermElabM ExprDist := do
   dist.foldM  (fun m e n => m.updateExprM e n) ExprDist.empty

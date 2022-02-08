@@ -386,23 +386,31 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolut
     -- initial equations
     for (l, pf, w) in init.proofsArr do
       match l.eq? with
-        | some (_, lhs, rhs) => if !(lhs == rhs) then  
+        | some (_, lhs, rhs) => if !(← isDefEq lhs rhs) then
+          if ← goalterms.anyM <| fun t => isDefEq t lhs then 
+            IO.println s!"focus as lhs, rhs = {rhs}, weight: {w}"
+          if ← goalterms.anyM <| fun t => isDefEq t rhs then 
+            IO.println s!"focus as rhs, lhs = {lhs}, weight: {w}"  
           let key ← argList l
           allEquationGroups := allEquationGroups.insert key <|
               (allEquationGroups.findD key ExprDist.empty).pushProof l pf w
         | none => ()
     -- symmetrize
-    for (key, allEquations) in allEquationGroups.toArray do
+    IO.println "Before symmetrization:"
+    let eqnArray := allEquationGroups.toArray
+    for (key, allEquations) in eqnArray do
       for (l, pf, w) in allEquations.proofsArr do
         match l.eq? with
         | none => ()
         | some (_, lhs, rhs) =>
           let flipProp ← mkEq rhs lhs
           let flip ← whnf (← mkAppM ``Eq.symm #[pf])
-          match ← allEquations.updatedProofM? flipProp flip (w + 1) with
+          let flipkey ← argList flipProp
+          match ← (allEquationGroups.findD flipkey ExprDist.empty).updatedProofM? 
+                  flipProp flip (w + 1) with
           | none => ()
           | some dist => 
-            allEquationGroups := allEquationGroups.insert key dist
+            allEquationGroups := allEquationGroups.insert flipkey dist
             eqs ← eqs.pushProof flipProp flip (w + 1)
     /- group equations, for y we have proofs of x = y and then y = z,
         record array of (x, pf, w) and array of (z, pf, z)
@@ -456,15 +464,20 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolut
           for j in [w1 + w1:wb + 1] do
             cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 - 1)
     -- logInfo m!"cumulative pair count: {cumPairCount.toArray}"
-    -- for g in goalterms do
-    --   logInfo m!"goalterm: {g},  {← init.getTerm? g}" 
+    IO.println s!"goal terms: {goalterms.size}"
+    for g in goalterms do
+      IO.println s!"goalterm: {g},  {← init.getTerm? g}" 
     for (key, group) in grouped.toArray do
       for (y, withRhs, withLhs) in group do
+        let focus ← goalterms.anyM <| fun t => isDefEq t y
+        if focus then 
+          IO.println s!"y: {y}, withRhs: {withRhs.size}, withLhs: {withLhs.size}"
         for (x, eq1, w1) in withRhs do
           for (z, eq2, w2) in withLhs do
           let w := w1 + w2
+              -- if focus then IO.println s!"x: {x}, z: {z}, w: {w}" 
               if w ≤ wb && (cumPairCount.findD w 0) ≤ card * 2 then 
-              unless x == z do
+              unless ← isDefEq x  z do
                 let eq3 ← whnf (←   mkAppM ``Eq.trans #[eq1, eq2]) 
                 let prop ← mkEq x z
                 Term.synthesizeSyntheticMVarsNoPostponing

@@ -78,10 +78,16 @@ def ev1 : TermElabM (EvolutionM FullData) := do
 def dist1 : TermElabM ExprDist := do
                   (← ev1) 3 2000 (← ExprDist.fromArray <| ←  init1) initData
 
+noncomputable def gt := (m * n) * ((m * n) * n)
+
+def goalterms : TermElabM (Array Expr) := do 
+            parseExprList (← `(expr_list|%[gt]))
+
+-- #eval goalterms
+
 def evStep2 : TermElabM (RecEvolverM FullData) := do
                   parseEvolverList 
-                        (← `(evolver_list|^[eq-closure]))
-
+                        (← `(evolver_list|^[eq-closure %[gt]]))
 
 def ev2 : TermElabM (EvolutionM FullData) := do
                   (← evStep2).fixedPoint.evolve.andThenM (logResults <| ←  goals) 
