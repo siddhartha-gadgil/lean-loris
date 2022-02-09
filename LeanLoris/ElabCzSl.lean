@@ -72,35 +72,28 @@ def evStep1 : TermElabM (RecEvolverM FullData) := do
                   parseEvolverList (← `(evolver_list|^[name-app, name-binop, eq-isles]))
 
 
-def ev1 : TermElabM (EvolutionM FullData) := do
+def ev1 : TermElabM (EvolverM FullData) := do
                   (← evStep1).fixedPoint.evolve.andThenM (logResults <| ←  goals) 
 
 def dist1 : TermElabM ExprDist := do
-                  (← ev1) 3 2000 (← ExprDist.fromArray <| ←  init1) initData
-
-noncomputable def gt := (m * n) * ((m * n) * n)
-
-def goalterms : TermElabM (Array Expr) := do 
-            parseExprList (← `(expr_list|%[gt]))
-
--- #eval goalterms
+                  (← ev1) 3 6000 initData (← ExprDist.fromArray <| ←  init1) 
 
 def evStep2 : TermElabM (RecEvolverM FullData) := do
                   parseEvolverList 
-                        (← `(evolver_list|^[eq-closure %[gt]]))
+                        (← `(evolver_list|^[eq-closure]))
 
-def ev2 : TermElabM (EvolutionM FullData) := do
+def ev2 : TermElabM (EvolverM FullData) := do
                   (← evStep2).fixedPoint.evolve.andThenM (logResults <| ←  goals) 
 
 def dist2 : TermElabM ExprDist := do
-                  (← ev2) 1 6000 (← dist1) initData
+                  (← ev2) 1 6000 initData (← dist1) 
 
 def dist3 : TermElabM ExprDist := do
-                  (← ev1) 3 6000 (← dist2) initData
+                  (← ev1) 3 6000 initData (← dist2)
 def goals4 : TermElabM (Array Expr) := do
                   parseExprList (← `(expr_list|%[thm!]))
 def dist4 : TermElabM ExprDist := do
-                  (← ev2) 1 6000 (← dist3) initData
+                  (← ev2) 1 6000 initData (← dist3)
 
 def view4 : TermElabM String := do
                   (← dist4).viewGoals (← goals4)                

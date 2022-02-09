@@ -14,7 +14,7 @@ def main : IO Unit := do
   let ei := c.run' {maxHeartbeats := 100000000000} {env}
   match ←  ei.toIO' with
   | Except.ok view => 
-      IO.println "Run completed"
+      IO.println "\nRun completed"
       IO.println view 
   | Except.error e =>
     do
