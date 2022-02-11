@@ -145,6 +145,22 @@ def optProofPropEvolverM{D: Type}(tacOpt : Expr → TermElabM (Option Expr)) :
       typeOptEvolverM (fun wb cb data dist => (dist.bound wb cb).propsArr) 
         tacOpt
 
+def applyPairing(type func: Expr) : TermElabM (Option (Array Expr)) := do
+  let goal ← mkFreshExprMVar (some type)
+  let goalId := goal.mvarId!
+  try 
+    let mvarIds ← Meta.apply goalId func
+    let newGoals ← relGoalTypes mvarIds
+    let goalLambda ← 
+      mvarToLambda mvarIds goal
+    return some (goalLambda :: newGoals).toArray
+  catch _ => none
+
+def applyTacticEvolver(D: Type)[IsNew D][NewElem Expr D] : EvolverM D := 
+  fun wb c d init => 
+  do
+    prodPolyGenArrM applyPairing wb c (← init.typesArr) (← init.funcs) d
+
 def forallIsleM {D: Type}[IsleData D](type: Expr)(typedEvolve : Expr → EvolverM D)
     (weightBound: Nat)(cardBound: Nat)
       (init : ExprDist)(initData: D): TermElabM (ExprDist) := 
