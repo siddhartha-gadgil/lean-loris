@@ -513,6 +513,26 @@ def piTypes(terms: Array (Expr × Nat)) : TermElabM (Array (Expr × Array (Expr 
     | _ => ()
   return piTypes
 
+def piDomIsleEvolver(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM D := 
+  fun wb c init d evolve => 
+  do
+    let piGroups ← piTypes (init.termsArr)
+    let mut cumPairCount : HashMap Nat Nat := HashMap.empty
+    for (key, group) in piGroups do
+      for (_, w) in group do
+        for j in [w:wb + 1] do
+          cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 + 1)
+    let mut finalDist: ExprDist := ExprDist.empty
+    for (key, group) in piGroups do
+      let isleInit ← init.mergeArray group
+      for (e, w) in group do
+      if w ≤ wb && (cumPairCount.find! w ≤ c) then
+        let ic := c / (cumPairCount.find! w)
+        let isleDist ←   isleM e evolve wb ic isleInit d  
+        finalDist ←  finalDist ++ isleDist
+    return finalDist
+
+
 def weightByType(cost: Nat): ExprDist → TermElabM ExprDist := fun init => do
   let mut finalDist := init
   for (x, w) in init.termsArr do
