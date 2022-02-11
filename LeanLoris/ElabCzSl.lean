@@ -3,6 +3,7 @@ import LeanLoris.FinDist
 import LeanLoris.ExprDist
 import LeanLoris.Core
 import LeanLoris.ProdSeq
+import LeanLoris.Syntax
 import Lean.Meta
 import Lean.Elab
 import Std
