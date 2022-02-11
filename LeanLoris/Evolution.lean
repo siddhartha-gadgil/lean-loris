@@ -305,7 +305,7 @@ def nameApplyPairEvolver(D: Type)[cs: IsNew D][GetNameDist D][NewElem Expr D]:
 def rewriteEvolver(flip: Bool)(D: Type)[IsNew D][NewElem Expr D] : EvolverM D := 
   fun wb c d init => 
   do
-    prodGenArrM (rwPushOpt flip) wb c init.termsArr (← init.eqls) d
+    prodGenArrM (rwPushOpt flip) wb c init.termsArr (← init.eventuallyEqls) d
 
 def congrEvolver(D: Type)[IsNew D][NewElem Expr D] : EvolverM D := 
   fun wb c d init  => 
@@ -494,6 +494,24 @@ def funcDomIsleEvolver(D: Type)[IsNew D][IsleData D] : RecEvolverM D := fun wb c
         let isleDist ←   isleM type evolve (wb -w -1) ic init d true false true  
         finalDist ←  finalDist ++ isleDist
     return finalDist
+
+-- apply to dist.termsArr, returns domains and the body as lambda wrt domain
+def piTypes(terms: Array (Expr × Nat)) : TermElabM (Array (Expr × Array (Expr × Nat))) := do
+  let mut piTypes : Array (Expr × Array (Expr × Nat)) := #[]
+  for (e, w) in terms do
+    match e with
+    | Expr.forallE _ x b _ =>
+        let type ← inferType b 
+        let lambdaB : Expr ←  
+          withLocalDecl Name.anonymous BinderInfo.default type  $ fun x =>
+            mkLambdaFVars #[x] b
+        match ← piTypes.findIdxM? (fun (gp, _) => isDefEq gp type) with
+        | none => piTypes := piTypes.push (type, #[(lambdaB, w)])
+        | some i => 
+          let (gp, prev) := piTypes.get! i
+          piTypes := piTypes.set! i (gp, prev.push (lambdaB, w))
+    | _ => ()
+  return piTypes
 
 def weightByType(cost: Nat): ExprDist → TermElabM ExprDist := fun init => do
   let mut finalDist := init

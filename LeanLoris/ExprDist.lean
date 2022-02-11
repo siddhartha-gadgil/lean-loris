@@ -321,6 +321,17 @@ def eqls(dist: ExprDist) : TermElabM (Array (Expr × Nat))  := do
   dist.proofsArr.filterMapM  $ fun (l, e, w) => 
        do if l.isEq then some (e, w) else none
 
+def eventuallyEquality(l: Expr): Bool := 
+  if l.isEq then true
+  else 
+    match l with
+       | Expr.forallE _ _ b _  => eventuallyEquality b
+       | _ => false
+
+def eventuallyEqls(dist: ExprDist) : TermElabM (Array (Expr × Nat))  := do
+  dist.proofsArr.filterMapM  $ fun (l, e, w) => 
+       if eventuallyEquality l then some (e, w) else none
+
 def getProof?(dist: ExprDist)(prop: Expr) : TermElabM (Option (Expr ×  Nat)) := do
   let opt ←  dist.proofsArr.findM? <| fun (l, p, w) => isDefEq l prop
   return opt.map <| fun (_, p, w) => (p, w)
