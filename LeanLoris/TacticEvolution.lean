@@ -135,6 +135,16 @@ def tacticPropEvolverM{D: Type}(tactic : MVarId → MetaM (List MVarId))(indepGo
       typeSumEvolverM (fun wb cb data dist => (dist.bound wb cb).propsArr) 
         (tacticExprArray tactic indepGoals)
 
+def optProofTypeEvolverM{D: Type}(tacOpt : Expr → TermElabM (Option Expr)) : 
+    EvolverM D := 
+      typeOptEvolverM (fun wb cb data dist => (dist.bound wb cb).typesArr) 
+        tacOpt
+
+def optProofPropEvolverM{D: Type}(tacOpt : Expr → TermElabM (Option Expr)) : 
+    EvolverM D := 
+      typeOptEvolverM (fun wb cb data dist => (dist.bound wb cb).propsArr) 
+        tacOpt
+
 def forallIsleM {D: Type}[IsleData D](type: Expr)(typedEvolve : Expr → EvolverM D)
     (weightBound: Nat)(cardBound: Nat)
       (init : ExprDist)(initData: D): TermElabM (ExprDist) := 
@@ -216,6 +226,7 @@ syntax(name:=sm) "sumEl!" : term
 #check Meta.apply 
 #check liftMetaTactic
 #check forallTelescope
+#check @Exists
 
 theorem constFn2{α : Type}(f: Nat → α):
     (∀ n : Nat, f n = f (n + 1)) →
