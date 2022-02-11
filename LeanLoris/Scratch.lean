@@ -89,3 +89,18 @@ def countsM : MetaM Nat := do
   countsPar (← getEnv)
 
 -- #eval countsM
+
+open Nat
+
+theorem constFn{α : Type}(f: Nat → α):
+    (∀ n : Nat, f n = f (n + 1)) →
+    (∀ n : Nat, f n = f 0) := by
+      intro hyp n
+      induction n with
+      | zero => rfl
+      | succ k ih => 
+        rw [← hyp]
+        assumption
+      
+
+  

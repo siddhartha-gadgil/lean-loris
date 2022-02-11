@@ -63,8 +63,6 @@ def goals : TermElabM (Array Expr) := do
                   parseExprList (← 
                   `(expr_list|%[lem1!, lem2!, lem3!, lem4!, lem5!, lem6!, thm!]))
 
-
--- #eval goals1
 def init1 : TermElabM (Array (Expr × Nat)) := do
                   parseExprMap (← `(expr_dist|%{(m, 0), (n, 0), (m *n, 0)}))
 

@@ -261,11 +261,7 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
 def applyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init => 
   do
     -- logInfo m!"apply evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
-    let funcs ← init.termsArr.filterM $ fun (e, _) => 
-       do Expr.isForall <| ← inferType e
-    let pfFuncs ← init.proofsArr.filterMapM <| fun (l, f, w) =>
-      do if (← l.isForall) then some (f, w) else none
-    let res ← prodGenArrM applyOpt wb c (funcs ++ pfFuncs) init.termsArr d 
+    let res ← prodGenArrM applyOpt wb c (← init.funcs) init.termsArr d 
     -- logInfo m!"apply evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     return res
 
@@ -303,19 +299,12 @@ def nameApplyPairEvolver(D: Type)[cs: IsNew D][GetNameDist D][NewElem Expr D]:
 def rewriteEvolver(flip: Bool)(D: Type)[IsNew D][NewElem Expr D] : EvolverM D := 
   fun wb c d init => 
   do
-    let eqls ←  init.proofsArr.filterMapM  $ fun (l, e, w) => 
-       do if l.isEq then some (e, w) else none
-    prodGenArrM (rwPushOpt flip) wb c init.termsArr eqls d
+    prodGenArrM (rwPushOpt flip) wb c init.termsArr (← init.eqls) d
 
-def congrEvolver(D: Type)[IsNew D][NewElem Expr D] : EvolverM D := fun wb c d init  => 
+def congrEvolver(D: Type)[IsNew D][NewElem Expr D] : EvolverM D := 
+  fun wb c d init  => 
   do
-    let funcs ←   init.termsArr.filterM $ fun (e, _) => 
-       do Expr.isForall <| ← inferType e
-    let pfFuncs ← init.proofsArr.filterMapM <| fun (l, f, w) =>
-      do if (← l.isForall) then some (f, w) else none
-    let eqls  ←  init.proofsArr.filterMapM  $ fun (l, e, w) => 
-       do if l.isEq then some (e, w) else none
-    prodGenArrM congrArgOpt wb c (funcs ++ pfFuncs) eqls d
+    prodGenArrM congrArgOpt wb c (← init.funcs) (← init.eqls) d
 
 def eqIsleEvolver(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM D := 
   fun wb c init d evolve => 
@@ -644,14 +633,14 @@ match s with
 | _ => throwIllFormedSyntax
 
 def syn: MacroM Syntax :=  `(evolver|app)
-#check syn.run
+-- #check syn.run
 
 def syn2: TermElabM Syntax :=  `(evolver_list|^[app, name-app])
-#check syn2.run
+-- #check syn2.run
 def lstfromsyn:  TermElabM (RecEvolverM FullData)  :=  do
         let syn ← syn2
         parseEvolverList syn
 
-#check lstfromsyn
+-- #check lstfromsyn
 
 def tup : Nat × Nat × Nat := (1, (2, 3)) 

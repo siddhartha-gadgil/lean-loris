@@ -279,6 +279,17 @@ def allSorts(dist: ExprDist) : TermElabM (FinDist Expr) := do
   let props := dist.proofsArr.map <| fun (l, _, w) => (l, w)
   return FinDist.fromArray <| types ++ props
 
+def funcs(dist: ExprDist) : TermElabM (Array (Expr × Nat)) := do
+  let termFuncs ←   dist.termsArr.filterM $ fun (e, _) => 
+       do Expr.isForall <| ← inferType e
+    let pfFuncs ← dist.proofsArr.filterMapM <| fun (l, f, w) =>
+      do if (← l.isForall) then some (f, w) else none
+  return termFuncs ++ pfFuncs
+
+def eqls(dist: ExprDist) : TermElabM (Array (Expr × Nat))  := do
+  dist.proofsArr.filterMapM  $ fun (l, e, w) => 
+       do if l.isEq then some (e, w) else none
+
 def getProof?(dist: ExprDist)(prop: Expr) : TermElabM (Option (Expr ×  Nat)) := do
   let opt ←  dist.proofsArr.findM? <| fun (l, p, w) => isDefEq l prop
   return opt.map <| fun (_, p, w) => (p, w)
