@@ -41,7 +41,7 @@ def tacticLambda(tactic : MVarId → MetaM (List MVarId))(goalType: Expr) :
         some <| ←  mvarToLambda mvars goal
       catch _ => none
 
--- for final tactics
+-- for finishing tactics
 def tacticGet(tactic : MVarId → MetaM (List MVarId))(goalType: Expr) : 
       TermElabM <| Option Expr := do
       let goal ← mkFreshExprMVar (some goalType)
@@ -64,6 +64,7 @@ def tacticLambdaMVars(tactic : MVarId → MetaM (List MVarId))(goalType: Expr) :
         let mvars ← tactic goalId
         some <| (←  mvarToLambda mvars goal, mvars)
       catch _ => none
+
 
 def relGoalTypes(mvars: List MVarId) : TermElabM (List Expr) := do
   match mvars with
@@ -89,6 +90,50 @@ def indepGoalTypes(mvars: List MVarId) : TermElabM (List Expr) := do
     Term.synthesizeSyntheticMVarsNoPostponing
     let prev ← indepGoalTypes tail
     return (headType :: prev)
+
+def tacticExprArray(tactic : MVarId → MetaM (List MVarId))(indepGoals: Bool)
+  (goalType: Expr) : 
+      TermElabM <| Option (Array Expr) := do
+      let lmv ← tacticLambdaMVars tactic goalType
+      lmv.mapM fun (l, mvarIds) => do
+        let mvars ← if indepGoals then indepGoalTypes mvarIds else relGoalTypes mvarIds
+        (l :: mvars).toArray
+
+def typeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist → 
+  TermElabM (Array (Expr × Nat)))
+          (tacList : Expr → TermElabM (Option (Array Expr))) : EvolverM D := 
+            fun wb cb data dist => do
+            let typeArray ← types wb cb data dist
+            let mut terms : Array (Expr × Nat) := Array.empty
+            for (type, w) in typeArray do
+              match ← tacList type with
+              | none => ()
+              | some ys =>
+                for y in ys do terms := terms.push (y, w)
+            ExprDist.fromArray terms
+
+def typeOptEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
+         TermElabM (Array (Expr × Nat)))
+          (tacOpt : Expr → TermElabM (Option Expr)) : EvolverM D := 
+            fun wb cb data dist => do
+            let typeArray ← types wb cb data dist
+            let mut terms : Array (Expr × Nat) := Array.empty
+            for (type, w) in typeArray do
+              match ← tacOpt type with
+              | none => ()
+              | some y =>
+                terms := terms.push (y, w)
+            ExprDist.fromArray terms
+
+def tacticTypeEvolverM{D: Type}(tactic : MVarId → MetaM (List MVarId))(indepGoals: Bool) :
+    EvolverM D := 
+      typeSumEvolverM (fun wb cb data dist => (dist.bound wb cb).typesArr) 
+        (tacticExprArray tactic indepGoals)
+
+def tacticPropEvolverM{D: Type}(tactic : MVarId → MetaM (List MVarId))(indepGoals: Bool) :
+    EvolverM D := 
+      typeSumEvolverM (fun wb cb data dist => (dist.bound wb cb).propsArr) 
+        (tacticExprArray tactic indepGoals)
 
 def forallIsleM {D: Type}[IsleData D](type: Expr)(typedEvolve : Expr → EvolverM D)
     (weightBound: Nat)(cardBound: Nat)
@@ -120,7 +165,27 @@ def natRecTac: MVarId → MetaM (List MVarId) :=
   fun mid => 
       apply mid <| mkConst ``natRec
 
+
+def decideGet (goalType: Expr) : 
+      TermElabM <| Option Expr := do
+      try
+        let pf ← mkDecideProof goalType
+        some <| pf
+      catch _ => none
+
+def rflGet(goalType: Expr) : 
+      TermElabM <| Option Expr := do
+      match goalType.eq? with
+      | some (α , lhs, rhs) =>
+        if ← isDefEq lhs rhs then
+          return some <| ←  mkApp (mkConst ``Eq.refl) lhs 
+        else
+          return none
+      | _  => none
+
 -- tests
+
+#check Eq.refl
 
 def pp : Prop := 1 = 2
 
@@ -173,3 +238,5 @@ def factorial : Nat →  Nat := by
     exact ((n + 1) * ih)
 
 #eval factorial 5
+example : 1 = 1 := by exact rfl
+#check rfl

@@ -310,6 +310,26 @@ def allSorts(dist: ExprDist) : TermElabM (FinDist Expr) := do
   let props := dist.proofsArr.map <| fun (l, _, w) => (l, w)
   return FinDist.fromArray <| types ++ props
 
+def bound(dist: ExprDist)(wb cb: Nat) : ExprDist := Id.run do
+  let mut cumCount : HashMap Nat Nat := HashMap.empty
+  for (_, w) in dist.termsArr do
+      for j in [w:wb + 1] do
+        cumCount := cumCount.insert j (cumCount.findD j 0 + 1)
+  for (_, _, w) in dist.proofsArr do
+      for j in [w:wb + 1] do
+        cumCount := cumCount.insert j (cumCount.findD j 0 + 1)
+  ⟨dist.termsArr.filter fun (_, w) => w ≤ wb && cumCount.find! w ≤ cb,
+    dist.proofsArr.filter fun (_, _, w) => w ≤ wb && cumCount.find! w ≤ cb⟩
+  
+
+def typesArr(dist: ExprDist) : TermElabM (Array (Expr × Nat)) := do
+  dist.termsArr.filterM <| fun (e, w) => do
+   isType e
+
+def propsArr(dist: ExprDist) : TermElabM (Array (Expr × Nat)) := do
+  dist.termsArr.filterM <| fun (e, w) => do
+   isProp e
+
 def funcs(dist: ExprDist) : TermElabM (Array (Expr × Nat)) := do
   let termFuncs ←   dist.termsArr.filterM $ fun (e, _) => 
        do Expr.isForall <| ← inferType e
@@ -339,7 +359,8 @@ def getProof?(dist: ExprDist)(prop: Expr) : TermElabM (Option (Expr ×  Nat)) :=
 def getTerm?(dist: ExprDist)(elem: Expr) : TermElabM (Option (Expr ×  Nat)) := do
   dist.termsArr.findM? <| fun (t, w) => isDefEq t elem
 
-def getGoals(dist: ExprDist)(goals : Array Expr) : TermElabM (Array (Expr × Expr × Nat )) := 
+def getGoals(dist: ExprDist)(goals : Array Expr) : 
+  TermElabM (Array (Expr × Expr × Nat )) := 
   do
     goals.filterMapM <| fun g => do 
       let wpf ← dist.getProof? g
