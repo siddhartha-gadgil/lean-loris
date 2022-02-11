@@ -231,6 +231,12 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
     withLocalDecl Name.anonymous BinderInfo.default (type)  $ fun x => 
         do
           let dist ←  init.updateExprM x 0
+          let foldedFuncs : Array (Expr × Nat) ← 
+            (← init.funcs).filterMapM (fun (f, w) => do
+            let y ← (applyOpt f x)
+            y.map (fun y => (y, w))
+              )
+          let dist ← dist.mergeArray foldedFuncs
           -- logInfo m!"entered isle: {← IO.monoMsNow} "
           let evb ← evolve weightBound cardBound  
                   (isleData initData dist weightBound cardBound) dist

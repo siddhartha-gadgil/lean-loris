@@ -137,7 +137,6 @@ def flattenDists(m: HashMap (List Name) ExprDist) : TermElabM ExprDist := do
 
 def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
     -- logInfo m!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArr.size}, {fst.proofsArr.size}) ({snd.termsArr.size}, {snd.proofsArr.size})"
-    let mut dist := fst
     let ⟨fstTerms, fstProofs⟩ := fst
     let mut gpFstTerms ←  groupTermsByArgs fstTerms
     let mut gpFstPfs ←  groupProofsByArgs fstProofs
@@ -184,7 +183,6 @@ def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
 
 def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
     -- logInfo m!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArr.size}, {fst.proofsArr.size}) ({snd.termsArr.size}, {snd.proofsArr.size})"
-    let mut dist := fst
     let mut ⟨fstTerms, fstProofs⟩ := fst
     let mut ⟨sndTerms, sndProofs⟩ := ExprDist.empty
     for (prop, x, d) in snd.proofsArr do
@@ -246,6 +244,39 @@ def fromArray(arr: Array (Expr× Nat)): TermElabM ExprDist := do
         gpdDists.insert key (← (gpdDists.findD key ExprDist.empty).updateProofM l pf w)
   -- IO.println s!"{gpdDists.size} groups"
   flattenDists gpdDists
+
+def mergeArray(fst: ExprDist)(arr: Array (Expr× Nat)): TermElabM ExprDist := do 
+  let mut (terms, pfs) : (Array (Expr × Nat)) × (Array (Expr × Expr × Nat)) := 
+    (#[], #[])
+  for (e, n) in arr do
+    if !(← isProof e) then
+      terms := terms.push (e, n)
+    else
+      let l ← inferType e
+      pfs := pfs.push (l, e, n)
+  -- IO.println s!"terms = {terms.size}; pfs = {pfs.size}"
+  let gpTerms ←  groupTermsByArgs terms
+  let gpPfs ←  groupProofsByArgs pfs
+  let ⟨fstTerms, fstProofs⟩ := fst
+    let mut gpFstTerms ←  groupTermsByArgs fstTerms
+    let mut gpFstPfs ←  groupProofsByArgs fstProofs
+  let mut gpdDists : HashMap (List Name) ExprDist := HashMap.empty
+  for (key, termarr) in gpFstTerms.toArray do
+    gpdDists := gpdDists.insert key ⟨termarr, #[]⟩
+  for (key, pfsArr) in gpFstPfs.toArray do
+    gpdDists := gpdDists.insert key ⟨
+        (gpdDists.findD key ExprDist.empty).termsArr, pfsArr⟩
+  for (key, termarr) in gpTerms.toArray do
+    for (x, w) in termarr do
+      gpdDists :=  
+        gpdDists.insert key (← (gpdDists.findD key ExprDist.empty).updateTermM x w)
+  for (key, pfarr) in gpPfs.toArray do
+    for (l, pf, w) in pfarr do
+      gpdDists :=  
+        gpdDists.insert key (← (gpdDists.findD key ExprDist.empty).updateProofM l pf w)
+  -- IO.println s!"{gpdDists.size} groups"
+  flattenDists gpdDists
+
 
 def existsM(dist: ExprDist)(elem: Expr)(weight: Nat) : TermElabM Bool :=
   do
