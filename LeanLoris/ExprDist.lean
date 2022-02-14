@@ -300,6 +300,10 @@ def existsPropM(dist: ExprDist)(prop: Expr)(weight: Nat) : TermElabM Bool :=
 def terms(dist: ExprDist) : FinDist Expr := 
       FinDist.fromArray dist.termsArr
 
+def allTermsArr(dist: ExprDist) : Array (Expr × Nat) :=
+  dist.termsArr ++ 
+          (dist.proofsArr.map <| fun (_, t, w) => (t, w))
+
 def allTerms(dist: ExprDist) : FinDist Expr := 
       FinDist.fromArray (dist.termsArr ++ 
           (dist.proofsArr.map <| fun (_, t, w) => (t, w)))
