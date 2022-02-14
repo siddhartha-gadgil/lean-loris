@@ -230,7 +230,10 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
       (init : ExprDist)(initData: D)(includePi : Bool := true)(excludeProofs: Bool := false)(excludeLambda : Bool := false)(excludeConstants : Bool := false): TermElabM (ExprDist) := 
     withLocalDecl Name.anonymous BinderInfo.default (type)  $ fun x => 
         do
+          logInfo m!"Isle variable type: {← inferType x}"
           let dist ←  init.updateExprM x 0
+          let pts ← dist.termsArr.mapM (fun (term, w) => do (← inferType term, w))
+          logInfo m!"terms in isle: {pts}"
           let foldedFuncs : Array (Expr × Nat) ← 
             (← init.funcs).filterMapM (
               fun (f, w) => do
@@ -239,12 +242,16 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
                   y.map (fun y => (y, w))
               )
           let dist ← dist.mergeArray foldedFuncs
-          let purgedTerms ← dist.termsArr.filterM (fun (t, w) => do
-              match t with
+          let purgedTerms ← dist.termsArr.filterM (fun (term, w) => do
+              match term with
               | Expr.lam _ t y _ => 
-                !(← isType y <&&> isDefEq (← inferType x) (← inferType t))
+                let res := !(← isType y <&&> isDefEq (← inferType x) t)
+                if !res then logInfo m!"purged term: {term}"
+                res
               | _ => pure true
           )
+          let pts ← purgedTerms.mapM (fun (term, w) => do (← inferType term, w))
+          logInfo m!"terms in isle: {pts}"
           let dist := ⟨purgedTerms, dist.proofsArr⟩
           -- logInfo m!"entered isle: {← IO.monoMsNow} "
           let evb ← evolve weightBound cardBound  
@@ -504,6 +511,60 @@ def funcDomIsleEvolver(D: Type)[IsNew D][IsleData D] : RecEvolverM D := fun wb c
         finalDist ←  finalDist ++ isleDist
     return finalDist
 
+-- domains of terms (goals) that are pi-types, with minimum weight
+def piDomains(terms: Array (Expr × Nat)) : TermElabM (Array (Expr × Nat)) := do
+  let mut domains := Array.empty
+  for (t, w) in terms do
+    match t with
+    | Expr.forallE _ t .. =>
+      match ← domains.findIdxM? <| fun (type, w) => isDefEq type t with
+      | some j =>
+        let (type, weight) := domains.get! j
+        if w < weight then 
+          domains := domains.set! j (t, w) 
+      | _ =>
+        domains := domains.push (t, w)
+    | _ => ()
+  return domains
+
+-- generating from domains of pi-types
+def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM D := 
+  fun wb c init d evolve => 
+  -- if wb = 0 then init else
+  do
+    let piDoms ← piDomains (init.termsArr)
+    logInfo m!"pi-domains: {piDoms.size}"
+    let cumWeights := FinDist.cumulWeightCount  (FinDist.fromArray piDoms) wb
+    let mut finalDist: ExprDist := ExprDist.empty
+    for (type, w) in piDoms do
+      if w ≤ wb && (cumWeights.find! w ≤ c) then
+      -- convert pi-types with given domain to lambdas
+      let isleTerms ←  init.termsArr.mapM (fun (t, w) => do 
+          match t with
+          | Expr.forallE _ l b _ =>
+            if ← isDefEq l type then
+              logInfo m!"made pi to lambda"
+              withLocalDecl Name.anonymous BinderInfo.default t  $ fun f =>
+              withLocalDecl Name.anonymous BinderInfo.default l  $ fun x => do
+                let y :=  mkApp f x
+                let bt ← inferType y
+                logInfo m!"x: {x}; y: {y}, bt: {bt}"
+                let t ← mkLambdaFVars #[x] bt
+                let t ← whnf t
+                Term.synthesizeSyntheticMVarsNoPostponing
+                pure (t, w)
+            else
+              logInfo m!"not made pi to lambda as {l} is not {type}" 
+              pure (t, w)
+          | _ => (t, w))
+      let isleInit := ⟨isleTerms, init.proofsArr⟩
+      let ic := c / (cumWeights.find! w)
+      let isleDist ←   isleM type evolve (wb ) ic isleInit 
+                (isleData d init wb c) 
+      finalDist ←  finalDist ++ isleDist
+    return finalDist
+
+-- older approach
 -- apply to dist.termsArr, returns domains and the body as lambda wrt domain
 def piTypes(terms: Array (Expr × Nat)) : TermElabM (Array (Expr × Array (Expr × Nat))) := do
   let mut piTypes : Array (Expr × Array (Expr × Nat)) := #[]
@@ -521,7 +582,8 @@ def piTypes(terms: Array (Expr × Nat)) : TermElabM (Array (Expr × Array (Expr 
     | _ => ()
   return piTypes
 
-def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM D := 
+-- older approach
+def piGoalsGroupedEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM D := 
   fun wb c init d evolve => 
   do
     let piGroups ← piTypes (init.termsArr)
