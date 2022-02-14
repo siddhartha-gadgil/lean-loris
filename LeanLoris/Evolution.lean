@@ -232,11 +232,20 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
         do
           let dist ←  init.updateExprM x 0
           let foldedFuncs : Array (Expr × Nat) ← 
-            (← init.funcs).filterMapM (fun (f, w) => do
-            let y ← (applyOpt f x)
-            y.map (fun y => (y, w))
+            (← init.funcs).filterMapM (
+              fun (f, w) => do
+                if !(f.isLambda) then none else
+                  let y ← (mkAppOpt f x)
+                  y.map (fun y => (y, w))
               )
           let dist ← dist.mergeArray foldedFuncs
+          let purgedTerms ← dist.termsArr.filterM (fun (t, w) => do
+              match t with
+              | Expr.lam _ t y _ => 
+                !(← isType y <&&> isDefEq (← inferType x) (← inferType t))
+              | _ => pure true
+          )
+          let dist := ⟨purgedTerms, dist.proofsArr⟩
           -- logInfo m!"entered isle: {← IO.monoMsNow} "
           let evb ← evolve weightBound cardBound  
                   (isleData initData dist weightBound cardBound) dist
@@ -501,10 +510,9 @@ def piTypes(terms: Array (Expr × Nat)) : TermElabM (Array (Expr × Array (Expr 
   for (e, w) in terms do
     match e with
     | Expr.forallE _ x b _ =>
-        let type ← inferType b 
-        let lambdaB : Expr ←  
-          withLocalDecl Name.anonymous BinderInfo.default type  $ fun x =>
-            mkLambdaFVars #[x] b
+        let type ← inferType x 
+        let lambdaB : Expr := mkLambda (Name.anonymous) (BinderInfo.default) x b
+        let lambdaB ← whnf lambdaB
         match ← piTypes.findIdxM? (fun (gp, _) => isDefEq gp type) with
         | none => piTypes := piTypes.push (type, #[(lambdaB, w)])
         | some i => 
@@ -513,7 +521,7 @@ def piTypes(terms: Array (Expr × Nat)) : TermElabM (Array (Expr × Array (Expr 
     | _ => ()
   return piTypes
 
-def piDomIsleEvolver(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM D := 
+def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM D := 
   fun wb c init d evolve => 
   do
     let piGroups ← piTypes (init.termsArr)
@@ -525,10 +533,16 @@ def piDomIsleEvolver(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM
     let mut finalDist: ExprDist := ExprDist.empty
     for (key, group) in piGroups do
       let isleInit ← init.mergeArray group
+      let purgedTerms ← isleInit.termsArr.filterM <| fun (e, w) =>
+        match e with
+        | Expr.forallE _ x b _ => do isDefEq (← inferType x) key
+        | _ => pure true
+      let isleInit := ⟨purgedTerms, isleInit.proofsArr⟩ 
       for (e, w) in group do
       if w ≤ wb && (cumPairCount.find! w ≤ c) then
         let ic := c / (cumPairCount.find! w)
-        let isleDist ←   isleM e evolve wb ic isleInit d  
+        let isleDist ←   isleM e evolve wb ic isleInit 
+                (isleData d init wb c) 
         finalDist ←  finalDist ++ isleDist
     return finalDist
 

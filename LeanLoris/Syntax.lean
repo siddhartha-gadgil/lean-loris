@@ -64,7 +64,7 @@ syntax (name:= exprPack) "pack!" expr_list : term
           pack m.toList
   | _ => throwIllFormedSyntax
 
-#check pack! %[(1, 2), 3, ("Hello", 4), "over here"]
+-- #check pack! %[(1, 2), 3, ("Hello", 4), "over here"]
 
 declare_syntax_cat name_dist
 syntax nameWt := "(" ident "," num ")"
@@ -110,6 +110,7 @@ syntax "all-isles": evolver
 syntax "func-dom-isles": evolver
 syntax "eq-closure": evolver
 syntax "eq-closure" (expr_list)?: evolver
+syntax "pi-goals": evolver
 
 declare_syntax_cat evolve_transformer
 syntax "by-type" (num)?: evolve_transformer
@@ -132,6 +133,7 @@ def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
 | `(evolver|eq-closure $goals) => do
         let goals ← parseExprList goals
         (eqSymmTransEvolver FullData goals).tautRec
+| `(evolver|pi-goals) => piGoalsEvolverM FullData
 
 | stx => throwError m!"Evolver not implemented for {stx}"
 

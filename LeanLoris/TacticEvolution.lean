@@ -161,12 +161,15 @@ def applyTacticEvolver(D: Type)[IsNew D][NewElem Expr D] : EvolverM D :=
   do
     prodPolyGenArrM applyPairing wb c (← init.typesArr) (← init.funcs) d
 
+
+
 def forallIsleM {D: Type}[IsleData D](type: Expr)(typedEvolve : Expr → EvolverM D)
     (weightBound: Nat)(cardBound: Nat)
       (init : ExprDist)(initData: D): TermElabM (ExprDist) := 
       forallTelescope type <| fun xs y => do
       let isleInit ← xs.foldlM (fun d x => d.updateExprM x 0) init
-      let isleFinal ← typedEvolve y weightBound cardBound initData isleInit
+      let isleFinal ← typedEvolve y weightBound cardBound 
+            (isleData initData init weightBound cardBound) isleInit
       isleFinal.mapM <| fun e => mkLambdaFVars xs e
 
 def forallBoundedIsleM {D: Type}[IsleData D](bound: Nat)(type: Expr)
@@ -175,7 +178,8 @@ def forallBoundedIsleM {D: Type}[IsleData D](bound: Nat)(type: Expr)
       (init : ExprDist)(initData: D): TermElabM (ExprDist) := 
       forallBoundedTelescope type (some bound) <| fun xs y => do
       let isleInit ← xs.foldlM (fun d x => d.updateExprM x 0) init
-      let isleFinal ← typedEvolve y weightBound cardBound initData isleInit
+      let isleFinal ← typedEvolve y weightBound cardBound 
+          (isleData initData init weightBound cardBound) isleInit
       isleFinal.mapM <| fun e => mkLambdaFVars xs e
 
 open Nat
