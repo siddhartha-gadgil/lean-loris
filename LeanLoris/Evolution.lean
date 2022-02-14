@@ -267,8 +267,11 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
               return (← mkLambdaFVars #[x] t, w))  
           let piTypes ←  innerTypes.mapM (fun (t, w) =>
               return (← mkForallFVars #[x] t, w))
-          let proofs ← evb.proofsArr.mapM (fun (prop, pf, w) => 
-            return (← mkForallFVars #[x] prop, ← mkLambdaFVars #[x] pf, w))
+          let proofs ← evb.proofsArr.mapM (fun (prop, pf, w) => do
+            let expPf ← mkLambdaFVars #[x] pf
+            let expPf ← whnf expPf
+            Term.synthesizeSyntheticMVarsNoPostponing
+            return (← inferType expPf , expPf , w))
           let mut evl : ExprDist := ExprDist.empty
           -- logInfo m!"inner isle distribution exported: {← IO.monoMsNow} "
           let res := 
@@ -296,7 +299,7 @@ def applyPairEvolver(D: Type)[cs : IsNew D][NewElem Expr D]: EvolverM D :=
     let pfFuncs ← init.proofsArr.filterMapM <| fun (l, f, w) =>
       do if (← l.isForall) then some (f, w) else none
     let res ← tripleProdGenArrM applyPairOpt wb c 
-          (funcs ++ pfFuncs) init.termsArr init.termsArr d
+          (← init.funcs) init.allTermsArr init.allTermsArr d
     -- logInfo m!"apply pair evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     return res
 
@@ -305,7 +308,7 @@ def nameApplyEvolver(D: Type)[IsNew D][GetNameDist D][NewElem Expr D]: EvolverM 
   do
     -- logInfo m!"name apply evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     let names := (nameDist d).toArray
-    let res ← prodGenArrM nameApplyOpt wb c names init.termsArr d
+    let res ← prodGenArrM nameApplyOpt wb c names init.allTermsArr d
     -- logInfo m!"name apply evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     return res
 
@@ -314,14 +317,14 @@ def nameApplyPairEvolver(D: Type)[cs: IsNew D][GetNameDist D][NewElem Expr D]:
   do
     -- logInfo m!"name apply pair evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     let names := (nameDist d).toArray
-    let res ← tripleProdGenArrM nameApplyPairOpt wb c names init.termsArr init.termsArr d
+    let res ← tripleProdGenArrM nameApplyPairOpt wb c names init.allTermsArr init.allTermsArr d
     -- logInfo m!"name apply pair evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     return res
 
 def rewriteEvolver(flip: Bool)(D: Type)[IsNew D][NewElem Expr D] : EvolverM D := 
   fun wb c d init => 
   do
-    prodGenArrM (rwPushOpt flip) wb c init.termsArr (← init.eventuallyEqls) d
+    prodGenArrM (rwPushOpt flip) wb c init.allTermsArr (← init.eventuallyEqls) d
 
 def congrEvolver(D: Type)[IsNew D][NewElem Expr D] : EvolverM D := 
   fun wb c d init  => 
@@ -496,7 +499,7 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolve
 def funcDomIsleEvolver(D: Type)[IsNew D][IsleData D] : RecEvolverM D := fun wb c init d evolve => 
   do
     let mut typeDist := FinDist.empty
-    for (x, w) in init.termsArr do
+    for (x, w) in init.allTermsArr do
       let type ← whnf (← inferType x)
       match type with
       | Expr.forallE _ t .. =>
@@ -561,7 +564,7 @@ def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM 
       let isleInit := ⟨isleTerms, init.proofsArr⟩
       let ic := c / (cumWeights.find! w)
       let isleDist ←   isleM type evolve (wb ) ic isleInit 
-                (isleData d init wb c) 
+                (isleData d init wb c) false
       finalDist ←  finalDist ++ isleDist
     logInfo "finished for loop for pi-domains"
     return finalDist
@@ -596,6 +599,8 @@ def refineWeight(weight? : Expr → TermElabM (Option Nat)):
 def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist => do
     IO.println s!"number of terms : {dist.termsArr.size}"
     IO.println s!"number of proofs: {dist.proofsArr.size}"
+    for (l, pf, w) in dist.proofsArr do
+      logInfo m!"{l} : {pf} : {w}" 
     let mut count := 0
     for g in goals do
       count := count + 1
@@ -612,11 +617,11 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
                 do isDefEq l g
         match proof with
         | some (_, pf, w) =>
+          logInfo m!"found proof {pf} for proposition {g}"
           let stx ← delab (← getCurrNamespace) (← getOpenDecls) pf
           let fmt ← PrettyPrinter.ppTerm stx
           let pp ← fmt.pretty
           IO.println s!"proof generated: {pp}, weight : {w}"
-          IO.println s!"argList : {← argList pf}"
         | none => IO.println s!"no proof generated"
       else
         IO.println s!"term generated: {statement}"
