@@ -63,7 +63,9 @@ def tacticLambdaMVars(tactic : MVarId → MetaM (List MVarId))(goalType: Expr) :
       try
         let mvars ← tactic goalId
         some <| (←  mvarToLambda mvars goal, mvars)
-      catch _ => none
+      catch exc =>
+        logInfo m!"tacticLambdaMVars failed: ${exc.toMessageData}"
+        none
 
 
 def relGoalTypes(mvars: List MVarId) : TermElabM (List Expr) := do
@@ -104,12 +106,16 @@ def typeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
           (tacList : Expr → TermElabM (Option (Array Expr))) : EvolverM D := 
             fun wb cb data dist => do
             let typeArray ← types wb cb data dist
+            logInfo m!"applying tactic to {typeArray.size} types: {typeArray}"
             let mut terms : Array (Expr × Nat) := Array.empty
             for (type, w) in typeArray do
               match ← tacList type with
-              | none => ()
+              | none =>
+                -- logInfo m!"tactic failed for {type}" 
+                ()
               | some ys =>
-                for y in ys do terms := terms.push (y, w)
+                logInfo m!"tactic succeeded for {type}, giving {ys}" 
+                for y in ys do terms := terms.push (y, w + 1)
             ExprDist.fromArray terms
 
 def typeOptEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
@@ -184,7 +190,9 @@ def forallBoundedIsleM {D: Type}[IsleData D](bound: Nat)(type: Expr)
 
 open Nat
 
-def natRec {Q : Nat → Sort u} :
+universe u
+
+def natRec {Q : Nat → Prop} :
     (Q 0) → ((n: Nat) → (Q n → Q (n + 1))) → (n: Nat) →  (Q n) := 
     fun z step n => 
       match n with
@@ -265,14 +273,14 @@ theorem constFn2{α : Type}(f: Nat → α):
         rw [← hyp]
         assumption
 
-def factorial : Nat →  Nat := by
-  apply natRec
-  focus
-    exact 1
-  focus
-    intro n ih
-    exact ((n + 1) * ih)
+-- def factorial : Nat →  Nat := by
+--   apply natRec
+--   focus
+--     exact 1
+--   focus
+--     intro n ih
+--     exact ((n + 1) * ih)
 
-#eval factorial 5
+-- #eval factorial 5
 example : 1 = 1 := by exact rfl
 #check rfl

@@ -19,3 +19,10 @@ def rflTest(A: Type) :=
   let p := ∀ a: A, a = a
   let seek := evolve! ^[pi-goals, rfl] %[p] %{(p, 0)} 1 1000
   ()
+
+set_option maxHeartbeats 100000000
+
+def recTest(f: Nat → Nat) :=
+  let p := (∀ x: Nat, f (x + 1) = f x) → ∀ x: Nat, f x = 0
+  let seek := evolve! ^[pi-goals, rfl, eq-closure, nat-rec] %[p] %{(p, 0)} 2 5000
+  ()

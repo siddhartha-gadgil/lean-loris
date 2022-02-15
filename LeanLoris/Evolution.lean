@@ -232,8 +232,8 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
         do
           logInfo m!"Isle variable type: {← inferType x}; is-proof? : {← isProof x}"
           let dist ←  init.updateExprM x 0
-          -- let pts ← dist.termsArr.mapM (fun (term, w) => do (← inferType term, w))
-          -- logInfo m!"terms in isle: {pts}"
+          let pts ← dist.termsArr.mapM (fun (term, w) => do (← inferType term, w))
+          -- logInfo m!"initial terms in isle: {pts}"
           let foldedFuncs : Array (Expr × Nat) ← 
             (← init.funcs).filterMapM (
               fun (f, w) => do
@@ -242,14 +242,21 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
                   y.map (fun y => (y, w))
               )
           let dist ← dist.mergeArray foldedFuncs
+          -- logInfo "started purging terms"
           let purgedTerms ← dist.termsArr.filterM (fun (term, w) => do
+              -- logInfo m!"considering term: {term}"
               match term with
               | Expr.lam _ t y _ => 
-                let res := !(← isType y <&&> isDefEq (← inferType x) t)
+                -- logInfo m!"term is lambda t: {t}, y: {y}"
+                let res ←  
+                  try 
+                    !(← isType y <&&> isDefEq (← inferType x) t)
+                  catch _ => true
                 -- if !res then logInfo m!"purged term: {term}"
                 res
               | _ => pure true
           )
+          -- logInfo "finished purging terms"
           -- let pts ← purgedTerms.mapM (fun (term, w) => do (← inferType term, w))
           -- logInfo m!"terms in isle: {pts}"
           let dist := ⟨purgedTerms, dist.proofsArr⟩
@@ -560,7 +567,7 @@ def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM 
               -- logInfo m!"not made pi to lambda as {l} is not {type}" 
               pure (t, w)
           | _ => (t, w))
-      -- logInfo "obtained isle-terms"
+      logInfo "obtained isle-terms"
       let isleInit := ⟨isleTerms, init.proofsArr⟩
       let ic := c / (cumWeights.find! w)
       let isleDist ←   isleM type evolve (wb ) ic isleInit 
