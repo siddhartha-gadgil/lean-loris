@@ -62,9 +62,11 @@ def tacticLambdaMVars(tactic : MVarId → MetaM (List MVarId))(goalType: Expr) :
       let goalId := goal.mvarId!
       try
         let mvars ← tactic goalId
+        -- let goal ← whnf goal
+        Term.synthesizeSyntheticMVarsNoPostponing
         some <| (←  mvarToLambda mvars goal, mvars)
       catch exc =>
-        logInfo m!"tacticLambdaMVars failed: ${exc.toMessageData}"
+        -- logInfo m!"tacticLambdaMVars failed: ${exc.toMessageData}"
         none
 
 
@@ -106,7 +108,7 @@ def typeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
           (tacList : Expr → TermElabM (Option (Array Expr))) : EvolverM D := 
             fun wb cb data dist => do
             let typeArray ← types wb cb data dist
-            logInfo m!"applying tactic to {typeArray.size} types: {typeArray}"
+            -- logInfo m!"applying tactic to {typeArray.size} types: {typeArray}"
             let mut terms : Array (Expr × Nat) := Array.empty
             for (type, w) in typeArray do
               match ← tacList type with
@@ -114,7 +116,8 @@ def typeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
                 -- logInfo m!"tactic failed for {type}" 
                 ()
               | some ys =>
-                logInfo m!"tactic succeeded for {type}, giving {ys}" 
+                logInfo m!"tactic succeeded for {type}, giving {ys}"
+                logInfo m!"head type : {← inferType ys[0]}" 
                 for y in ys do terms := terms.push (y, w + 1)
             ExprDist.fromArray terms
 
