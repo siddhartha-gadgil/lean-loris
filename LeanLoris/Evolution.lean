@@ -624,12 +624,12 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
                 do isDefEq l g
         match proof with
         | some (_, pf, w) =>
-          logInfo m!"found proof {pf} for proposition goal {count} : {g}"
+          -- logInfo m!"found proof {pf} for proposition goal {count} : {g}"
           let stx ← delab (← getCurrNamespace) (← getOpenDecls) pf
           let fmt ← PrettyPrinter.ppTerm stx
           let pp ← fmt.pretty
           IO.println s!"proof generated: {pp}, weight : {w}"
-        | none => IO.println s!"no proof generated"
+        | none => () -- IO.println s!"no proof generated"
       else
         IO.println s!"term generated: {statement}"
 

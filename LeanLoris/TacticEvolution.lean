@@ -32,7 +32,7 @@ def mvarToLambda(mvars: List MVarId)(value: Expr) : TermElabM Expr := do
         Term.synthesizeSyntheticMVarsNoPostponing
         return res
 
-def tacticLambda(tactic : MVarId → MetaM (List MVarId))(goalType: Expr) : 
+def tacticLambda(tactic : MVarId → TermElabM (List MVarId))(goalType: Expr) : 
       TermElabM <| Option Expr := do
       let goal ← mkFreshExprMVar (some goalType)
       let goalId := goal.mvarId!
@@ -42,7 +42,7 @@ def tacticLambda(tactic : MVarId → MetaM (List MVarId))(goalType: Expr) :
       catch _ => none
 
 -- for finishing tactics
-def tacticGet(tactic : MVarId → MetaM (List MVarId))(goalType: Expr) : 
+def tacticGet(tactic : MVarId → TermElabM (List MVarId))(goalType: Expr) : 
       TermElabM <| Option Expr := do
       let goal ← mkFreshExprMVar (some goalType)
       let goalId := goal.mvarId!
@@ -56,26 +56,32 @@ def tacticGet(tactic : MVarId → MetaM (List MVarId))(goalType: Expr) :
           none
       catch _ => none
 
-def tacticLambdaMVars(tactic : MVarId → MetaM (List MVarId))(goalType: Expr) : 
-      TermElabM <| Option (Expr × (List MVarId)) := do
+def tacticLambdaMVars(tactic : MVarId → TermElabM (List MVarId))(goalType: Expr) : 
+      TermElabM <| Option (Expr × (List Expr)) := do
       let goal ← mkFreshExprMVar (some goalType)
+      let goal ← whnf goal
+      Term.synthesizeSyntheticMVarsNoPostponing
       let goalId := goal.mvarId!
       try
         let mvars ← tactic goalId
+        let mvars ← mvars.mapM fun id => do
+              let z ← mkMVar id
+              let z ← whnf z
+              Term.synthesizeSyntheticMVarsNoPostponing
+              z
         -- let goal ← whnf goal
         Term.synthesizeSyntheticMVarsNoPostponing
-        some <| (←  mvarToLambda mvars goal, mvars)
+        some <| (←  metaToLambda mvars goal, mvars)
       catch exc =>
-        -- logInfo m!"tacticLambdaMVars failed: ${exc.toMessageData}"
+        logInfo m!"tacticLambdaMVars failed for {goal}: ${exc.toMessageData}"
         none
 
 
-def relGoalTypes(mvars: List MVarId) : TermElabM (List Expr) := do
+def relGoalTypes(mvars: List Expr) : TermElabM (List Expr) := do
   match mvars with
   | [] => pure []
   | head :: tail => do
-    let h ← mkMVar head
-    let headType ← inferType h
+    let headType ← inferType head
     let headType ← whnf headType
     Term.synthesizeSyntheticMVarsNoPostponing
     withLocalDecl Name.anonymous BinderInfo.default headType  $ fun x => 
@@ -84,23 +90,22 @@ def relGoalTypes(mvars: List MVarId) : TermElabM (List Expr) := do
         let prev ← prevBase.mapM <| fun type => mkForallFVars #[x] type
         return (headType :: prev)
 
-def indepGoalTypes(mvars: List MVarId) : TermElabM (List Expr) := do
+def indepGoalTypes(mvars: List Expr) : TermElabM (List Expr) := do
   match mvars with
   | [] => pure []
   | head :: tail => do
-    let h ← mkMVar head
-    let headType ← inferType h
+    let headType ← inferType head
     let headType ← whnf headType
     Term.synthesizeSyntheticMVarsNoPostponing
     let prev ← indepGoalTypes tail
     return (headType :: prev)
 
-def tacticExprArray(tactic : MVarId → MetaM (List MVarId))(indepGoals: Bool)
+def tacticExprArray(tactic : MVarId → TermElabM (List MVarId))(indepGoals: Bool)
   (goalType: Expr) : 
       TermElabM <| Option (Array Expr) := do
       let lmv ← tacticLambdaMVars tactic goalType
-      lmv.mapM fun (l, mvarIds) => do
-        let mvars ← if indepGoals then indepGoalTypes mvarIds else relGoalTypes mvarIds
+      lmv.mapM fun (l, mvars) => do
+        let mvars ← if indepGoals then indepGoalTypes mvars else relGoalTypes mvars
         (l :: mvars).toArray
 
 def typeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist → 
@@ -134,12 +139,12 @@ def typeOptEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
                 terms := terms.push (y, w)
             ExprDist.fromArray terms
 
-def tacticTypeEvolverM{D: Type}(tactic : MVarId → MetaM (List MVarId))(indepGoals: Bool) :
+def tacticTypeEvolverM{D: Type}(tactic : MVarId → TermElabM (List MVarId))(indepGoals: Bool) :
     EvolverM D := 
       typeSumEvolverM (fun wb cb data dist => (dist.bound wb cb).typesArr) 
         (tacticExprArray tactic indepGoals)
 
-def tacticPropEvolverM{D: Type}(tactic : MVarId → MetaM (List MVarId))(indepGoals: Bool) :
+def tacticPropEvolverM{D: Type}(tactic : MVarId → TermElabM (List MVarId))(indepGoals: Bool) :
     EvolverM D := 
       typeSumEvolverM (fun wb cb data dist => (dist.bound wb cb).propsArr) 
         (tacticExprArray tactic indepGoals)
@@ -159,7 +164,7 @@ def applyPairing(type func: Expr) : TermElabM (Option (Array Expr)) := do
   let goalId := goal.mvarId!
   try 
     let mvarIds ← Meta.apply goalId func
-    let newGoals ← relGoalTypes mvarIds
+    let newGoals ← relGoalTypes (← mvarIds.mapM (fun id => mkMVar id))
     let goalLambda ← 
       mvarToLambda mvarIds goal
     return some (goalLambda :: newGoals).toArray
@@ -195,17 +200,25 @@ open Nat
 
 universe u
 
-def natRec {Q : Nat → Prop} :
+def natRec (Q : Nat → Prop) :
     (Q 0) → ((n: Nat) → (Q n → Q (n + 1))) → (n: Nat) →  (Q n) := 
     fun z step n => 
       match n with
       | zero => z
-      | succ k => step k (natRec z step k)
+      | succ k => step k (natRec Q z step k)
 
-def natRecTac: MVarId → MetaM (List MVarId) := 
-  fun mid => 
+def natRecTac: MVarId → TermElabM (List MVarId) := 
+  fun mid => do
+      let type ← mkMVar mid
+      let type ← whnf type
+      Term.synthesizeSyntheticMVarsNoPostponing
+      -- match type with
+      -- | Expr.forallE _ t _ _  =>  
+      --   if ← isDefEq t (mkConst ``Nat) then
       apply mid <| mkConst ``natRec
-
+      --   else
+      --     throwError "domain not Nat"
+      -- | _ => throwError "not a forall"
 
 def decideGet (goalType: Expr) : 
       TermElabM <| Option Expr := do
