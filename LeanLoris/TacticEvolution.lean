@@ -208,11 +208,16 @@ def rflGet(goalType: Expr) :
       match goalType.eq? with
       | some (α , lhs, rhs) =>
         if ← isDefEq lhs rhs then
-          return some <| ←  mkApp (mkConst ``Eq.refl) lhs 
+          return some <| ←  mkAppM ``Eq.refl #[lhs] 
         else
           return none
       | _  => none
 
+def rflEvolverM(D: Type) : EvolverM D :=
+  optProofPropEvolverM rflGet
+
+def natRecEvolverM(D: Type) : EvolverM D :=
+  tacticTypeEvolverM natRecTac true
 -- tests
 
 #check Eq.refl

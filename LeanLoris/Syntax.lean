@@ -3,6 +3,7 @@ import Lean.Meta
 import Lean.Elab
 import LeanLoris.Evolution
 import LeanLoris.ProdSeq
+import LeanLoris.TacticEvolution
 open Lean Elab Meta Term ProdSeq
 
 declare_syntax_cat expr_dist 
@@ -111,6 +112,8 @@ syntax "func-dom-isles": evolver
 syntax "eq-closure": evolver
 syntax "eq-closure" (expr_list)?: evolver
 syntax "pi-goals": evolver
+syntax "rfl": evolver
+syntax "nat-rec": evolver
 
 declare_syntax_cat evolve_transformer
 syntax "by-type" (num)?: evolve_transformer
@@ -134,6 +137,8 @@ def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
         let goals ← parseExprList goals
         (eqSymmTransEvolver FullData goals).tautRec
 | `(evolver|pi-goals) => piGoalsEvolverM FullData
+| `(evolver|rfl) => (rflEvolverM FullData).tautRec
+| `(evolver|nat-rec) => (natRecEvolverM FullData).tautRec
 
 | stx => throwError m!"Evolver not implemented for {stx}"
 

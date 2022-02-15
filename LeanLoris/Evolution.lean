@@ -232,8 +232,8 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
         do
           logInfo m!"Isle variable type: {← inferType x}; is-proof? : {← isProof x}"
           let dist ←  init.updateExprM x 0
-          let pts ← dist.termsArr.mapM (fun (term, w) => do (← inferType term, w))
-          logInfo m!"terms in isle: {pts}"
+          -- let pts ← dist.termsArr.mapM (fun (term, w) => do (← inferType term, w))
+          -- logInfo m!"terms in isle: {pts}"
           let foldedFuncs : Array (Expr × Nat) ← 
             (← init.funcs).filterMapM (
               fun (f, w) => do
@@ -246,12 +246,12 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
               match term with
               | Expr.lam _ t y _ => 
                 let res := !(← isType y <&&> isDefEq (← inferType x) t)
-                if !res then logInfo m!"purged term: {term}"
+                -- if !res then logInfo m!"purged term: {term}"
                 res
               | _ => pure true
           )
-          let pts ← purgedTerms.mapM (fun (term, w) => do (← inferType term, w))
-          logInfo m!"terms in isle: {pts}"
+          -- let pts ← purgedTerms.mapM (fun (term, w) => do (← inferType term, w))
+          -- logInfo m!"terms in isle: {pts}"
           let dist := ⟨purgedTerms, dist.proofsArr⟩
           -- logInfo m!"entered isle: {← IO.monoMsNow} "
           let evb ← evolve weightBound cardBound  
@@ -285,9 +285,9 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
 
 def applyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init => 
   do
-    logInfo m!"apply evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
+    -- logInfo m!"apply evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     let res ← prodGenArrM applyOpt wb c (← init.funcs) init.allTermsArr d 
-    logInfo m!"apply evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
+    -- logInfo m!"apply evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     return res
 
 def applyPairEvolver(D: Type)[cs : IsNew D][NewElem Expr D]: EvolverM D := 
@@ -546,27 +546,27 @@ def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM 
           match t with
           | Expr.forallE _ l b _ =>
             if ← isDefEq l type then
-              logInfo m!"made pi to lambda"
+              -- logInfo m!"made pi to lambda"
               withLocalDecl Name.anonymous BinderInfo.default t  $ fun f =>
               withLocalDecl Name.anonymous BinderInfo.default l  $ fun x => do
                 let y :=  mkApp f x
                 let bt ← inferType y
-                logInfo m!"x: {x}; y: {y}, bt: {bt}"
+                -- logInfo m!"x: {x}; y: {y}, bt: {bt}"
                 let t ← mkLambdaFVars #[x] bt
                 let t ← whnf t
                 Term.synthesizeSyntheticMVarsNoPostponing
                 pure (t, w)
             else
-              logInfo m!"not made pi to lambda as {l} is not {type}" 
+              -- logInfo m!"not made pi to lambda as {l} is not {type}" 
               pure (t, w)
           | _ => (t, w))
-      logInfo "obtained isle-terms"
+      -- logInfo "obtained isle-terms"
       let isleInit := ⟨isleTerms, init.proofsArr⟩
       let ic := c / (cumWeights.find! w)
       let isleDist ←   isleM type evolve (wb ) ic isleInit 
                 (isleData d init wb c) false
       finalDist ←  finalDist ++ isleDist
-    logInfo "finished for loop for pi-domains"
+    -- logInfo "finished for loop for pi-domains"
     return finalDist
 
 def weightByType(cost: Nat): ExprDist → TermElabM ExprDist := fun init => do
@@ -600,7 +600,7 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
     IO.println s!"number of terms : {dist.termsArr.size}"
     IO.println s!"number of proofs: {dist.proofsArr.size}"
     for (l, pf, w) in dist.proofsArr do
-      logInfo m!"{l} : {pf} : {w}" 
+      -- logInfo m!"{l} : {pf} : {w}" 
     let mut count := 0
     for g in goals do
       count := count + 1
@@ -617,7 +617,7 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
                 do isDefEq l g
         match proof with
         | some (_, pf, w) =>
-          logInfo m!"found proof {pf} for proposition {g}"
+          logInfo m!"found proof {pf} for proposition goal {count} : {g}"
           let stx ← delab (← getCurrNamespace) (← getOpenDecls) pf
           let fmt ← PrettyPrinter.ppTerm stx
           let pp ← fmt.pretty
