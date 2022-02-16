@@ -196,30 +196,6 @@ def forallBoundedIsleM {D: Type}[IsleData D](bound: Nat)(type: Expr)
           (isleData initData init weightBound cardBound) isleInit
       isleFinal.mapM <| fun e => mkLambdaFVars xs e
 
-open Nat
-
-universe u
-
-def natRec (Q : Nat → Prop) :
-    (Q 0) → ((n: Nat) → (Q n → Q (n + 1))) → (n: Nat) →  (Q n) := 
-    fun z step n => 
-      match n with
-      | zero => z
-      | succ k => step k (natRec Q z step k)
-
-def natRecTac: MVarId → TermElabM (List MVarId) := 
-  fun mid => do
-      let type ← mkMVar mid
-      let type ← whnf type
-      Term.synthesizeSyntheticMVarsNoPostponing
-      -- match type with
-      -- | Expr.forallE _ t _ _  =>  
-      --   if ← isDefEq t (mkConst ``Nat) then
-      apply mid <| mkConst ``natRec
-      --   else
-      --     throwError "domain not Nat"
-      -- | _ => throwError "not a forall"
-
 def decideGet (goalType: Expr) : 
       TermElabM <| Option Expr := do
       try
@@ -240,7 +216,64 @@ def rflGet(goalType: Expr) :
 def rflEvolverM(D: Type) : EvolverM D :=
   optProofPropEvolverM rflGet
 
-def natRecEvolverM(D: Type) : EvolverM D :=
+open Nat
+
+universe u
+
+def natRec (Q : Nat → Prop) :
+    (Q 0) → ((n: Nat) → (Q n → Q (n + 1))) → (n: Nat) →  (Q n) := 
+    fun z step n => 
+      match n with
+      | zero => z
+      | succ k => step k (natRec Q z step k)
+
+def natRecFamily(type: Expr) : TermElabM (Option Expr) := do 
+  let family ←  mkArrow (mkConst ``Nat) (mkSort levelZero)
+  let fmlyVar ← mkFreshExprMVar (some family)
+  let piType ← 
+    withLocalDecl Name.anonymous BinderInfo.default (mkConst ``Nat)  $ fun x =>
+      mkForallFVars #[x] (mkApp fmlyVar x)
+  if ← isDefEq piType type then
+    Term.synthesizeSyntheticMVarsNoPostponing
+    whnf fmlyVar
+  else
+    return none
+
+def natRecStep(fmly: Nat → Prop): Prop := ∀n: Nat, fmly n → fmly (n + 1) 
+
+def natRecEvolverM(D: Type) : EvolverM D := 
+  let tactic : Expr → TermElabM (Option (Array Expr)) := 
+    fun type => 
+      do
+      let fmlyOpt ← natRecFamily type
+      fmlyOpt.mapM <| fun fmly =>
+        return #[← mkAppM ``natRec #[fmly], 
+        ← whnf <| mkApp fmly (mkConst ``Nat.zero), 
+        ← whnf <| ← mkAppM ``natRecStep #[fmly]] 
+  typeSumEvolverM (fun wb cb data dist => (dist.bound wb cb).propsArr) tactic
+
+def egProp := ∀ n: Nat, n = n
+
+def egFamily := natRecFamily <| mkConst `egProp
+
+#eval egFamily
+
+def natRecTac: MVarId → TermElabM (List MVarId) := 
+  fun mid => do
+      let type ← mkMVar mid
+      let type ← whnf type
+      Term.synthesizeSyntheticMVarsNoPostponing
+      -- match type with
+      -- | Expr.forallE _ t _ _  =>  
+      --   if ← isDefEq t (mkConst ``Nat) then
+      apply mid <| mkConst ``natRec
+      --   else
+      --     throwError "domain not Nat"
+      -- | _ => throwError "not a forall"
+
+
+
+def natRecEvolverAppM(D: Type) : EvolverM D :=
   tacticTypeEvolverM natRecTac true
 -- tests
 

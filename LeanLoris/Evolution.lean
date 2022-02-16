@@ -567,11 +567,11 @@ def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM 
               -- logInfo m!"not made pi to lambda as {l} is not {type}" 
               pure (t, w)
           | _ => (t, w))
-      logInfo "obtained isle-terms"
+      -- logInfo "obtained isle-terms"
       let isleInit := ⟨isleTerms, init.proofsArr⟩
       let ic := c / (cumWeights.find! w)
       let isleDist ←   isleM type evolve (wb ) ic isleInit 
-                (isleData d init wb c) false
+                (isleData d init wb c)
       finalDist ←  finalDist ++ isleDist
     -- logInfo "finished for loop for pi-domains"
     return finalDist
@@ -606,7 +606,7 @@ def refineWeight(weight? : Expr → TermElabM (Option Nat)):
 def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist => do
     IO.println s!"number of terms : {dist.termsArr.size}"
     IO.println s!"number of proofs: {dist.proofsArr.size}"
-    for (l, pf, w) in dist.proofsArr do
+    -- for (l, pf, w) in dist.proofsArr do
       -- logInfo m!"{l} : {pf} : {w}" 
     let mut count := 0
     for g in goals do
@@ -616,10 +616,15 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
       let pp ← fmt.pretty
       IO.println s!"goal {count}: {pp}"
       -- IO.println s!"argList : {← argList g}"
-      let statement ←  (dist.termsArr.findM? $ fun (s, _) => isDefEq s g)
-      let statement ←  statement.mapM $ fun (e, w) => do (← whnf e, w) 
+      let statement ←  (dist.allTermsArr.findM? $ fun (s, _) => isDefEq s g)
+      let statement ←  statement.mapM $ fun (e, w) => do
+        let e ← whnf e
+        let stx ← delab (← getCurrNamespace) (← getOpenDecls) e
+        let fmt ← PrettyPrinter.ppTerm stx
+        let pp ← fmt.pretty
+        (pp, w) 
       if ← isProp g then
-        -- IO.println s!"proposition generated: {← statement}"
+        IO.println s!"proposition generated: {← statement}"
         let proof ←  dist.proofsArr.findM? $ fun (l, t, w) => 
                 do isDefEq l g
         match proof with
