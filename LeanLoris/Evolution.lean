@@ -424,11 +424,11 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolve
           let flip ← whnf (← mkAppM ``Eq.symm #[pf])
           let flipkey ← argList flipProp
           match ← (allEquationGroups.findD flipkey ExprDist.empty).updatedProofM? 
-                  flipProp flip (w + 1) with
+                  flipProp flip (w) with
           | none => ()
           | some dist => 
             allEquationGroups := allEquationGroups.insert flipkey dist
-            eqs ← eqs.pushProof flipProp flip (w + 1)
+            eqs ← eqs.pushProof flipProp flip (w)
     /- group equations, for y we have proofs of x = y and then y = z,
         record array of (x, pf, w) and array of (z, pf, z)
     -/
