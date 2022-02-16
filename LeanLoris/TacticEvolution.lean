@@ -258,6 +258,8 @@ def egFamily := natRecFamily <| mkConst `egProp
 
 #eval egFamily
 
+
+-- old code
 def natRecTac: MVarId → TermElabM (List MVarId) := 
   fun mid => do
       let type ← mkMVar mid

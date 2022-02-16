@@ -230,7 +230,7 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
       (init : ExprDist)(initData: D)(includePi : Bool := true)(excludeProofs: Bool := false)(excludeLambda : Bool := false)(excludeConstants : Bool := false): TermElabM (ExprDist) := 
     withLocalDecl Name.anonymous BinderInfo.default (type)  $ fun x => 
         do
-          logInfo m!"Isle variable type: {← inferType x}; is-proof? : {← isProof x}"
+          logInfo m!"Isle variable type: {← whnf <| ← inferType x}; is-proof? : {← isProof x}"
           let dist ←  init.updateExprM x 0
           let pts ← dist.termsArr.mapM (fun (term, w) => do (← inferType term, w))
           -- logInfo m!"initial terms in isle: {pts}"
@@ -543,7 +543,7 @@ def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM 
   -- if wb = 0 then init else
   do
     let piDoms ← piDomains (init.termsArr)
-    logInfo m!"pi-domains: {piDoms.size}"
+    logInfo m!"pi-domains: {← piDoms.mapM <| fun (t , w) => do return (← whnf t, w)}"
     let cumWeights := FinDist.cumulWeightCount  (FinDist.fromArray piDoms) wb
     let mut finalDist: ExprDist := ExprDist.empty
     for (type, w) in piDoms do

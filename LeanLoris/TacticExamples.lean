@@ -26,7 +26,8 @@ def recTest(f: Nat → Nat) :=
   let p := (∀ x: Nat, f (x + 1) = f x) → (∀ x: Nat, f x = f 0)
   let hyp := ∀ x: Nat, f (x + 1) = f x
   let seek := evolve! ^[pi-goals, rfl, eq-closure, nat-rec, app] 
-            %[p, hyp → f 0 = f 0, hyp → (∀ (n : Nat), f n = f 0 → f (n + 1) = f 0)] %{(p, 0)} 2 5000
+            %[p, hyp → f 0 = f 0, hyp → (∀ (n : Nat), f n = f 0 → f (n + 1) = f 0),
+            hyp → f 0 = f 0 → (∀ (n : Nat), f n = f 0 → f (n + 1) = f 0) → ∀ (n : Nat), f n = f 0] %{(p, 0)} 2 5000
   ()
 
 #check @Nat.brecOn
