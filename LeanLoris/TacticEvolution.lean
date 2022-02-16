@@ -220,7 +220,7 @@ open Nat
 
 universe u
 
-def natRec (Q : Nat → Prop) :
+def natRec (Q : Nat → Sort u) :
     (Q 0) → ((n: Nat) → (Q n → Q (n + 1))) → (n: Nat) →  (Q n) := 
     fun z step n => 
       match n with
@@ -228,7 +228,8 @@ def natRec (Q : Nat → Prop) :
       | succ k => step k (natRec Q z step k)
 
 def natRecFamily(type: Expr) : TermElabM (Option Expr) := do 
-  let family ←  mkArrow (mkConst ``Nat) (mkSort levelZero)
+  let u ← mkFreshLevelMVar
+  let family ←  mkArrow (mkConst ``Nat) (mkSort u)
   let fmlyVar ← mkFreshExprMVar (some family)
   let piType ← 
     withLocalDecl Name.anonymous BinderInfo.default (mkConst ``Nat)  $ fun x =>
@@ -239,7 +240,7 @@ def natRecFamily(type: Expr) : TermElabM (Option Expr) := do
   else
     return none
 
-def natRecStep(fmly: Nat → Prop): Prop := ∀n: Nat, fmly n → fmly (n + 1) 
+def natRecStep(fmly: Nat → Sort u) := ∀n: Nat, fmly n → fmly (n + 1) 
 
 def natRecEvolverM(D: Type) : EvolverM D := 
   let tactic : Expr → TermElabM (Option (Array Expr)) := 
@@ -324,14 +325,14 @@ theorem constFn2{α : Type}(f: Nat → α):
         rw [← hyp]
         assumption
 
--- def factorial : Nat →  Nat := by
---   apply natRec
---   focus
---     exact 1
---   focus
---     intro n ih
---     exact ((n + 1) * ih)
+def factorial : Nat →  Nat := by
+  apply natRec
+  focus
+    exact 1
+  focus
+    intro n ih
+    exact ((n + 1) * ih)
 
--- #eval factorial 5
+#eval factorial 5
 example : 1 = 1 := by exact rfl
 #check rfl
