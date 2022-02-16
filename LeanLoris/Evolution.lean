@@ -368,8 +368,8 @@ def eqIsleEvolver(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM D 
           Task.spawn ( fun _ =>
             let isleDistBase := isleDistMap.findD type ExprDist.empty
             let xc := c / (eqsCum.find! weq) -- should not be missing
-            let isleDist := isleDistBase.terms.bound (wb -weq -1) xc
-            isleDist.toArray.foldlM (
+            let isleDist := (isleDistBase.bound (wb -weq -1) xc).termsArr
+            isleDist.foldlM (
                 fun d (f, wf) => do 
                   match ← congrArgOpt f eq with 
                   | none => d
@@ -581,12 +581,12 @@ def weightByType(cost: Nat): ExprDist → TermElabM ExprDist := fun init => do
   let mut finalDist := init
   for (x, w) in init.termsArr do
     let α := ← whnf (← inferType x)
-    match ← init.terms.find? α   with
-    | some w  => finalDist ←  ExprDist.updateTermM finalDist x (w + cost)
+    match ← init.getTerm? α   with
+    | some (_, w)  => finalDist ←  ExprDist.updateTermM finalDist x (w + cost)
     | _ => ()
   for (α , x, w) in init.proofsArr do
-    match ← init.terms.find? α  with
-    | some w  => finalDist ←  ExprDist.updateProofM finalDist α x (w + cost)
+    match ← init.getTerm? α  with
+    | some (_, w)  => finalDist ←  ExprDist.updateProofM finalDist α x (w + cost)
     | _ => ()
   return finalDist
 

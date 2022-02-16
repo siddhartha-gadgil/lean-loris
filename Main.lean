@@ -1,6 +1,6 @@
 import LeanLoris
 import Lean.Meta
-import LeanLoris.ElabCzSl
+import LeanLoris.CompiledCzSl
 import LeanLoris.ExprDist
 open CzSl ExprDist Lean
 
