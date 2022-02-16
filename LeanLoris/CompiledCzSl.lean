@@ -72,7 +72,7 @@ def evStep1 : TermElabM (RecEvolverM FullData) := do
 
 
 def ev1 : TermElabM (EvolverM FullData) := do
-                  (← evStep1).fixedPoint.evolve.andThenM (logResults <| ←  goals) 
+                  return (← evStep1).fixedPoint.evolve.andThenM (logResults <| ←  goals) 
 
 def dist1 : TermElabM ExprDist := do
                   (← ev1) 3 6000 initData (← ExprDist.fromArray <| ←  init1) 
@@ -82,7 +82,7 @@ def evStep2 : TermElabM (RecEvolverM FullData) := do
                         (← `(evolver_list|^[eq-closure]))
 
 def ev2 : TermElabM (EvolverM FullData) := do
-                  (← evStep2).fixedPoint.evolve.andThenM (logResults <| ←  goals) 
+                  return (← evStep2).fixedPoint.evolve.andThenM (logResults <| ←  goals) 
 
 def dist2 : TermElabM ExprDist := do
                   (← ev2) 1 6000 initData (← dist1) 

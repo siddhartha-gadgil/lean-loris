@@ -56,9 +56,9 @@ def mapM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
     let y : β  ←  f key
     match map.find? <| y with
     | some v =>
-      map.insert y (min v val)
+      return map.insert y (min v val)
     | none => 
-      map.insert y val
+      return map.insert y val
     ) FinDist.empty
 
 def weightCount{α : Type}[Hashable α][BEq α] 
@@ -95,9 +95,9 @@ def filter{α : Type}[Hashable α][BEq α]
 def filterM{α : Type}[Hashable α][BEq α]
     (m: FinDist α ) (p: α  → TermElabM Bool) : TermElabM <| FinDist α := do
   m.toArray.foldlM (fun w (key, val) => do 
-    if ←  p key then
-      w.insert key val
-    else w
+    if ← p key then
+      return w.insert key val
+    else return w
   ) FinDist.empty
 
 def bound{α : Type}[Hashable α][BEq α] 

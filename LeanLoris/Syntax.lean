@@ -24,7 +24,7 @@ def parseExprMap : Syntax → TermElabM (Array (Expr × Nat))
               | _ =>
                 throwError m!"{s} is not a valid exprWt"
               )
-          m
+          return m
   | _ => throwIllFormedSyntax
 
 syntax (name:= exprDistPack) "packdist!" expr_dist : term
@@ -52,7 +52,7 @@ def parseExprList : Syntax → TermElabM (Array Expr)
               let exp ← elabTerm s none
               let exp ← whnf <| exp
               Term.synthesizeSyntheticMVarsNoPostponing
-              exp
+              return exp
           return m
   | _ => throwIllFormedSyntax
 
@@ -82,7 +82,7 @@ def parseNameMap : Syntax → TermElabM (Array (Name × Nat))
               | _ =>
                 throwError m!"{s} is not a valid nameWt"
               )
-          m
+          return m
   | _ => throwIllFormedSyntax
 
 syntax (name:= constpack) "const!" name_dist : term
@@ -123,24 +123,24 @@ declare_syntax_cat evolver_list
 syntax "^[" evolver,* (">>" evolve_transformer)? "]" : evolver_list
 
 def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
-| `(evolver|app) => (applyEvolver FullData).tautRec
-| `(evolver|name-app) => (nameApplyEvolver FullData).tautRec
-| `(evolver|binop) => (applyPairEvolver FullData).tautRec
-| `(evolver|name-binop) => (nameApplyPairEvolver FullData).tautRec
-| `(evolver|rewrite) => (rewriteEvolver true FullData).tautRec
-| `(evolver|rewrite-flip) => (rewriteEvolver false FullData).tautRec
-| `(evolver|congr) => (congrEvolver FullData).tautRec
-| `(evolver|eq-isles) => eqIsleEvolver FullData
-| `(evolver|all-isles) => allIsleEvolver FullData
-| `(evolver|func-dom-isles) => funcDomIsleEvolver FullData
-| `(evolver|eq-closure) => (eqSymmTransEvolver FullData).tautRec
+| `(evolver|app) => return (applyEvolver FullData).tautRec
+| `(evolver|name-app) => return (nameApplyEvolver FullData).tautRec
+| `(evolver|binop) => return (applyPairEvolver FullData).tautRec
+| `(evolver|name-binop) => return (nameApplyPairEvolver FullData).tautRec
+| `(evolver|rewrite) => return (rewriteEvolver true FullData).tautRec
+| `(evolver|rewrite-flip) => return (rewriteEvolver false FullData).tautRec
+| `(evolver|congr) => return (congrEvolver FullData).tautRec
+| `(evolver|eq-isles) => return eqIsleEvolver FullData
+| `(evolver|all-isles) => return allIsleEvolver FullData
+| `(evolver|func-dom-isles) => return funcDomIsleEvolver FullData
+| `(evolver|eq-closure) => return (eqSymmTransEvolver FullData).tautRec
 | `(evolver|eq-closure $goals) => do
         let goals ← parseExprList goals
-        (eqSymmTransEvolver FullData goals).tautRec
-| `(evolver|pi-goals) => piGoalsEvolverM FullData true
-| `(evolver|pi-types) => piGoalsEvolverM FullData false
-| `(evolver|rfl) => (rflEvolverM FullData).tautRec
-| `(evolver|nat-rec) => (natRecEvolverM FullData).tautRec
+        return (eqSymmTransEvolver FullData goals).tautRec
+| `(evolver|pi-goals) => return piGoalsEvolverM FullData true
+| `(evolver|pi-types) => return piGoalsEvolverM FullData false
+| `(evolver|rfl) => return (rflEvolverM FullData).tautRec
+| `(evolver|nat-rec) => return (natRecEvolverM FullData).tautRec
 
 | stx => throwError m!"Evolver not implemented for {stx}"
 

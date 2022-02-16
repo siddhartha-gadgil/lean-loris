@@ -13,7 +13,7 @@ def getCachedNames? (withDoms: Bool)(e : Expr) : IO (Option (List Name)) := do
 
 def cacheName (withDoms: Bool)(e: Expr) (offs : List Name) : IO Unit := do
   let cache ← expNamesCache.get
-  let prev ← cache.findD withDoms HashMap.empty
+  let prev := cache.findD withDoms HashMap.empty
   expNamesCache.set (cache.insert withDoms $ prev.insert e offs)
   return ()
 
@@ -33,13 +33,13 @@ partial def exprNames (withDoms : Bool): Expr → TermElabM (List Name) :=
       | Expr.const name _ _  =>
         do
         if ← (isWhiteListed name) 
-          then [name] 
+          then return [name] 
           else
           if ← (isNotAux  name)  then
             match ← nameExpr?  name with
             | some e => exprNames withDoms e
-            | none => []
-          else []        
+            | none => return []
+          else return []        
       | Expr.app f a _ => 
           do  
             let ftype ← inferType f 
@@ -79,7 +79,7 @@ partial def exprNames (withDoms : Bool): Expr → TermElabM (List Name) :=
               let bdeps ← exprNames withDoms b
               let vdeps ← exprNames withDoms v
               return (bdeps ++ vdeps)
-      | _ => []
+      | _ => return []
     cacheName withDoms e res
     return res
 
@@ -89,16 +89,16 @@ partial def argList : Expr → TermElabM (List Name) :=
       | Expr.const name _ _  =>
         do
         let type ← inferType e
-        if ← type.isForall then return []
+        if type.isForall then return []
         else
         if ← (isWhiteListed name) 
-          then [name] 
+          then return [name] 
           else
           if ← (isNotAux  name)  then
             match ← nameExpr?  name with
             | some e => argList e
-            | none => []
-          else []        
+            | none => return []
+          else return []        
       | Expr.app f a _ => 
           do  
             let ftype ← inferType f 
@@ -110,7 +110,7 @@ partial def argList : Expr → TermElabM (List Name) :=
           argList b 
       | Expr.letE _ t v b _ => 
           argList b
-      | _ => []
+      | _ => return []
     return res
 
 
@@ -125,14 +125,14 @@ partial def subExpr?(withDoms: Bool)(parent: Expr): Expr → TermElabM Bool :=
                   (subExpr? withDoms parent a)
         | Expr.lam _ t b _ => 
             (subExpr? withDoms parent b) <||>
-                  withDoms <&&>  (subExpr? withDoms parent t)
+                  (pure withDoms) <&&>  (subExpr? withDoms parent t)
         | Expr.forallE _ t b _ => 
             (subExpr? withDoms parent b) <||>
-                  withDoms <&&>  (subExpr? withDoms parent t)
+                  (pure withDoms) <&&>  (subExpr? withDoms parent t)
         | Expr.letE _ t v b _ => do
             (subExpr? withDoms parent b) <||>
                   (subExpr? withDoms parent v) <||>
-                  withDoms <&&>  (subExpr? withDoms parent t)
+                  (pure withDoms) <&&>  (subExpr? withDoms parent t)
         | _ => return false
 
 def subExprWeight(cost: Nat)(withDoms: Bool)(parent: Expr): Expr → TermElabM (Option Nat) :=

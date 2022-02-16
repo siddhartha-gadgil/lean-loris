@@ -8,16 +8,16 @@ open Lean Meta Elab
 
 def isBlackListed  (declName : Name) : TermElabM  Bool := do
   let env ← getEnv
-  declName.isInternal
-  <||> isAuxRecursor env declName
-  <||> isNoConfusion env declName
-  <||> isRecCore env declName
-  <||> isMatcherCore env declName
+  return (declName.isInternal
+  || isAuxRecursor env declName
+  || isNoConfusion env declName
+  || isRecCore env declName
+  || isMatcherCore env declName)
 
 def isAux (declName : Name) : TermElabM  Bool := do
   let env ← getEnv
-  isAuxRecursor env declName
-  <||> isNoConfusion env declName
+  return (isAuxRecursor env declName
+          || isNoConfusion env declName)
   
 def isNotAux  (declName : Name) : TermElabM  Bool := do
   let nAux ← isAux declName
@@ -51,38 +51,39 @@ def negate (p: Expr) : MetaM Expr := do
   let p ← whnf p
   match p.not? with
   | some q => return q
-  | none =>
+  | none => 
     match p with
-    | Expr.app a  b _ => mkAnd a (← mkNot b) 
+    | Expr.app a  b _ => return (mkAnd a (mkNot b)) 
     | Expr.forallE _ x b _ => 
       let type ← inferType x
       let family ← 
         withLocalDecl Name.anonymous BinderInfo.default type <| fun x =>
         do
-          mkLambdaFVars #[x] (← mkNot b)
+          mkLambdaFVars #[x] (mkNot b)
       mkAppM ``Exists #[family]
-    | _ =>
+    | _ => 
       match p.and? with
       | some (l, r) => 
-        mkOr (← mkNot l) (← mkNot r) 
-      | none =>
-      match or? p with
+        return (mkOr (mkNot l) (mkNot r)) 
+      | none => 
+        match or? p with
         | some (l, r) => 
-          mkAnd (← mkNot l) (← mkNot r)
-        | none =>
-        match ← existsTypeExpr? p with
+          return (mkAnd (mkNot l) (mkNot r))
+        | none => 
+          match ← existsTypeExpr? p with
           | some (α, β) =>
             withLocalDecl Name.anonymous BinderInfo.default α  <| fun x =>
               do 
-                let y ← mkNot (← mkApp β x)
+                let y := mkNot (mkApp β x)
                 let y ← whnf y
                 mkForallFVars #[x] y
-          | none =>
+          | none => 
             match p.iff? with
             | some (l, r) => 
-                mkOr (mkAnd l (← mkNot r)) (mkAnd r (← mkNot l))
+                return (mkOr (mkAnd l (mkNot r)) (mkAnd r (mkNot l)))
             | none =>
-                mkNot p
+                return (mkNot p)
+
 
 #check mkNot
 

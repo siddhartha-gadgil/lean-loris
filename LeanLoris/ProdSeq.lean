@@ -54,7 +54,7 @@ partial def unpackWeighted (expr: Expr) : TermElabM (List (Expr × Nat)) :=
             -- logInfo m!"weight: {← whnf wexp} with type {← whnf (← inferType wexp)}"
             let w ←  exprNat (← whnf wexp)
             let h := (← whnf x, w)
-            h :: (← unpackWeighted t)
+            return h :: (← unpackWeighted t)
         | none => throwError m!"{h} is not a product (supposed to be weighted)" 
       | none =>
         do 
@@ -95,7 +95,7 @@ partial def lambdaUnpack (expr: Expr) : TermElabM (List Expr) :=
       | some (h, t) =>
         let tt ← whnf <| mkApp t h
         let tail ←  lambdaUnpack tt
-        h :: tail
+        return h :: tail
       | none =>
         do 
         unless (← isDefEq expr (mkConst `Unit.unit))
@@ -123,7 +123,7 @@ syntax (name:= roundtripWtd) "roundtrip-weighted!" term : term
 partial def unpack (expr: Expr) : TermElabM (List Expr) :=
     do
       match (← split? expr) with
-      | some (h, t) => h :: (← unpack t) 
+      | some (h, t) => return h :: (← unpack t) 
       | none =>
         do 
         unless (← isDefEq expr (mkConst `Unit.unit))
@@ -221,11 +221,12 @@ initialize exprDistCache : IO.Ref (HashMap Name (Expr × ExprDist))
 
 def ExprDist.save (es: ExprDist)(name: Name) : TermElabM (Unit) := do
   let lctx ← getLCtx
-  let fvarIds ← lctx.getFVarIds
+  let fvarIds := lctx.getFVarIds
   let fvIds ← fvarIds.filterM $ fun fid => isWhiteListed ((lctx.get! fid).userName) 
   let fvars := fvIds.map mkFVar
   Term.synthesizeSyntheticMVarsNoPostponing 
-  let espair ← es.mapM (fun e => do (← Term.levelMVarToParam (← instantiateMVars e)).1)
+  let espair ← es.mapM (fun e => do 
+       return (← Term.levelMVarToParam (← instantiateMVars e)).1)
   let es ← espair.mapM (fun e => do whnf <| ←  mkLambdaFVars fvars e)
   logInfo m!"saving relative to: {fvars}"
   let varPack ← ProdSeq.lambdaPack fvars.toList

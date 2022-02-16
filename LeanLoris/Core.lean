@@ -65,7 +65,7 @@ def applyPairOpt (f x y : Expr) : TermElabM (Option Expr) :=
 def mkAppOpt (f x : Expr) : TermElabM (Option Expr) :=
   do
     try
-      let expr ← mkApp f x
+      let expr:= mkApp f x
       let exprType ← inferType expr
       if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  then 
         Term.synthesizeSyntheticMVarsNoPostponing
@@ -119,22 +119,22 @@ def rewriteProof (e: Expr) (heq : Expr) (symm : Bool := false) : MetaM (Option E
     let (newMVars, binderInfos, heqType) ← forallMetaTelescopeReducing heqType
     let heq := mkAppN heq newMVars
     match heqType.eq? with
-    | none => none
+    | none => return none
     | some (α , lhs, rhs) =>
     let heqType := if symm then ← mkEq rhs lhs else heqType
-    let hep := if symm then mkEqSymm heq else heq
-    if lhs.getAppFn.isMVar then none
+    let hep := if symm then mkEqSymm heq else return heq
+    if lhs.getAppFn.isMVar then return none
     else
     let e ← instantiateMVars e
     let eAbst ←  kabstract e lhs
-    if !eAbst.hasLooseBVars then none
+    if !eAbst.hasLooseBVars then return none
     else
     let eNew := eAbst.instantiate1 rhs
     let eNew ← instantiateMVars eNew
     let eEqE ← mkEq e e
     let eEqEAbst := mkApp eEqE.appFn! eAbst
     let motive := Lean.mkLambda `_a BinderInfo.default α eEqEAbst
-    if !(← isTypeCorrect motive) then none
+    if !(← isTypeCorrect motive) then return none
     else            
     let eqRefl ← mkEqRefl e
     let eqPrf ← mkEqNDRec motive eqRefl heq
@@ -258,11 +258,11 @@ def prodPolyGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageDat
       let mut arr1 : Array (Option (Expr × Nat)) := #[]
       for (e1, e2, w) in wtdPairs do 
         match ← compose e1 e2 with
-        | none => ()
+        | none => pure ()
         | some a => 
           for e3 in a do 
             arr1 := arr1.push (some (e3, w))        
-      let arr2 ←  arr1.filterMap <| fun t => t
+      let arr2 :=  arr1.filterMap <| fun t => t
       -- logInfo m!"obtained resulting compositions {← IO.monoMsNow}; size: {arr2.size}"
       let res ← ExprDist.fromArray arr2 
       -- logInfo m!"obtained merged result {← IO.monoMsNow}; size : {res.termsArr.size} + {res.proofsArr.size}"
@@ -334,7 +334,7 @@ def prodGenM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
             match ← compose key key2 with
             | some key3 =>
                 w ←  ExprDist.updateExprM w key3 (val + val2 + 1)
-            | none => ()
+            | none => pure ()
           -- else logWarning m!"newPair failed {val} {val2} ; {maxWeight}"
     return w
 
@@ -366,6 +366,6 @@ def tripleProdGenM{α β γ : Type}[Hashable α][BEq α][Hashable β][BEq β]
               match ← compose key key2 key3 with
               | some key3 =>
                   w ←  ExprDist.updateExprM w key3 (val + val2 + val3 + 1)
-              | none => ()
+              | none => pure ()
     return w
 
