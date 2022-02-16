@@ -74,6 +74,18 @@ def mkAppOpt (f x : Expr) : TermElabM (Option Expr) :=
     catch e =>
       return none
 
+def mkAppPairOpt (f x y : Expr) : TermElabM (Option Expr) :=
+  do
+    try
+      let expr:= mkAppN f #[x, y]
+      let exprType ← inferType expr
+      if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  then 
+        Term.synthesizeSyntheticMVarsNoPostponing
+        return some <| ← whnf expr
+      else return none
+    catch e =>
+      return none
+
 -- (optional) function application with unification given name of function
 def nameApplyOpt (f: Name) (x : Expr) : TermElabM (Option Expr) :=
   do

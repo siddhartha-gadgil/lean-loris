@@ -103,6 +103,8 @@ syntax "app" : evolver
 syntax "name-app": evolver
 syntax "binop": evolver
 syntax "name-binop": evolver
+syntax "simple-app": evolver
+syntax "simple-binop": evolver
 syntax "rewrite": evolver
 syntax "rewrite-flip": evolver
 syntax "congr": evolver
@@ -127,6 +129,8 @@ def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
 | `(evolver|name-app) => return (nameApplyEvolver FullData).tautRec
 | `(evolver|binop) => return (applyPairEvolver FullData).tautRec
 | `(evolver|name-binop) => return (nameApplyPairEvolver FullData).tautRec
+| `(evolver|simple-app) => return (simpleApplyEvolver FullData).tautRec
+| `(evolver|simple-binop) => return (simpleApplyPairEvolver FullData).tautRec
 | `(evolver|rewrite) => return (rewriteEvolver true FullData).tautRec
 | `(evolver|rewrite-flip) => return (rewriteEvolver false FullData).tautRec
 | `(evolver|congr) => return (congrEvolver FullData).tautRec

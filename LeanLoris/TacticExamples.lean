@@ -42,7 +42,7 @@ def recTest(f: Nat → Nat) :=
   let base : Prop := hyp → f 0 = f 0
   let basePf : base := fun hyp => Eq.refl (f 0)
   let recFn := fun _ : hyp => natRec (fun n => f n = f 0)
-  let seek3 := evolve! ^[pi-goals, binop] %[p, 
+  let seek3 := evolve! ^[pi-goals, simple-binop] %[p, 
             hyp → f 0 = f 0, 
             hyp → (∀ (n : Nat), f n = f 0 → f (n + 1) = f 0),
             hyp → (∀ (n : Nat), f n = f 0 → f (n + 1) = f n),

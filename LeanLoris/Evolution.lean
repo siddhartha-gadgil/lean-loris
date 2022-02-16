@@ -311,6 +311,26 @@ def applyPairEvolver(D: Type)[cs : IsNew D][NewElem Expr D]: EvolverM D :=
     -- logInfo m!"apply pair evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     return res
 
+def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init => 
+  do
+    -- logInfo m!"apply evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
+    let res ← prodGenArrM mkAppOpt wb c (← init.funcs) init.allTermsArr d 
+    -- logInfo m!"apply evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
+    return res
+
+def simpleApplyPairEvolver(D: Type)[cs : IsNew D][NewElem Expr D]: EvolverM D := 
+  fun wb c d init =>
+  do
+    -- logInfo m!"apply pair evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
+    let funcs ← init.termsArr.filterM $ fun (e, _) => 
+       do return Expr.isForall <| ← inferType e
+    let pfFuncs ← init.proofsArr.filterMapM <| fun (l, f, w) =>
+      do if (l.isForall) then return some (f, w) else return none
+    let res ← tripleProdGenArrM mkAppPairOpt wb c 
+          (← init.funcs) init.allTermsArr init.allTermsArr d
+    -- logInfo m!"apply pair evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
+    return res
+
 def nameApplyEvolver(D: Type)[IsNew D][GetNameDist D][NewElem Expr D]: EvolverM D := 
   fun wb c d init =>
   do
@@ -425,11 +445,11 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolve
           let flip ← whnf (← mkAppM ``Eq.symm #[pf])
           let flipkey ← argList flipProp
           match ← (allEquationGroups.findD flipkey ExprDist.empty).updatedProofM? 
-                  flipProp flip (w) with
+                  flipProp flip (w + 1) with
           | none => pure ()
           | some dist => 
             allEquationGroups := allEquationGroups.insert flipkey dist
-            eqs := eqs.pushProof flipProp flip (w)
+            eqs := eqs.pushProof flipProp flip (w + 1)
     /- group equations, for y we have proofs of x = y and then y = z,
         record array of (x, pf, w) and array of (z, pf, z)
     -/
