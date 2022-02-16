@@ -538,10 +538,11 @@ def piDomains(terms: Array (Expr × Nat)) : TermElabM (Array (Expr × Nat)) := d
   return domains
 
 -- generating from domains of pi-types
-def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM D := 
+def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D](goalsOnly: Bool) : RecEvolverM D := 
   fun wb c init d evolve => 
   -- if wb = 0 then init else
   do
+    let targets ← if goalsOnly then init.goalsArr else init.allTermsArr
     let piDoms ← piDomains (init.termsArr)
     logInfo m!"pi-domains: {← piDoms.mapM <| fun (t , w) => do return (← whnf t, w)}"
     let cumWeights := FinDist.cumulWeightCount  (FinDist.fromArray piDoms) wb

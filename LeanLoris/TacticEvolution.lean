@@ -251,7 +251,7 @@ def natRecEvolverM(D: Type) : EvolverM D :=
         return #[← mkAppM ``natRec #[fmly], 
         ← whnf <| mkApp fmly (mkConst ``Nat.zero), 
         ← whnf <| ← mkAppM ``natRecStep #[fmly]] 
-  typeSumEvolverM (fun wb cb data dist => (dist.bound wb cb).propsArr) tactic
+  typeSumEvolverM (fun wb cb data dist => (dist.bound wb cb).goalsArr) tactic
 
 def egProp := ∀ n: Nat, n = n
 

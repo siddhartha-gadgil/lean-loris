@@ -360,6 +360,13 @@ def getProof?(dist: ExprDist)(prop: Expr) : TermElabM (Option (Expr ×  Nat)) :=
   let opt ←  dist.proofsArr.findM? <| fun (l, p, w) => isDefEq l prop
   return opt.map <| fun (_, p, w) => (p, w)
 
+def hasProof(dist: ExprDist)(prop: Expr) : TermElabM Bool := do
+  dist.proofsArr.anyM <| fun (l, _, _) => isDefEq l prop
+
+def goalsArr(dist: ExprDist) : TermElabM (Array (Expr × Nat)) := do
+  (← dist.propsArr).filterM <| fun (e, w) => do
+    !(← dist.hasProof e)
+
 def getTerm?(dist: ExprDist)(elem: Expr) : TermElabM (Option (Expr ×  Nat)) := do
   dist.termsArr.findM? <| fun (t, w) => isDefEq t elem
 

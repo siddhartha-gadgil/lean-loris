@@ -112,6 +112,7 @@ syntax "func-dom-isles": evolver
 syntax "eq-closure": evolver
 syntax "eq-closure" (expr_list)?: evolver
 syntax "pi-goals": evolver
+syntax "pi-types": evolver
 syntax "rfl": evolver
 syntax "nat-rec": evolver
 
@@ -136,7 +137,8 @@ def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
 | `(evolver|eq-closure $goals) => do
         let goals ← parseExprList goals
         (eqSymmTransEvolver FullData goals).tautRec
-| `(evolver|pi-goals) => piGoalsEvolverM FullData
+| `(evolver|pi-goals) => piGoalsEvolverM FullData true
+| `(evolver|pi-types) => piGoalsEvolverM FullData false
 | `(evolver|rfl) => (rflEvolverM FullData).tautRec
 | `(evolver|nat-rec) => (natRecEvolverM FullData).tautRec
 
