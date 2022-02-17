@@ -370,18 +370,19 @@ def goalsArr(dist: ExprDist) : TermElabM (Array (Expr × Nat)) := do
 def getTerm?(dist: ExprDist)(elem: Expr) : TermElabM (Option (Expr ×  Nat)) := do
   dist.termsArr.findM? <| fun (t, w) => isDefEq t elem
 
-def getGoals(dist: ExprDist)(goals : Array Expr) : 
+def getGoals(dist: ExprDist)(goals : Array Expr)(showStatement: Bool := false) : 
   TermElabM (Array (Expr × Expr × Nat )) := 
   do
     goals.filterMapM <| fun g => do 
       let wpf ← dist.getProof? g
       let wt ← dist.getTerm? g
-      let res :=  wpf.orElse (fun _ => wt)
+      let res := if (showStatement) then wpf.orElse (fun _ => wt) else wpf
       return res.map (fun (x, w) => (g, x, w))
 
-def viewGoals(dist: ExprDist)(goals : Array Expr) : TermElabM String :=
+def viewGoals(dist: ExprDist)(goals : Array Expr)(showStatement: Bool := false) 
+    : TermElabM String :=
   do
-    let pfs ← getGoals dist goals
+    let pfs ← dist.getGoals goals showStatement
     let view : Array String ←  pfs.mapM <| fun (g, pf, w) => do
       let stx ← delab (← getCurrNamespace) (← getOpenDecls) pf
       let fmt ← PrettyPrinter.ppTerm stx

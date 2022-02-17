@@ -126,6 +126,24 @@ def typeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
                 for y in ys do terms := terms.push (y, w + 1)
             ExprDist.fromArray terms
 
+def weightedTypeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist → 
+  TermElabM (Array (Expr × Nat)))
+          (tacList : Expr → TermElabM (Option (Array (Expr × Nat)))) : EvolverM D := 
+            fun wb cb data dist => do
+            let typeArray ← types wb cb data dist
+            -- logInfo m!"applying tactic to {typeArray.size} types: {typeArray}"
+            let mut terms : Array (Expr × Nat) := Array.empty
+            for (type, w) in typeArray do
+              match ← tacList type with
+              | none =>
+                -- logInfo m!"tactic failed for {type}" 
+                pure ()
+              | some ys =>
+                logInfo m!"tactic succeeded for {type}, giving {ys}"
+                logInfo m!"head type : {← inferType ys[0].1}" 
+                for (y, w0) in ys do terms := terms.push (y, w + w0)
+            ExprDist.fromArray terms
+
 def typeOptEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
          TermElabM (Array (Expr × Nat)))
           (tacOpt : Expr → TermElabM (Option Expr)) : EvolverM D := 
@@ -243,15 +261,15 @@ def natRecFamily(type: Expr) : TermElabM (Option Expr) := do
 def natRecStep(fmly: Nat → Sort u) := ∀n: Nat, fmly n → fmly (n + 1) 
 
 def natRecEvolverM(D: Type) : EvolverM D := 
-  let tactic : Expr → TermElabM (Option (Array Expr)) := 
+  let tactic : Expr → TermElabM (Option (Array (Expr× Nat))) := 
     fun type => 
       do
       let fmlyOpt ← natRecFamily type
       fmlyOpt.mapM <| fun fmly =>
-        return #[← mkAppM ``natRec #[fmly], 
-        ← whnf <| mkApp fmly (mkConst ``Nat.zero), 
-        ← whnf <| ← mkAppM ``natRecStep #[fmly]] 
-  typeSumEvolverM (fun wb cb data dist => (dist.bound wb cb).goalsArr) tactic
+        return #[(← mkAppM ``natRec #[fmly], 0), 
+        (← whnf <| mkApp fmly (mkConst ``Nat.zero), 0), 
+        (← whnf <| ← mkAppM ``natRecStep #[fmly], 1)] 
+  weightedTypeSumEvolverM (fun wb cb data dist => (dist.bound wb cb).goalsArr) tactic
 
 def egProp := ∀ n: Nat, n = n
 
@@ -259,26 +277,6 @@ def egFamily := natRecFamily <| mkConst `egProp
 
 #eval egFamily
 
-
--- old code
-def natRecTac: MVarId → TermElabM (List MVarId) := 
-  fun mid => do
-      let type := mkMVar mid
-      let type ← whnf type
-      Term.synthesizeSyntheticMVarsNoPostponing
-      -- match type with
-      -- | Expr.forallE _ t _ _  =>  
-      --   if ← isDefEq t (mkConst ``Nat) then
-      apply mid <| mkConst ``natRec
-      --   else
-      --     throwError "domain not Nat"
-      -- | _ => throwError "not a forall"
-
-
-
-def natRecEvolverAppM(D: Type) : EvolverM D :=
-  tacticTypeEvolverM natRecTac true
--- tests
 
 #check Eq.refl
 
