@@ -136,11 +136,12 @@ def flattenDists(m: HashMap (List Name) ExprDist) : TermElabM ExprDist := do
   return ⟨termList.toArray, pfList.toArray⟩
 
 def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
-    -- logInfo m!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArr.size}, {fst.proofsArr.size}) ({snd.termsArr.size}, {snd.proofsArr.size})"
+    IO.println s!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArr.size}, {fst.proofsArr.size}) ({snd.termsArr.size}, {snd.proofsArr.size})"
     let ⟨fstTerms, fstProofs⟩ := fst
     let mut gpFstTerms ←  groupTermsByArgs fstTerms
     let mut gpFstPfs ←  groupProofsByArgs fstProofs
     let mut ⟨sndTerms, sndProofs⟩ := ExprDist.empty
+    IO.println s!"grouped first terms and proofs; groups: {gpFstTerms.size} {gpFstPfs.size}"
     for (prop, x, d) in snd.proofsArr do
       let key ← argList prop
       match ← ((gpFstPfs.findD key #[]).findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
@@ -167,18 +168,20 @@ def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
            sndTerms := sndTerms.push (x, d)
       | none => 
           sndTerms := sndTerms.push (x, d)
+    IO.println "added second terms and proofs"
     let mut gpdDists : HashMap (List Name) ExprDist := HashMap.empty
     for (key, termarr) in gpFstTerms.toArray do
       for (x, w) in termarr do
         gpdDists :=  
-          gpdDists.insert key (← (gpdDists.findD key ExprDist.empty).updateTermM x w)
+          gpdDists.insert key ((gpdDists.findD key ExprDist.empty).pushTerm x w)
     for (key, pfarr) in gpFstPfs.toArray do
       for (l, pf, w) in pfarr do
         gpdDists :=  
-          gpdDists.insert key (← (gpdDists.findD key ExprDist.empty).updateProofM l pf w)
+          gpdDists.insert key ((gpdDists.findD key ExprDist.empty).pushProof l pf w)
+    IO.println "created grouped dists; to flatten"
     let fstDist ←  flattenDists gpdDists
     let res := ⟨fstDist.termsArr ++ sndTerms, fstDist.proofsArr ++ sndProofs⟩
-    -- logInfo m!"merged arrays obtained; time: {← IO.monoMsNow}; size: {fstTerms.size + sndTerms.size}; {fstProofs.size + sndProofs.size}"
+    IO.println s!"merged arrays obtained; time: {← IO.monoMsNow}; size: {fstTerms.size + sndTerms.size}; {fstProofs.size + sndProofs.size}"
     return res
 
 def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
