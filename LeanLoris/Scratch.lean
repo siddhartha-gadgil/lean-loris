@@ -26,9 +26,9 @@ def conc2 : Nat :=
 -- #eval conc2
 
 def exprSeq : TermElabM (Array Expr) := do
-  let mut arr ← Array.mk []
+  let mut arr := Array.mk []
   for i in [0:400000] do
-    let e ← ToExpr.toExpr (i % 100)
+    let e := ToExpr.toExpr (i % 100)
     arr := arr.push e
   return arr
 
@@ -102,5 +102,13 @@ theorem constFn{α : Type}(f: Nat → α):
         rw [← hyp]
         assumption
       
+@[inline] def averageBy
+    [Add α] [HDiv α Nat α] [HAdd α α $ outParam α] [Inhabited α] [OfNat α 0]
+    (projection: β → α) : List β  → α
+  | [] => panic! "invalid argument exception: may not provide empty list"
+  | xs =>
+    let sum : α := xs.foldr (fun x y => (projection x) + y) 0
+    let length := xs.length
+    sum / length
 
   
