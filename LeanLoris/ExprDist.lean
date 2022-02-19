@@ -178,7 +178,7 @@ def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
       for (l, pf, w) in pfarr do
         gpdDists :=  
           gpdDists.insert key ((gpdDists.findD key ExprDist.empty).pushProof l pf w)
-    IO.println "created grouped dists; to flatten"
+    -- IO.println "created grouped dists; to flatten"
     let fstDist ←  flattenDists gpdDists
     let res := ⟨fstDist.termsArr ++ sndTerms, fstDist.proofsArr ++ sndProofs⟩
     IO.println s!"merged arrays obtained; time: {← IO.monoMsNow}; size: {fstTerms.size + sndTerms.size}; {fstProofs.size + sndProofs.size}"

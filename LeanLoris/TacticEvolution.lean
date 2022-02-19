@@ -275,18 +275,18 @@ def egProp := ∀ n: Nat, n = n
 
 def egFamily := natRecFamily <| mkConst `egProp
 
-#eval egFamily
+-- #eval egFamily
 
 
 #check Eq.refl
 
 def pp : Prop := 1 = 2
 
-#eval isProp (mkConst ``pp)
-#eval isProp (mkConst ``Nat)
-#eval isType (mkConst ``Nat)
-#eval isType (mkConst ``pp)
-#check Expr.isForall
+-- #eval isProp (mkConst ``pp)
+-- #eval isProp (mkConst ``Nat)
+-- #eval isType (mkConst ``Nat)
+-- #eval isType (mkConst ``pp)
+-- #check Expr.isForall
 
 def sumEl : TermElabM Expr := do 
   let mvar1 ← mkFreshExprMVar (some (mkConst ``Nat))
@@ -297,7 +297,7 @@ def sumEl : TermElabM Expr := do
   assignExprMVar mvarId value
   metaToLambda [mvar1, mvar2] mvar
 
-#eval sumEl
+-- #eval sumEl
 
 syntax(name:=sm) "sumEl!" : term
 @[termElab sm] def smImpl : TermElab := fun _ _ =>
@@ -305,11 +305,11 @@ syntax(name:=sm) "sumEl!" : term
 
 #eval sumEl! 1 2
 
-#check Meta.induction
-#check Meta.apply 
-#check liftMetaTactic
-#check forallTelescope
-#check @Exists
+-- #check Meta.induction
+-- #check Meta.apply 
+-- #check liftMetaTactic
+-- #check forallTelescope
+-- #check @Exists
 
 theorem constFn2{α : Type}(f: Nat → α):
     (∀ n : Nat, f n = f (n + 1)) →

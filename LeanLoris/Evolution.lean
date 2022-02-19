@@ -259,7 +259,7 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
           )
           -- logInfo "finished purging terms"
           -- let pts ← purgedTerms.mapM (fun (term, w) => do (← inferType term, w))
-          IO.println s!"terms in isle: {pts.size}"
+          -- IO.println s!"terms in isle: {pts.size}"
           let dist := ⟨purgedTerms, dist.proofsArr⟩
           IO.println s!"entered isle: {← IO.monoMsNow} "
           let evb ← evolve weightBound cardBound  
@@ -281,7 +281,7 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
             Term.synthesizeSyntheticMVarsNoPostponing
             return (← inferType expPf , expPf , w))
           let mut evl : ExprDist := ExprDist.empty
-          IO.println s!"inner isle distribution exported: {← IO.monoMsNow} "
+          -- IO.println s!"inner isle distribution exported: {← IO.monoMsNow} "
           let res := 
             ⟨if includePi then 
                 if excludeLambda then piTypes else lambdaTerms ++ piTypes  
@@ -421,8 +421,8 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolve
   := fun wb card d init => 
   do
     IO.println s!"eqSymmTrans called: weight-bound {wb}, cardinality: {card}"
-    IO.println s!"initial terms: {init.termsArr.size}"
-    IO.println s!"initial proofs: {init.proofsArr.size}"        
+    -- IO.println s!"initial terms: {init.termsArr.size}"
+    -- IO.println s!"initial proofs: {init.proofsArr.size}"        
     let mut eqs := ExprDist.empty -- new equations only
     let mut allEquationGroups : HashMap (List Name) ExprDist := HashMap.empty
     -- let mut allEquations := ExprDist.empty
@@ -501,7 +501,7 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolve
         for w1 in weights do 
           for j in [w1 + w1:wb + 1] do
             cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 - 1)
-    IO.println s!"cumulative pair count: {cumPairCount.toArray}"
+    -- IO.println s!"cumulative pair count: {cumPairCount.toArray}"
     -- for g in goalterms do
     --   IO.println s!"goalterm: {g},  {← init.getTerm? g}" 
     for (key, group) in grouped.toArray do
@@ -569,7 +569,7 @@ def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D](goalsOnly: Boo
   do
     let targets ← if goalsOnly then init.goalsArr else pure init.allTermsArr
     let piDoms ← piDomains (init.termsArr)
-    IO.println s!"pi-domains: {← piDoms.mapM <| fun (t , w) => do return (← whnf t, w)}"
+    -- IO.println s!"pi-domains: {← piDoms.mapM <| fun (t , w) => do return (← whnf t, w)}"
     let cumWeights := FinDist.cumulWeightCount  (FinDist.fromArray piDoms) wb
     let mut finalDist: ExprDist := ExprDist.empty
     for (type, w) in piDoms do
@@ -641,7 +641,6 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
       let fmt ← PrettyPrinter.ppTerm stx
       let pp := fmt.pretty
       IO.println s!"goal {count}: {pp}"
-      -- IO.println s!"argList : {← argList g}"
       let statement ←  (dist.allTermsArr.findM? $ fun (s, _) => isDefEq s g)
       let statement ←  statement.mapM $ fun (e, w) => do
         let e ← whnf e

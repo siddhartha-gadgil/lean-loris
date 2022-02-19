@@ -113,6 +113,37 @@ partial def argList : Expr → TermElabM (List Name) :=
       | _ => return []
     return res
 
+#check mixHash
+
+partial def exprHash : Expr → TermElabM UInt64 :=
+  fun e => 
+    match e with
+      | Expr.const name _ _  =>
+        do
+        let type ← inferType e
+        if type.isForall then return 7
+        else
+        if ← (isWhiteListed name) 
+          then return name.hash 
+          else
+          if ← (isNotAux  name)  then
+            match ← nameExpr?  name with
+            | some e => exprHash e
+            | none => return 11
+          else return 13        
+      | Expr.app f a _ => 
+          do  
+            let ftype ← inferType f 
+            let expl := ftype.data.binderInfo.isExplicit
+            if !expl then pure 17 else return mixHash (← exprHash f) (← exprHash a)
+      | Expr.lam _ t b _ => 
+          return mixHash (← exprHash t) (← exprHash b)
+      | Expr.forallE _ t b _ => do
+          return mixHash (← exprHash t) (← exprHash b) 
+      | Expr.letE _ t v b _ => 
+          return mixHash (← exprHash t) (← exprHash b)
+      | _ => return e.hash
+
 
 
 partial def subExpr?(withDoms: Bool)(parent: Expr): Expr → TermElabM Bool := 
