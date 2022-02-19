@@ -136,12 +136,12 @@ def flattenDists(m: HashMap (UInt64) ExprDist) : TermElabM ExprDist := do
   return ⟨termList.toArray, pfList.toArray⟩
 
 def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
-    IO.println s!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArr.size}, {fst.proofsArr.size}) ({snd.termsArr.size}, {snd.proofsArr.size})"
+    -- IO.println s!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArr.size}, {fst.proofsArr.size}) ({snd.termsArr.size}, {snd.proofsArr.size})"
     let ⟨fstTerms, fstProofs⟩ := fst
     let mut gpFstTerms ←  groupTermsByArgs fstTerms
     let mut gpFstPfs ←  groupProofsByArgs fstProofs
     let mut ⟨sndTerms, sndProofs⟩ := ExprDist.empty
-    IO.println s!"grouped first terms and proofs; groups: {gpFstTerms.size} {gpFstPfs.size}"
+    -- IO.println s!"grouped first terms and proofs; groups: {gpFstTerms.size} {gpFstPfs.size}"
     for (prop, x, d) in snd.proofsArr do
       let key ← exprHash prop
       match ← ((gpFstPfs.findD key #[]).findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
@@ -168,7 +168,7 @@ def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
            sndTerms := sndTerms.push (x, d)
       | none => 
           sndTerms := sndTerms.push (x, d)
-    IO.println "added second terms and proofs"
+    -- IO.println "added second terms and proofs"
     let mut gpdDists : HashMap (UInt64) ExprDist := HashMap.empty
     for (key, termarr) in gpFstTerms.toArray do
       for (x, w) in termarr do
@@ -181,7 +181,7 @@ def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
     -- IO.println "created grouped dists; to flatten"
     let fstDist ←  flattenDists gpdDists
     let res := ⟨fstDist.termsArr ++ sndTerms, fstDist.proofsArr ++ sndProofs⟩
-    IO.println s!"merged arrays obtained; time: {← IO.monoMsNow}; size: {fstTerms.size + sndTerms.size}; {fstProofs.size + sndProofs.size}"
+    -- IO.println s!"merged arrays obtained; time: {← IO.monoMsNow}; size: {fstTerms.size + sndTerms.size}; {fstProofs.size + sndProofs.size}"
     return res
 
 def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
@@ -387,13 +387,7 @@ def viewGoals(dist: ExprDist)(goals : Array Expr)(showStatement: Bool := false)
   do
     let pfs ← dist.getGoals goals showStatement
     let view : Array String ←  pfs.mapM <| fun (g, pf, w) => do
-      let stx ← delab (← getCurrNamespace) (← getOpenDecls) pf
-      let fmt ← PrettyPrinter.ppTerm stx
-      let pp := fmt.pretty
-      let stx ← delab (← getCurrNamespace) (← getOpenDecls) g
-      let fmt ← PrettyPrinter.ppTerm stx
-      let pg := fmt.pretty
-      return s!"goal : {pg}\nproof: {pp}, weight : {w}"
+      return s!"goal : {← view g}\nproof: {← view pf}, weight : {w}"
     let s := view.foldl (fun acc e => acc ++ "\n" ++ e) "Proofs obtained:"
     return s
 

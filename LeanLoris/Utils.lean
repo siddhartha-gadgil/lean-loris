@@ -27,6 +27,12 @@ def isWhiteListed (declName : Name) : TermElabM Bool := do
   let bl ← isBlackListed  declName
   return !bl
 
+def view(expr: Expr): TermElabM String := do
+  let stx ← PrettyPrinter.delab (← getCurrNamespace) (← getOpenDecls) expr
+  let fmt ← PrettyPrinter.ppTerm stx
+  return fmt.pretty
+
+
 -- matching some patterns 
 
 def existsTypeExpr? (eType: Expr) : MetaM (Option (Expr × Expr)) :=

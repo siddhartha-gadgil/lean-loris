@@ -267,7 +267,7 @@ def natRecEvolverM(D: Type) : EvolverM D :=
       let fmlyOpt ← natRecFamily type
       fmlyOpt.mapM <| fun fmly =>
         return #[(← mkAppM ``natRec #[fmly], 0), 
-        (← whnf <| mkApp fmly (mkConst ``Nat.zero), 0), 
+        (← whnf <| mkApp fmly (mkConst ``Nat.zero), 1), 
         (← whnf <| ← mkAppM ``natRecStep #[fmly], 1)] 
   weightedTypeSumEvolverM (fun wb cb data dist => (dist.bound wb cb).goalsArr) tactic
 

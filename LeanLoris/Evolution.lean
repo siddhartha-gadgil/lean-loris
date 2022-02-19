@@ -230,7 +230,7 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
       (init : ExprDist)(initData: D)(includePi : Bool := true)(excludeProofs: Bool := false)(excludeLambda : Bool := false)(excludeConstants : Bool := false): TermElabM (ExprDist) := 
     withLocalDecl Name.anonymous BinderInfo.default (type)  $ fun x => 
         do
-          IO.println s!"Isle variable type: {← whnf <| ← inferType x}; is-proof? : {← isProof x}"
+          IO.println s!"Isle variable type: {← view <| ← whnf <| ← inferType x}; is-proof? : {← isProof x}"
           let dist ←  init.updateExprM x 0
           let pts ← dist.termsArr.mapM (fun (term, w) => do 
             return (← inferType term, w))
@@ -261,10 +261,10 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
           -- let pts ← purgedTerms.mapM (fun (term, w) => do (← inferType term, w))
           -- IO.println s!"terms in isle: {pts.size}"
           let dist := ⟨purgedTerms, dist.proofsArr⟩
-          IO.println s!"entered isle: {← IO.monoMsNow} "
+          -- IO.println s!"entered isle: {← IO.monoMsNow} "
           let evb ← evolve weightBound cardBound  
                   (isleData initData dist weightBound cardBound) dist
-          IO.println s!"inner isle distribution obtained: {← IO.monoMsNow} "
+          -- IO.println s!"inner isle distribution obtained: {← IO.monoMsNow} "
           let innerTerms : Array (Expr × Nat) :=  if excludeProofs 
           then ← evb.termsArr.filterM ( fun (t, _) => do
               let b ← isDefEq t x
@@ -286,7 +286,7 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
             ⟨if includePi then 
                 if excludeLambda then piTypes else lambdaTerms ++ piTypes  
               else  lambdaTerms, if excludeProofs then #[] else proofs⟩
-          IO.println s!"outer isle distribution obtained: {← IO.monoMsNow} "
+          -- IO.println s!"outer isle distribution obtained: {← IO.monoMsNow} "
           return res
 
 -- Some evolution cases; just one step (so update not needed)
@@ -571,7 +571,7 @@ def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D](goalsOnly: Boo
   do
     let targets ← if goalsOnly then init.goalsArr else pure init.allTermsArr
     let piDoms ← piDomains (init.termsArr)
-    -- IO.println s!"pi-domains: {← piDoms.mapM <| fun (t , w) => do return (← whnf t, w)}"
+    IO.println s!"pi-domains: {← piDoms.mapM <| fun (t , w) => do return (← view <| ← whnf t, w)}"
     let cumWeights := FinDist.cumulWeightCount  (FinDist.fromArray piDoms) wb
     let mut finalDist: ExprDist := ExprDist.empty
     for (type, w) in piDoms do
@@ -639,17 +639,11 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
     let mut count := 0
     for g in goals do
       count := count + 1
-      let stx ← delab (← getCurrNamespace) (← getOpenDecls) g
-      let fmt ← PrettyPrinter.ppTerm stx
-      let pp := fmt.pretty
-      IO.println s!"goal {count}: {pp}"
+      IO.println s!"goal {count}: {← view g}"
       let statement ←  (dist.allTermsArr.findM? $ fun (s, _) => isDefEq s g)
       let statement ←  statement.mapM $ fun (e, w) => do
         let e ← whnf e
-        let stx ← delab (← getCurrNamespace) (← getOpenDecls) e
-        let fmt ← PrettyPrinter.ppTerm stx
-        let pp := fmt.pretty
-        pure (pp, w) 
+        pure (← view e, w) 
       if ← isProp g then
         IO.println s!"proposition generated: {statement}"
         let proof ←  dist.proofsArr.findM? $ fun (l, t, w) => 
@@ -657,10 +651,7 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
         match proof with
         | some (_, pf, w) =>
           -- logInfo m!"found proof {pf} for proposition goal {count} : {g}"
-          let stx ← delab (← getCurrNamespace) (← getOpenDecls) pf
-          let fmt ← PrettyPrinter.ppTerm stx
-          let pp := fmt.pretty
-          IO.println s!"proof generated: {pp}, weight : {w}"
+          IO.println s!"proof generated: {← view pf}, weight : {w}"
         | none => pure () -- IO.println s!"no proof generated"
       else
         IO.println s!"term generated: {statement}"
