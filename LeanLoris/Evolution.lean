@@ -424,13 +424,13 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolve
     -- IO.println s!"initial terms: {init.termsArr.size}"
     -- IO.println s!"initial proofs: {init.proofsArr.size}"        
     let mut eqs := ExprDist.empty -- new equations only
-    let mut allEquationGroups : HashMap (List Name) ExprDist := HashMap.empty
+    let mut allEquationGroups : HashMap (UInt64) ExprDist := HashMap.empty
     -- let mut allEquations := ExprDist.empty
     -- initial equations
     for (l, pf, w) in init.proofsArr do
       match l.eq? with
         | some (_, lhs, rhs) => if !(← isDefEq lhs rhs) then
-          let key ← argList l
+          let key ← exprHash l
           allEquationGroups := allEquationGroups.insert key <|
               (allEquationGroups.findD key ExprDist.empty).pushProof l pf w
         | none => pure ()
@@ -443,7 +443,7 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolve
         | some (_, lhs, rhs) =>
           let flipProp ← mkEq rhs lhs
           let flip ← whnf (← mkAppM ``Eq.symm #[pf])
-          let flipkey ← argList flipProp
+          let flipkey ← exprHash flipProp
           match ← (allEquationGroups.findD flipkey ExprDist.empty).updatedProofM? 
                   flipProp flip (w + 1) with
           | none => pure ()
@@ -453,7 +453,7 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolve
     /- group equations, for y we have proofs of x = y and then y = z,
         record array of (x, pf, w) and array of (z, pf, z)
     -/
-    let mut grouped : HashMap (List Name)
+    let mut grouped : HashMap (UInt64)
           (Array (Expr × (Array (Expr × Expr × Nat)) × (Array (Expr × Expr × Nat)))) := 
       HashMap.empty
     for (key, allEquations) in allEquationGroups.toArray do
@@ -465,7 +465,7 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolve
           let rhs ← whnf rhs
           Term.synthesizeSyntheticMVarsNoPostponing
           -- update first component, i.e. y = rhs
-          let key ← argList rhs
+          let key ← exprHash rhs
           match ← (grouped.findD key  #[]).findIdxM? <| fun (y, _, _) => isDefEq y rhs with
           | none => -- no equation involving rhs
             let weight := Nat.min w (← init.findD lhs w)
@@ -473,11 +473,13 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolve
               (grouped.findD key  #[]).push (rhs, #[(lhs, pf, weight)] , #[])
           | some j => 
             let (y, withRhs, withLhs) := (grouped.findD key  #[]).get! j
+            -- if !((← exprHash rhs) = (← exprHash y)) then
+            --   IO.println s!"Hash mismatch for \nrhs: {rhs}, \ny: {y};\nkey: {key}"
             let weight := Nat.min w (← init.findD lhs w)
             grouped := grouped.insert key <|
               (grouped.findD key  #[]).set! j (rhs, withRhs.push (lhs, pf, weight) , withLhs)
           -- update second component
-          let key ← argList lhs
+          let key ← exprHash lhs
           match ← (grouped.findD key  #[]).findIdxM? <| fun (y, _, _) => isDefEq y lhs with
           | none => -- no equation involving lhs
             let weight := Nat.min w (← init.findD rhs w)
@@ -521,7 +523,7 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolve
                 let eq3 ← whnf (←   mkAppM ``Eq.trans #[eq1, eq2]) 
                 let prop ← mkEq x z
                 Term.synthesizeSyntheticMVarsNoPostponing
-                let key ← argList prop
+                let key ← exprHash prop
                 unless ← (allEquationGroups.findD key ExprDist.empty).existsPropM prop w do
                   eqs := eqs.pushProof prop eq3 w   
     IO.println s!"eqs: {eqs.proofsArr.size}"

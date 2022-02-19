@@ -129,19 +129,20 @@ partial def exprHash : Expr → TermElabM UInt64 :=
           if ← (isNotAux  name)  then
             match ← nameExpr?  name with
             | some e => exprHash e
-            | none => return 11
-          else return 13        
+            | none => return 7
+          else return 7        
       | Expr.app f a _ => 
           do  
             let ftype ← inferType f 
             let expl := ftype.data.binderInfo.isExplicit
-            if !expl then pure 17 else return mixHash (← exprHash f) (← exprHash a)
+            if !expl then pure 7 else return mixHash (← exprHash f) (← exprHash a)
       | Expr.lam _ t b _ => 
           return mixHash (← exprHash t) (← exprHash b)
       | Expr.forallE _ t b _ => do
           return mixHash (← exprHash t) (← exprHash b) 
       | Expr.letE _ t v b _ => 
           return mixHash (← exprHash t) (← exprHash b)
+      | Expr.lit _ d => return d.hash
       | _ => return e.hash
 
 

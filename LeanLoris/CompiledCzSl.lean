@@ -96,4 +96,8 @@ def dist4 : TermElabM ExprDist := do
 
 def view4 : TermElabM String := do
                   (← dist4).viewGoals (← goals4)                
+
+#check @mul
+#check @HMul.hMul
+
 end CzSl
