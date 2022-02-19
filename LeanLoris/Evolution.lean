@@ -266,7 +266,7 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
                   (isleData initData dist weightBound cardBound) dist
           -- IO.println s!"inner isle distribution obtained: {← IO.monoMsNow} "
           -- IO.println s!"initial size: {eva.termsArr.size}, {eva.proofsArr.size}"
-          let evb ← if excludeInit then eva.diffM init else pure eva
+          let evb ← if excludeInit then eva.diffM dist else pure eva
           -- IO.println s!"diff size ({excludeInit}): {evb.termsArr.size}, {evb.proofsArr.size}"
           -- IO.println s!"dist: {← dist.existsM x 0}, eva: {← eva.existsM x 0}, evb: {← evb.existsM x 0}"
           let innerTerms : Array (Expr × Nat) :=  if excludeProofs 
@@ -601,7 +601,7 @@ def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D](goalsOnly: Boo
           ⟨isleTerms, init.proofsArr⟩
       let ic := c / (cumWeights.find! w)
       let isleDist ←   isleM type evolve (wb ) ic isleInit 
-                (isleData d init wb c) true false false false
+                (isleData d init wb c) true false false true
       finalDist ←  finalDist ++ isleDist
     -- logInfo "finished for loop for pi-domains"
     return finalDist

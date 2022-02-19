@@ -191,10 +191,13 @@ def diffM(fst snd: ExprDist) : TermElabM ExprDist := do
     let gpPfs ←  groupProofsByArgs sndProofs
     let filteredTerms ←  fst.termsArr.filterM (fun (x, w) => do
            let key ←  exprHash x
-           (gpTerms.findD key #[]).anyM (fun (y, w') => (isDefEq x y) <&&> (return w' ≤ w)))
+           let found ← 
+              (gpTerms.findD key #[]).anyM (fun (y, w') => (isDefEq x y) <&&> (return w' ≤ w))
+           return !found)
     let filteredProofs ←  fst.proofsArr.filterM (fun (x, _, w) => do
           let key ←  exprHash x
-          (gpPfs.findD key #[]).anyM (fun (y, _, w') => (isDefEq x y) <&&> (return w' ≤ w)))
+          let found ← (gpPfs.findD key #[]).anyM (fun (y, _, w') => (isDefEq x y) <&&> (return w' ≤ w))
+          return !found)
     return ⟨filteredTerms, filteredProofs⟩
 
 def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
