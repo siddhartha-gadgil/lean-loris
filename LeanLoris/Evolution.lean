@@ -505,7 +505,7 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolve
     -- for g in goalterms do
     --   IO.println s!"goalterm: {g},  {← init.getTerm? g}" 
     for (key, group) in grouped.toArray do
-      IO.println s!"group: {key}, size : {group.size}"
+      -- IO.println s!"group: {key}, size : {group.size}"
       for (y, withRhs, withLhs) in group do
         -- let focus ← goalterms.anyM <| fun t => isDefEq t y
         -- if focus then 
