@@ -184,6 +184,19 @@ def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
     -- IO.println s!"merged arrays obtained; time: {← IO.monoMsNow}; size: {fstTerms.size + sndTerms.size}; {fstProofs.size + sndProofs.size}"
     return res
 
+def diffM(fst snd: ExprDist) : TermElabM ExprDist := do
+    -- IO.println s!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArr.size}, {fst.proofsArr.size}) ({snd.termsArr.size}, {snd.proofsArr.size})"
+    let ⟨sndTerms, sndProofs⟩ := snd
+    let gpTerms ←  groupTermsByArgs sndTerms
+    let gpPfs ←  groupProofsByArgs sndProofs
+    let filteredTerms ←  fst.termsArr.filterM (fun (x, w) => do
+           let key ←  exprHash x
+           (gpTerms.findD key #[]).anyM (fun (y, w') => (isDefEq x y) <&&> (return w' ≤ w)))
+    let filteredProofs ←  fst.proofsArr.filterM (fun (x, _, w) => do
+          let key ←  exprHash x
+          (gpPfs.findD key #[]).anyM (fun (y, _, w') => (isDefEq x y) <&&> (return w' ≤ w)))
+    return ⟨filteredTerms, filteredProofs⟩
+
 def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
     -- logInfo m!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArr.size}, {fst.proofsArr.size}) ({snd.termsArr.size}, {snd.proofsArr.size})"
     let mut ⟨fstTerms, fstProofs⟩ := fst

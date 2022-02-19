@@ -227,10 +227,10 @@ def EvolverM.evolve{D: Type}[DataUpdate D](ev: EvolverM D) : EvolverM D :=
         ev.tautRec.iterate.fixedPoint
 
 def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Nat)(cardBound: Nat)
-      (init : ExprDist)(initData: D)(includePi : Bool := true)(excludeProofs: Bool := false)(excludeLambda : Bool := false)(excludeConstants : Bool := false): TermElabM (ExprDist) := 
+      (init : ExprDist)(initData: D)(includePi : Bool := true)(excludeProofs: Bool := false)(excludeLambda : Bool := false)(excludeInit : Bool := false): TermElabM (ExprDist) := 
     withLocalDecl Name.anonymous BinderInfo.default (type)  $ fun x => 
         do
-          IO.println s!"Isle variable type: {← view <| ← whnf <| ← inferType x}; is-proof? : {← isProof x}"
+          -- IO.println s!"Isle variable type: {← view <| ← whnf <| ← inferType x}; is-proof? : {← isProof x}"
           let dist ←  init.updateExprM x 0
           let pts ← dist.termsArr.mapM (fun (term, w) => do 
             return (← inferType term, w))
@@ -262,9 +262,13 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
           -- IO.println s!"terms in isle: {pts.size}"
           let dist := ⟨purgedTerms, dist.proofsArr⟩
           -- IO.println s!"entered isle: {← IO.monoMsNow} "
-          let evb ← evolve weightBound cardBound  
+          let eva ← evolve weightBound cardBound  
                   (isleData initData dist weightBound cardBound) dist
           -- IO.println s!"inner isle distribution obtained: {← IO.monoMsNow} "
+          -- IO.println s!"initial size: {eva.termsArr.size}, {eva.proofsArr.size}"
+          let evb ← if excludeInit then eva.diffM init else pure eva
+          -- IO.println s!"diff size ({excludeInit}): {evb.termsArr.size}, {evb.proofsArr.size}"
+          -- IO.println s!"dist: {← dist.existsM x 0}, eva: {← eva.existsM x 0}, evb: {← evb.existsM x 0}"
           let innerTerms : Array (Expr × Nat) :=  if excludeProofs 
           then ← evb.termsArr.filterM ( fun (t, _) => do
               let b ← isDefEq t x
@@ -567,7 +571,7 @@ def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D](goalsOnly: Boo
   do
     let targets ← if goalsOnly then init.goalsArr else pure init.allTermsArr
     let piDoms ← piDomains (init.termsArr)
-    IO.println s!"pi-domains: {← piDoms.mapM <| fun (t , w) => do return (← view <| ← whnf t, w)}"
+    -- IO.println s!"pi-domains: {← piDoms.mapM <| fun (t , w) => do return (← view <| ← whnf t, w)}"
     let cumWeights := FinDist.cumulWeightCount  (FinDist.fromArray piDoms) wb
     let mut finalDist: ExprDist := ExprDist.empty
     for (type, w) in piDoms do
@@ -592,10 +596,12 @@ def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D](goalsOnly: Boo
               pure (t, w)
           | _ => pure (t, w))
       -- logInfo "obtained isle-terms"
-      let isleInit := ⟨isleTerms, init.proofsArr⟩
+      let isleInit :=
+          -- ←  ExprDist.fromArray isleTerms  
+          ⟨isleTerms, init.proofsArr⟩
       let ic := c / (cumWeights.find! w)
       let isleDist ←   isleM type evolve (wb ) ic isleInit 
-                (isleData d init wb c)
+                (isleData d init wb c) true false false false
       finalDist ←  finalDist ++ isleDist
     -- logInfo "finished for loop for pi-domains"
     return finalDist
