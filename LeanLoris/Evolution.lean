@@ -322,10 +322,6 @@ def simpleApplyPairEvolver(D: Type)[cs : IsNew D][NewElem Expr D]: EvolverM D :=
   fun wb c d init =>
   do
     -- logInfo m!"apply pair evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
-    let funcs ← init.termsArr.filterM $ fun (e, _) => 
-       do return Expr.isForall <| ← inferType e
-    let pfFuncs ← init.proofsArr.filterMapM <| fun (l, f, w) =>
-      do if (l.isForall) then return some (f, w) else return none
     let res ← tripleProdGenArrM mkAppPairOpt wb c 
           (← init.funcs) init.allTermsArr init.allTermsArr d
     -- logInfo m!"apply pair evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
@@ -420,7 +416,7 @@ def allIsleEvolver(D: Type)[IsNew D][IsleData D] : RecEvolverM D := fun wb c ini
 def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : EvolverM D 
   := fun wb card d init => 
   do
-    IO.println s!"eqSymmTrans called: weight-bound {wb}, cardinality: {card}"
+    -- IO.println s!"eqSymmTrans called: weight-bound {wb}, cardinality: {card}"
     -- IO.println s!"initial terms: {init.termsArr.size}"
     -- IO.println s!"initial proofs: {init.proofsArr.size}"        
     let mut eqs := ExprDist.empty -- new equations only
@@ -491,7 +487,7 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolve
             grouped := grouped.insert key <|
               (grouped.findD key  #[]).set! j (lhs, withRhs, withLhs.push (rhs, pf, weight))
     -- count cumulative weights of pairs, deleting reflexive pairs (assuming symmetry)
-    IO.println s!"grouped; mono-time {←  IO.monoMsNow}"
+    -- IO.println s!"grouped; mono-time {←  IO.monoMsNow}"
     let mut cumPairCount : HashMap Nat Nat := HashMap.empty
     for (key, group) in grouped.toArray do
       for (_, m ,_) in group do
@@ -526,7 +522,7 @@ def eqSymmTransEvolver (D: Type)[IsNew D](goalterms: Array Expr := #[]) : Evolve
                 let key ← exprHash prop
                 unless ← (allEquationGroups.findD key ExprDist.empty).existsPropM prop w do
                   eqs := eqs.pushProof prop eq3 w   
-    IO.println s!"eqs: {eqs.proofsArr.size}"
+    -- IO.println s!"eqs: {eqs.proofsArr.size}"
     return eqs
 
 
@@ -634,6 +630,9 @@ def refineWeight(weight? : Expr → TermElabM (Option Nat)):
 def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist => do
     IO.println s!"number of terms : {dist.termsArr.size}"
     IO.println s!"number of proofs: {dist.proofsArr.size}"
+    IO.println s!"term distribution : {(arrWeightCount dist.termsArr).toArray}"
+    IO.println s!"proof distribution: {(arrWeightCount <| dist.proofsArr.map (fun (l, _, w) => (l, w))).toArray}"
+    IO.println s!"function distribution : {(arrWeightCount <| ←  dist.funcs).toArray}"
     -- for (l, pf, w) in dist.proofsArr do
       -- logInfo m!"{l} : {pf} : {w}" 
     let mut count := 0

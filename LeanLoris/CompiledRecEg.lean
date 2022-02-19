@@ -62,6 +62,10 @@ def ev1 : TermElabM (EvolverM FullData) := do
 def dist1 : TermElabM ExprDist := do
                   (← ev1) 2 5000 initData (← ExprDist.fromArray <| ←  init1) 
 
+def terms1 : TermElabM String := do
+  let arr ← (← dist1).termsArr.mapM <| fun (e, w) => return (← view e, w)
+  return s!"{arr}"
+
 def view1 : TermElabM String := do
                   (← dist1).viewGoals (← goals) 
 
@@ -80,7 +84,7 @@ def view2 : TermElabM String := do
                   (← dist2).viewGoals (← goals)
 
 def init0 : TermElabM (Array (Expr × Nat)) := do
-                  parseExprMap (← `(expr_dist|%{(hyp! → claim!, 0), (base, 0), (recFn, 0), (step, 1)}))
+                  parseExprMap (← `(expr_dist|%{(hyp! → claim!, 0), (base, 1), (recFn, 0), (step, 1)}))
 -- #eval init0
 
 
@@ -93,7 +97,7 @@ def ev0 : TermElabM (EvolverM FullData) := do
                   return (← evStep0).fixedPoint.evolve
 
 def dist0 : TermElabM ExprDist := do
-                  (← ev0) 2 50000 initData (← ExprDist.fromArray <| ←  init0) 
+                  (← ev0) 3 500000 initData (← ExprDist.fromArray <| ←  init0) 
 
 def view0 : TermElabM String := do
                   (← dist0).viewGoals (← goals0)  

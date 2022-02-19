@@ -160,3 +160,13 @@ def weightAbove{α : Type}(wtd : Array (α × Nat))(maxWeight: Nat):
           | none => 
             w := w.insert j 1
       return w
+
+def arrWeightCount{α : Type}[Hashable α][BEq α] 
+    (m: Array (α× Nat)) : HashMap Nat Nat := 
+      m.foldl (fun w (key, val) =>
+        match w.find? val with
+        | some v =>
+          w.insert val (v + 1)
+        | none => 
+          w.insert val 1
+      ) HashMap.empty

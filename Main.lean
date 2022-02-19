@@ -16,7 +16,15 @@ def main : IO Unit := do
   let ei := c.run' {maxHeartbeats := 100000000000} {env}
   match ←  ei.toIO' with
   | Except.ok view => 
-      IO.println "\nRun completed"
+      IO.println view 
+  | Except.error e =>
+    do
+          let msg ← e.toMessageData.toString
+          IO.println msg
+  let c := coreView RecEg.terms1
+  let ei := c.run' {maxHeartbeats := 100000000000} {env}
+  match ←  ei.toIO' with
+  | Except.ok view => 
       IO.println view 
   | Except.error e =>
     do
@@ -27,7 +35,6 @@ def main : IO Unit := do
   let ei := c.run' {maxHeartbeats := 100000000000} {env}
   match ←  ei.toIO' with
   | Except.ok view => 
-      IO.println "\nRun completed"
       IO.println view 
   | Except.error e =>
     do
@@ -38,7 +45,6 @@ def main : IO Unit := do
   let ei := c.run' {maxHeartbeats := 100000000000} {env}
   match ←  ei.toIO' with
   | Except.ok view => 
-      IO.println "\nRun completed"
       IO.println view 
   | Except.error e =>
     do
