@@ -89,7 +89,7 @@ def init0 : TermElabM (Array (Expr × Nat)) := do
 
 
 def evStep0 : TermElabM (RecEvolverM FullData) := do
-                  parseEvolverList (← `(evolver_list|^[pi-goals, simple-binop]))
+                  parseEvolverList (← `(evolver_list|^[pi-goals, simple-app]))
 
 -- #check evStep0
 
@@ -97,7 +97,7 @@ def ev0 : TermElabM (EvolverM FullData) := do
                   return (← evStep0).fixedPoint.evolve
 
 def dist0 : TermElabM ExprDist := do
-                  (← ev0) 3 500000 initData (← ExprDist.fromArray <| ←  init0) 
+                  (← ev0) 4 500000 initData (← ExprDist.fromArray <| ←  init0) 
 
 def view0 : TermElabM String := do
                   (← dist0).viewGoals (← goals0)  

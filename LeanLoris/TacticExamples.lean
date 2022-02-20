@@ -12,7 +12,7 @@ def appTest(A B: Prop)(a : A)(f: A → B) :=
 
 def mpTest(A B: Prop) :=
   let mp := A → (A → B)→ B
-  let seek := evolve! ^[pi-goals, app] %[mp] %{(mp, 0)} 1 1000
+  let seek := evolve! ^[pi-goals, simple-app] %[mp] %{(mp, 0)} 1 1000
   ()
 
 def rflTest(A: Type) :=
