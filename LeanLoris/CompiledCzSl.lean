@@ -74,22 +74,16 @@ def evolve2: TermElabM EvolutionM := do
             let ev  := step.fixedPoint.evolve.andThenM (logResults <| ←  goals)
             return ev 1 6000 initData
 
+def evolve : TermElabM EvolutionM := do
+      return (← evolve1) * (← evolve2) * (← evolve1) * (← evolve2)
+
 def init1 : TermElabM (Array (Expr × Nat)) := do
                   parseExprMap (← `(expr_dist|%{(m, 0), (n, 0), (m *n, 0)}))
-
-def dist1 : TermElabM ExprDist := do
-                  (← evolve1) (← ExprDist.fromArray <| ←  init1) 
-
-def dist2 : TermElabM ExprDist := do
-                  (← evolve2) (← dist1) 
-
-def dist3 : TermElabM ExprDist := do
-                  (← evolve1) (← dist2)
 
 def goals4 : TermElabM (Array Expr) := do
                   parseExprList (← `(expr_list|%[thm!]))
 def dist4 : TermElabM ExprDist := do
-                  (← evolve2) (← dist3)
+                  (← evolve) (← ExprDist.fromArray <| ←  init1) 
 
 def view4 : TermElabM String := do
                   (← dist4).viewGoals (← goals4)                
