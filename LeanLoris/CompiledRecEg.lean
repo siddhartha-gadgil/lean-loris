@@ -51,34 +51,20 @@ def goals : TermElabM (Array Expr) := do
 def init1 : TermElabM (Array (Expr × Nat)) := do
                   parseExprMap (← `(expr_dist|%{(thm!, 0)}))
 
-def evStep1 : TermElabM (RecEvolverM FullData) := do
-                  parseEvolverList (← 
+def evolve1 : TermElabM EvolutionM := do
+      let step ← parseEvolverList (← 
                   `(evolver_list|^[pi-goals, rfl, eq-closure, nat-rec, app]))
+      let ev := step.fixedPoint.evolve.andThenM (logResults <| ←  goals)
+      return ev 2 5000 initData
 
-
-def ev1 : TermElabM (EvolverM FullData) := do
-                  return (← evStep1).fixedPoint.evolve.andThenM (logResults <| ←  goals) 
-
-def dist1 : TermElabM ExprDist := do
-                  (← ev1) 2 5000 initData (← ExprDist.fromArray <| ←  init1) 
-
-def terms1 : TermElabM String := do
-  let arr ← (← dist1).termsArr.mapM <| fun (e, w) => return (← view e, w)
-  return s!"{arr}"
-
-def view1 : TermElabM String := do
-                  (← dist1).viewGoals (← goals) 
-
-def evStep2 : TermElabM (RecEvolverM FullData) := do
-                  parseEvolverList (← 
-                  `(evolver_list|^[pi-goals, eq-closure]))
-
-
-def ev2 : TermElabM (EvolverM FullData) := do
-                  return (← evStep2).fixedPoint.evolve.andThenM (logResults <| ←  goals) 
+def evolve0 : TermElabM EvolutionM := do
+      let step ← parseEvolverList (← 
+                  `(evolver_list|^[pi-goals, rfl, eq-closure, nat-rec, app]))
+      let ev := step.fixedPoint.evolve.andThenM (logResults <| ←  goals)
+      return ev 4 500000 initData
 
 def dist2 : TermElabM ExprDist := do
-                  (← ev2) 2 5000 initData (← dist1) 
+                  (← evolve1) * (← evolve1) <| (← ExprDist.fromArray <| ←  init1)  
 
 def view2 : TermElabM String := do
                   (← dist2).viewGoals (← goals)
@@ -97,7 +83,7 @@ def ev0 : TermElabM (EvolverM FullData) := do
                   return (← evStep0).fixedPoint.evolve
 
 def dist0 : TermElabM ExprDist := do
-                  (← ev0) 4 500000 initData (← ExprDist.fromArray <| ←  init0) 
+                  (← evolve0) (← ExprDist.fromArray <| ←  init0) 
 
 def view0 : TermElabM String := do
                   (← dist0).viewGoals (← goals0)  
