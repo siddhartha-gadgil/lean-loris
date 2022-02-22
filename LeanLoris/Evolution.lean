@@ -123,16 +123,16 @@ instance : IsleData FullData :=
   ⟨fun ⟨nd, hist, ehist⟩ d w c => (nd, [⟨w, c, d.hashDist⟩], [d.hashDist])⟩ 
 
 -- same signature for full evolution and single step, with ExprDist being initial state or accumulated state and the weight bound that for the result or the accumulated state
-def Evolution(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist  → (initData: D) → ExprDist
+def Evolver(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist  → (initData: D) → ExprDist
 
-def initEvolution(D: Type) : Evolution D := fun _ _ init _ => init
+def initEvolver(D: Type) : Evolver D := fun _ _ init _ => init
 
 -- can again play two roles; and is allowed to depend on a generator; fixed-point should only be used for full generation, not for single step.
-def RecEvolver(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist → (initData: D) → (evo: Evolution D) → ExprDist
+def RecEvolver(D: Type) : Type := (weightBound: Nat) → (cardBound: Nat) →  ExprDist → (initData: D) → (evo: Evolver D) → ExprDist
 
-instance{D: Type} : Inhabited <| Evolution D := ⟨initEvolution D⟩
+instance{D: Type} : Inhabited <| Evolver D := ⟨initEvolver D⟩
 
-partial def RecEvolver.fixedPoint{D: Type}(recEv: RecEvolver D) : Evolution D :=
+partial def RecEvolver.fixedPoint{D: Type}(recEv: RecEvolver D) : Evolver D :=
         fun d c init memo => recEv d c init  memo (fixedPoint recEv)
 
 -- same signature for full evolution and single step, with ExprDist being initial state or accumulated state and the weight bound that for the result or the accumulated state
@@ -704,7 +704,16 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
         | none => pure () -- IO.println s!"no proof generated"
       else
         IO.println s!"term generated: {statement}"
-    
+
+abbrev EvolutionM := ExprDist → TermElabM ExprDist
+
+def EvolutionM.followedBy(fst snd: EvolutionM): EvolutionM := fun dist => do
+  let dist ← fst dist
+  snd dist
+
+instance : Mul EvolutionM := 
+  ⟨fun fst snd => fst.followedBy snd⟩
+
 -- examples
 
 def egEvolver : EvolverM Unit := 

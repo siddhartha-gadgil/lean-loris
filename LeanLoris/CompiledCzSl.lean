@@ -64,35 +64,32 @@ def goals : TermElabM (Array Expr) := do
                   parseExprList (← 
                   `(expr_list|%[lem1!, lem2!, lem3!, lem4!, lem5!, lem6!, thm!]))
 
+def evolve1: TermElabM EvolutionM := do
+            let step ← parseEvolverList (← `(evolver_list|^[name-app, name-binop, eq-isles]))
+            let ev  := step.fixedPoint.evolve.andThenM (logResults <| ←  goals)
+            return ev 3 6000 initData
+
+def evolve2: TermElabM EvolutionM := do
+            let step ← parseEvolverList (← `(evolver_list|^[eq-closure]))
+            let ev  := step.fixedPoint.evolve.andThenM (logResults <| ←  goals)
+            return ev 1 6000 initData
+
 def init1 : TermElabM (Array (Expr × Nat)) := do
                   parseExprMap (← `(expr_dist|%{(m, 0), (n, 0), (m *n, 0)}))
 
-def evStep1 : TermElabM (RecEvolverM FullData) := do
-                  parseEvolverList (← `(evolver_list|^[name-app, name-binop, eq-isles]))
-
-
-def ev1 : TermElabM (EvolverM FullData) := do
-                  return (← evStep1).fixedPoint.evolve.andThenM (logResults <| ←  goals) 
-
 def dist1 : TermElabM ExprDist := do
-                  (← ev1) 3 6000 initData (← ExprDist.fromArray <| ←  init1) 
-
-def evStep2 : TermElabM (RecEvolverM FullData) := do
-                  parseEvolverList 
-                        (← `(evolver_list|^[eq-closure]))
-
-def ev2 : TermElabM (EvolverM FullData) := do
-                  return (← evStep2).fixedPoint.evolve.andThenM (logResults <| ←  goals) 
+                  (← evolve1) (← ExprDist.fromArray <| ←  init1) 
 
 def dist2 : TermElabM ExprDist := do
-                  (← ev2) 1 6000 initData (← dist1) 
+                  (← evolve2) (← dist1) 
 
 def dist3 : TermElabM ExprDist := do
-                  (← ev1) 3 6000 initData (← dist2)
+                  (← evolve1) (← dist2)
+
 def goals4 : TermElabM (Array Expr) := do
                   parseExprList (← `(expr_list|%[thm!]))
 def dist4 : TermElabM ExprDist := do
-                  (← ev2) 1 6000 initData (← dist3)
+                  (← evolve2) (← dist3)
 
 def view4 : TermElabM String := do
                   (← dist4).viewGoals (← goals4)                
