@@ -161,13 +161,15 @@ end EvolverM
 
 
 instance{D: Type} : Inhabited <| EvolverM D := ⟨EvolverM.init D⟩
-
 namespace RecEvolverM
 
 def init(D: Type) := (EvolverM.init D).tautRec
 
 partial def fixedPoint{D: Type}(recEv: RecEvolverM D) : EvolverM D :=
         fun wb c data init => recEv wb c init data (fixedPoint recEv)
+
+def conjApply{D: Type}(recEv: RecEvolverM D)(ev: EvolverM D) : EvolverM D :=
+        fun wb c data init => recEv wb c init data ev
 
 def iterateAux{D: Type}[DataUpdate D](stepEv : RecEvolverM D)(incWt accumWt cardBound: Nat) : 
                      ExprDist → (initData: D) → (evo: EvolverM D) → TermElabM ExprDist := 
@@ -224,6 +226,9 @@ def andThenM{D: Type}(recEv : RecEvolverM D)
 end RecEvolverM
 
 instance {D: Type}: Append <| RecEvolverM D := ⟨fun fst snd => fst.merge snd⟩
+
+instance {D: Type}: Pow (EvolverM D) (RecEvolverM D) :=
+  ⟨fun ev recEv => recEv.conjApply ev⟩
 
 def EvolverM.evolve{D: Type}[DataUpdate D](ev: EvolverM D) : EvolverM D :=
         ev.tautRec.iterate.fixedPoint
@@ -319,10 +324,11 @@ def applyPairEvolver(D: Type)[cs : IsNew D][NewElem Expr D]: EvolverM D :=
 
 def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init => 
   do
-    -- logInfo m!"apply evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
+    -- IO.println s!"simple apply evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     /- for a given type α; functions with domain α and terms with type α  
     -/ 
-    let mut grouped : HashMap UInt64 (Array (Expr × (Array (Expr  × Nat)) × (Array (Expr × Nat)))) := HashMap.empty
+    let mut grouped : HashMap UInt64 (Array (Expr × (Array (Expr  × Nat)) × (Array (Expr × Nat)))) 
+        := HashMap.empty
     for (x, w) in init.allTermsArr do
       let type ← whnf <| ← inferType x
       match type with
@@ -338,18 +344,19 @@ def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init 
       |  _ => pure ()
       let key ← exprHash type
       let arr := grouped.findD key #[] 
+      let wt := w -- if (← isProof x) then 0 else w
       match ← arr.findIdxM? <| fun (y, _, _) => isDefEq y type with
       | some j =>
               let (y, fns, ts) := arr.get! j
-              grouped := grouped.insert key (arr.set! j (y, fns, ts.push (x, w)))
+              grouped := grouped.insert key (arr.set! j (y, fns, ts.push (x, wt)))
       | none => 
-              grouped := grouped.insert key (arr.push (type, #[], #[(x, w)]))
+              grouped := grouped.insert key (arr.push (type, #[], #[(x, wt)]))
     let mut cumPairCount : HashMap Nat Nat := HashMap.empty
     for (_, arr) in grouped.toArray do
       for (dom, fns, ts) in arr do
         for (f, wf) in fns do
           for (x, wx) in ts do
-            let w := wf + wx + 1
+            let w :=  wf + wx + 1
             for j in [w: wb+ 1] do
             cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 + 1)
     let mut resTerms: Array (Expr × Nat) := #[]
@@ -357,16 +364,16 @@ def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init 
       for (dom, fns, ts) in arr do
         for (f, wf) in fns do
           for (x, wx) in ts do
-            let w := wf + wx + 1
+            let w :=  wf + wx + 1
             if w ≤ wb && cumPairCount.findD w 0 ≤  c then
               let y := mkApp f x
               let y ← whnf y
               Term.synthesizeSyntheticMVarsNoPostponing
               resTerms := resTerms.push (y, w)
-    ExprDist.fromArray resTerms
+    let res ←  ExprDist.fromArray resTerms
     -- let res ← prodGenArrM mkAppOpt wb c (← init.funcs) init.allTermsArr d 
-    -- logInfo m!"apply evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
-    -- return res
+    -- IO.println s!"simple apply evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
+    return res
 
 def simpleApplyPairEvolver(D: Type)[cs : IsNew D][NewElem Expr D]: EvolverM D := 
   fun wb c d init =>

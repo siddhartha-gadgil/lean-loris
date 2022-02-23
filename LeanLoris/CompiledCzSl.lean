@@ -66,12 +66,12 @@ def goals : TermElabM (Array Expr) := do
 
 def evolve1: TermElabM EvolutionM := do
             let step ← parseEvolverList (← `(evolver_list|^[name-app, name-binop, eq-isles]))
-            let ev  := step.fixedPoint.evolve.andThenM (logResults <| ←  goals)
+            let ev  := step.iterate.fixedPoint.andThenM (logResults <| ←  goals)
             return ev 3 6000 initData
 
 def evolve2: TermElabM EvolutionM := do
             let step ← parseEvolverList (← `(evolver_list|^[eq-closure]))
-            let ev  := step.fixedPoint.evolve.andThenM (logResults <| ←  goals)
+            let ev  := step.iterate.fixedPoint.andThenM (logResults <| ←  goals)
             return ev 1 6000 initData
 
 def evolve : TermElabM EvolutionM := do
