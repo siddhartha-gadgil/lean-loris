@@ -157,6 +157,10 @@ def andThenM{D: Type}(ev : EvolverM D)
           effect newDist
           pure newDist
 
+def merge{D: Type}(fst snd : EvolverM D) : EvolverM D :=
+  fun wb cb initDist data => do
+    (← fst wb cb initDist data) ++ (← snd wb cb initDist data)
+
 end EvolverM
 
 
@@ -233,14 +237,16 @@ instance {D: Type}: Pow (EvolverM D) (RecEvolverM D) :=
 def EvolverM.evolve{D: Type}[DataUpdate D](ev: EvolverM D) : EvolverM D :=
         ev.tautRec.iterate.fixedPoint
 
+instance {D: Type}: Append <| EvolverM D := ⟨fun fst snd => fst.merge snd⟩
+
 def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Nat)(cardBound: Nat)
       (init : ExprDist)(initData: D)(includePi : Bool := true)(excludeProofs: Bool := false)(excludeLambda : Bool := false)(excludeInit : Bool := false): TermElabM (ExprDist) := 
     withLocalDecl Name.anonymous BinderInfo.default (type)  $ fun x => 
         do
-          -- IO.println s!"Isle variable type: {← view <| ← whnf <| ← inferType x}; is-proof? : {← isProof x}"
+          IO.println s!"Isle variable type: {← view <| ← whnf <| ← inferType x}; is-proof? : {← isProof x}"
           let dist ←  init.updateExprM x 0
-          let pts ← dist.termsArr.mapM (fun (term, w) => do 
-            return (← inferType term, w))
+          -- let pts ← dist.allTermsArr.mapM (fun (term, w) => do 
+          --   return (← view term, ← view <| ← inferType term, w))
           -- IO.println s!"initial terms in isle: {pts}"
           let foldedFuncs : Array (Expr × Nat) ← 
             (← init.funcs).filterMapM (
@@ -249,6 +255,10 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
                   let y ← (mkAppOpt f x)
                   return y.map (fun y => (y, w))
               )
+          -- IO.println s!"folded functions in isle: {foldedFuncs.size}"
+          -- let pts ← foldedFuncs.mapM (fun (term, w) => do 
+          --   return (← view term, ← view <| ← inferType term, w))
+          -- IO.println s!"folded terms in isle: {pts}"
           let dist ← dist.mergeArray foldedFuncs
           -- logInfo "started purging terms"
           let purgedTerms ← dist.termsArr.filterM (fun (term, w) => do
@@ -269,6 +279,10 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
           -- IO.println s!"terms in isle: {pts.size}"
           let dist := ⟨purgedTerms, dist.proofsArr⟩
           -- IO.println s!"entered isle: {← IO.monoMsNow} "
+          -- let pts ← dist.allTermsArr.mapM (fun (term, w) => do 
+          --   return (← view term, ← view <| ← inferType term, w))
+          -- IO.println s!"modified terms in isle: {pts}"
+
           let eva ← evolve weightBound cardBound  
                   (isleData initData dist weightBound cardBound) dist
           -- IO.println s!"inner isle distribution obtained: {← IO.monoMsNow} "
@@ -324,7 +338,7 @@ def applyPairEvolver(D: Type)[cs : IsNew D][NewElem Expr D]: EvolverM D :=
 
 def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init => 
   do
-    -- IO.println s!"simple apply evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
+    IO.println s!"simple apply evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     /- for a given type α; functions with domain α and terms with type α  
     -/ 
     let mut grouped : HashMap UInt64 (Array (Expr × (Array (Expr  × Nat)) × (Array (Expr × Nat)))) 
@@ -344,7 +358,7 @@ def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init 
       |  _ => pure ()
       let key ← exprHash type
       let arr := grouped.findD key #[] 
-      let wt := w -- if (← isProof x) then 0 else w
+      let wt := if (← isProof x) then 0 else w
       match ← arr.findIdxM? <| fun (y, _, _) => isDefEq y type with
       | some j =>
               let (y, fns, ts) := arr.get! j
@@ -624,7 +638,8 @@ def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D](goalsOnly: Boo
   do
     let targets ← if goalsOnly then init.goalsArr else pure init.allTermsArr
     let piDoms ← piDomains (init.termsArr)
-    -- IO.println s!"pi-domains: {← piDoms.mapM <| fun (t , w) => do return (← view <| ← whnf t, w)}"
+    IO.println s!"pi-domains: {← piDoms.mapM <| fun (t , w) => do return (← view <| ← whnf t, w)}"
+    -- IO.println s!"initial terms: {← init.termsArr.mapM (fun (t, w) => do return (← view t, w))}"
     let cumWeights := FinDist.cumulWeightCount  (FinDist.fromArray piDoms) wb
     let mut finalDist: ExprDist := ExprDist.empty
     for (type, w) in piDoms do
@@ -649,6 +664,7 @@ def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D](goalsOnly: Boo
               pure (t, w)
           | _ => pure (t, w))
       -- logInfo "obtained isle-terms"
+      -- IO.println s!"initial proofs: {← init.proofsArr.mapM (fun (l, t, w) => do return (← view l, ← view t, w))}"
       let isleInit :=
           -- ←  ExprDist.fromArray isleTerms  
           ⟨isleTerms, init.proofsArr⟩
@@ -691,7 +707,7 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
     IO.println s!"number of proofs: {dist.proofsArr.size}"
     IO.println s!"term distribution : {(arrWeightCount dist.termsArr).toArray}"
     IO.println s!"proof distribution: {(arrWeightCount <| dist.proofsArr.map (fun (l, _, w) => (l, w))).toArray}"
-    IO.println s!"function distribution : {(arrWeightCount <| ←  dist.funcs).toArray}"
+    -- IO.println s!"function distribution : {(arrWeightCount <| ←  dist.funcs).toArray}"
     -- for (l, pf, w) in dist.proofsArr do
       -- logInfo m!"{l} : {pf} : {w}" 
     let mut count := 0

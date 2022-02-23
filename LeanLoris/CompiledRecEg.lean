@@ -65,8 +65,9 @@ def evolve2 : TermElabM EvolutionM := do
 
 def evolve0 : TermElabM EvolutionM := do
       let step ← parseEvolverList (← 
-                  `(evolver_list|^[pi-goals, simple-app]))
-      let ev := step.fixedPoint.evolve.andThenM (logResults <| ←  goals)
+                  `(evolver_list|^[simple-app]))
+      let evBase := step.iterate.fixedPoint.andThenM (logResults <| ←  goals)
+      let ev := (evBase ^ (piGoalsEvolverM FullData false)) ++ evBase
       return ev 3 500000 initData
 
 def dist2 : TermElabM ExprDist := do
