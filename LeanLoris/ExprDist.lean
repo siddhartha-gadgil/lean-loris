@@ -93,14 +93,6 @@ def updatedExprM?
     else 
       updatedTermM? m x d
 
-
-def mapM(dist: ExprDist)(f: Expr → TermElabM Expr) : TermElabM ExprDist := do
-  let termsArrBase ← dist.termsArr.mapM <| fun (e, n) => do
-    let e ← f e
-    return (e, n)
-  termsArrBase.foldlM (fun  dist (e, n) => 
-    do dist.updateExprM e n) empty
-
 def groupTermsByArgs(terms : Array (Expr × Nat)) : 
       TermElabM (HashMap (UInt64) (Array (Expr × Nat))) := do
       terms.foldlM (fun m (e, w) => 
@@ -416,6 +408,13 @@ def findD(dist: ExprDist)(elem: Expr)(default: Nat) : TermElabM Nat := do
   match ← getTerm? dist elem with
   | some (t, w) => pure w
   | none => pure default
+
+def mapM(dist: ExprDist)(f: Expr → TermElabM Expr) : TermElabM ExprDist := do
+  let termsArrBase ← dist.allTermsArr.mapM <| fun (e, n) => do
+    let e ← f e
+    return (e, n)
+  fromArray termsArrBase
+
 
 end ExprDist
 

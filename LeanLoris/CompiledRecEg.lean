@@ -60,6 +60,9 @@ def evolve1 : TermElabM EvolutionM := do
 def evolve2 : TermElabM EvolutionM := do
       let step := initEv ++ piGoals ++ eqClosure
       let ev := step.fixedPoint.evolve.andThenM (logResults <| ←  goals)
+      let ev := ev.andThenM (ExprDist.save `test)
+      let loaded ← ExprDist.load `test
+      IO.println s!"loaded: ${loaded.termsArr.size}, ${loaded.proofsArr.size}"
       return ev 2 5000 initData
 
 def evolve0 : TermElabM EvolutionM := do
