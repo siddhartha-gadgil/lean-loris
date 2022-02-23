@@ -60,15 +60,13 @@ def evolve1 : TermElabM EvolutionM := do
 def evolve2 : TermElabM EvolutionM := do
       let step := initEv ++ piGoals ++ eqClosure
       let ev := step.fixedPoint.evolve.andThenM (logResults <| ←  goals)
-      let ev := ev.andThenM (ExprDist.save `test)
-      let loaded ← ExprDist.load `test
-      IO.println s!"loaded: ${loaded.termsArr.size}, ${loaded.proofsArr.size}"
       return ev 2 5000 initData
 
 def evolve0 : TermElabM EvolutionM := do
       let step := initEv ++ simpleApp
-      let evBase := step.iterate.fixedPoint.andThenM (logResults <| ←  goals)
+      let evBase := step.iterate.fixedPoint
       let ev := (evBase ^ (piGoalsEvolverM FullData false)) ++ evBase
+      let ev := ev.andThenM (logResults <| ←  goals)
       return ev 3 500000 initData
 
 def dist2 : TermElabM ExprDist := do
@@ -82,7 +80,11 @@ def dist3 : TermElabM ExprDist := do
                       (← ExprDist.fromArray <| ←  init1)  
 
 def view3 : TermElabM String := do
-                  (← dist3).viewGoals (← goals)
+              let res ← dist3
+              ExprDist.save `dist3 res
+              let loaded ← ExprDist.load `dist3
+              IO.println s!"saved and loaded; terms: {loaded.termsArr.size}, proofs: {loaded.proofsArr.size}"
+              loaded.viewGoals (← goals)
 
 def init0 : TermElabM (Array (Expr × Nat)) := do
                   parseExprMap (← `(expr_dist|%{(hyp! → claim!, 0), (base, 1), (recFn, 1), (step, 1)}))

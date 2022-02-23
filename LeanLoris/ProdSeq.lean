@@ -239,6 +239,6 @@ def ExprDist.load (name: Name) : TermElabM (ExprDist) := do
   match cache.find? name with
   | some (varPack, es) =>
         let fvars ← ProdSeq.lambdaUnpack varPack
-        logInfo m!"loading relative to: {fvars}"
+        IO.println s!"loading relative to: {fvars}"
         es.mapM $ fun e => reduce (mkAppN e fvars.toArray)
   | none => throwError m!"no cached expression distribution for {name}"
