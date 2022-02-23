@@ -11,6 +11,7 @@ open Lean
 open Meta
 open Elab
 open Lean.Elab.Term
+open RecEvolverM
 
 namespace RecEg
 
@@ -52,20 +53,17 @@ def init1 : TermElabM (Array (Expr × Nat)) := do
                   parseExprMap (← `(expr_dist|%{(thm!, 0)}))
 
 def evolve1 : TermElabM EvolutionM := do
-      let step ← parseEvolverList (← 
-                  `(evolver_list|^[pi-goals, rfl, eq-closure, nat-rec, app]))
+      let step := initEv ++ piGoals ++ rflEv ++ eqClosure ++ natRecEv ++ appl
       let ev := step.fixedPoint.evolve.andThenM (logResults <| ←  goals)
       return ev 2 5000 initData
 
 def evolve2 : TermElabM EvolutionM := do
-      let step ← parseEvolverList (← 
-                  `(evolver_list|^[pi-goals, eq-closure]))
+      let step := initEv ++ piGoals ++ eqClosure
       let ev := step.fixedPoint.evolve.andThenM (logResults <| ←  goals)
       return ev 2 5000 initData
 
 def evolve0 : TermElabM EvolutionM := do
-      let step ← parseEvolverList (← 
-                  `(evolver_list|^[simple-app]))
+      let step := initEv ++ simpleApp
       let evBase := step.iterate.fixedPoint.andThenM (logResults <| ←  goals)
       let ev := (evBase ^ (piGoalsEvolverM FullData false)) ++ evBase
       return ev 3 500000 initData

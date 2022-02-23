@@ -416,7 +416,7 @@ def nameApplyPairEvolver(D: Type)[cs: IsNew D][GetNameDist D][NewElem Expr D]:
     -- logInfo m!"name apply pair evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     return res
 
-def rewriteEvolver(flip: Bool)(D: Type)[IsNew D][NewElem Expr D] : EvolverM D := 
+def rewriteEvolver(D: Type)(flip: Bool := true)[IsNew D][NewElem Expr D] : EvolverM D := 
   fun wb c d init => 
   do
     prodGenArrM (rwPushOpt flip) wb c init.allTermsArr (← init.eventuallyEqls) d

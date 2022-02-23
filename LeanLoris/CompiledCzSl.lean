@@ -15,6 +15,7 @@ open Std
 open Std.HashMap
 open Nat
 open ProdSeq
+open RecEvolverM
 
 namespace CzSl
 constant M : Type
@@ -65,12 +66,12 @@ def goals : TermElabM (Array Expr) := do
                   `(expr_list|%[lem1!, lem2!, lem3!, lem4!, lem5!, lem6!, thm!]))
 
 def evolve1: TermElabM EvolutionM := do
-            let step ← parseEvolverList (← `(evolver_list|^[name-app, name-binop, eq-isles]))
+            let step := initEv ++ nameAppl ++ nameBinOp ++ eqIsles
             let ev  := step.iterate.fixedPoint.andThenM (logResults <| ←  goals)
             return ev 3 6000 initData
 
 def evolve2: TermElabM EvolutionM := do
-            let step ← parseEvolverList (← `(evolver_list|^[eq-closure]))
+            let step := initEv ++ eqClosure
             let ev  := step.iterate.fixedPoint.andThenM (logResults <| ←  goals)
             return ev 1 6000 initData
 

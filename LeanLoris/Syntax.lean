@@ -121,6 +121,29 @@ syntax "nat-rec": evolver
 declare_syntax_cat evolve_transformer
 syntax "by-type" (num)?: evolve_transformer
 
+namespace RecEvolverM
+
+abbrev appl := (applyEvolver FullData).tautRec
+abbrev nameAppl := (nameApplyEvolver FullData).tautRec
+abbrev binOp := (applyPairEvolver FullData).tautRec
+abbrev nameBinOp := (nameApplyPairEvolver FullData).tautRec
+abbrev simpleApp := (simpleApplyEvolver FullData).tautRec
+abbrev simpleBinOp := (simpleApplyPairEvolver FullData).tautRec
+abbrev rewriteEv := (rewriteEvolver FullData false).tautRec
+abbrev rewriteFlip := (rewriteEvolver FullData true).tautRec
+abbrev congrEv := (congrEvolver FullData).tautRec
+abbrev eqIsles := eqIsleEvolver FullData
+abbrev allIsles := allIsleEvolver FullData
+abbrev funcDomIsles := funcDomIsleEvolver FullData
+abbrev eqClosure := (eqSymmTransEvolver FullData).tautRec
+abbrev piGoals := piGoalsEvolverM FullData true
+abbrev piTypes := piGoalsEvolverM FullData false
+abbrev rflEv := (rflEvolverM FullData).tautRec
+abbrev natRecEv := (natRecEvolverM FullData).tautRec
+abbrev initEv := init FullData
+
+end RecEvolverM
+
 declare_syntax_cat evolver_list
 syntax "^[" evolver,* (">>" evolve_transformer)? "]" : evolver_list
 
@@ -131,8 +154,8 @@ def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
 | `(evolver|name-binop) => return (nameApplyPairEvolver FullData).tautRec
 | `(evolver|simple-app) => return (simpleApplyEvolver FullData).tautRec
 | `(evolver|simple-binop) => return (simpleApplyPairEvolver FullData).tautRec
-| `(evolver|rewrite) => return (rewriteEvolver true FullData).tautRec
-| `(evolver|rewrite-flip) => return (rewriteEvolver false FullData).tautRec
+| `(evolver|rewrite) => return (rewriteEvolver FullData true).tautRec
+| `(evolver|rewrite-flip) => return (rewriteEvolver FullData false).tautRec
 | `(evolver|congr) => return (congrEvolver FullData).tautRec
 | `(evolver|eq-isles) => return eqIsleEvolver FullData
 | `(evolver|all-isles) => return allIsleEvolver FullData
