@@ -1,7 +1,8 @@
 import Lean.Meta
 import Lean.Elab
+import Std
 open Lean Meta Elab Term
-open Nat
+open Nat Std
 
 def slowFib (id : Nat) : Nat → Nat
   | 0   => 1
@@ -111,4 +112,58 @@ theorem constFn{α : Type}(f: Nat → α):
     let length := xs.length
     sum / length
 
+example : Unit := Id.run for x in [1, 2, 3, 4, 5] do return ()
   
+#check forIn [1, 2] 3 
+#check ForIn
+#check @List.forIn
+
+def ForIn.mkArray [ForIn Id α β] (l: α):  Array β := Id.run do
+  let mut arr := Array.mk []
+  for x in l do
+    arr := arr.push x
+  return arr
+
+#check List
+
+universe u
+class Iterable (l: Type u)(α : Type u) where
+  toArray : l  → Array α
+
+class IterableFamily (l: Type u → Type u) where
+  toArray : l α  → Array α
+
+instance {l: Type u → Type u}[it : IterableFamily l] (α : Type u) : Iterable (l α) α :=
+  ⟨fun x => it.toArray x⟩
+
+instance : IterableFamily List    :=
+  ⟨fun l => l.toArray⟩
+
+instance : IterableFamily Array   :=
+  ⟨fun l => l⟩
+
+def mkArray [it : Iterable l α] (x: l): Array α :=
+  it.toArray x
+
+def mkList [it : Iterable l α] (x: l): List α :=
+  (mkArray x).toList
+
+def mkHashMap 
+  [it : Iterable l  (α × β )][Hashable α][BEq α][BEq β](x: l ): HashMap α β   :=
+    let arr : Array (α × β) := mkArray x
+    arr.foldl (fun acc (k, v) => acc.insert k v) HashMap.empty
+
+def ForIn.toArray [ForIn Id l α](x : l): (Array α) := Id.run
+  do
+    let mut arr := Array.mk []
+    for a in x do
+      arr := arr.push a 
+    return arr
+
+instance : Iterable Range Nat := 
+  ⟨fun r => ForIn.toArray r⟩
+
+def r : Range := [0:3]
+def arr : Array Nat := mkArray r
+
+#check Range
