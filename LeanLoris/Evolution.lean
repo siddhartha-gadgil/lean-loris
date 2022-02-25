@@ -161,6 +161,25 @@ def merge{D: Type}(fst snd : EvolverM D) : EvolverM D :=
   fun wb cb initDist data => do
     (← fst wb cb initDist data) ++ (← snd wb cb initDist data)
 
+def evolveAux{D: Type}[DataUpdate D](ev : EvolverM D)(incWt accumWt cardBound: Nat) : 
+                     ExprDist → (initData: D) →  TermElabM ExprDist := 
+                     match incWt with
+                     | 0 => fun initDist _ _ => return initDist
+                     | m + 1 => fun initDist d  => 
+                      do
+                        IO.println s!"Evolver step: weight-bound = {accumWt+ 1}; cardinality-bound = {cardBound}; mono-time = {← IO.monoMsNow}"
+                        IO.println s!"initial terms: {initDist.termsArr.size}, initial proofs: {initDist.proofsArr.size}"
+                        let newDist ← ev (accumWt + 1) cardBound d initDist 
+                        IO.println s!"step completed: weight-bound = {accumWt+ 1}; cardinality-bound = {cardBound}; mono-time = {← IO.monoMsNow}"
+                        IO.println s!"final terms: {newDist.termsArr.size}, final proofs: {newDist.proofsArr.size}"
+                        let newData := dataUpdate initDist accumWt cardBound d
+                        -- IO.println s!"data updated: wb = {accumWt+ 1} cardBound = {cardBound} time = {← IO.monoMsNow} "
+                        evolveAux ev m (accumWt + 1) cardBound newDist newData 
+
+def evolve{D: Type}[DataUpdate D](ev: EvolverM D) : EvolverM D :=
+       fun wb cb initDist data  => 
+        evolveAux ev wb 0 cb data initDist 
+
 end EvolverM
 
 
@@ -171,6 +190,9 @@ def init(D: Type) := (EvolverM.init D).tautRec
 
 partial def fixedPoint{D: Type}(recEv: RecEvolverM D) : EvolverM D :=
         fun wb c data init => recEv wb c init data (fixedPoint recEv)
+
+def evolve{D: Type}[DataUpdate D](recEv: RecEvolverM D) : EvolverM D :=
+       recEv.fixedPoint.evolve
 
 def conjApply{D: Type}(recEv: RecEvolverM D)(ev: EvolverM D) : EvolverM D :=
         fun wb c data init => recEv wb c init data ev
@@ -233,9 +255,6 @@ instance {D: Type}: Append <| RecEvolverM D := ⟨fun fst snd => fst.merge snd�
 
 instance {D: Type}: Pow (EvolverM D) (RecEvolverM D) :=
   ⟨fun ev recEv => recEv.conjApply ev⟩
-
-def EvolverM.evolve{D: Type}[DataUpdate D](ev: EvolverM D) : EvolverM D :=
-        ev.tautRec.iterate.fixedPoint
 
 instance {D: Type}: Append <| EvolverM D := ⟨fun fst snd => fst.merge snd⟩
 

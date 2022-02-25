@@ -54,12 +54,12 @@ def init1 : TermElabM (Array (Expr × Nat)) := do
 
 def evolve1 : TermElabM EvolutionM := do
       let step := initEv ++ piGoals ++ rflEv ++ eqClosure ++ natRecEv ++ appl
-      let ev := step.fixedPoint.evolve.andThenM (logResults <| ←  goals)
+      let ev := step.evolve.andThenM (logResults <| ←  goals)
       return ev 2 5000 initData
 
 def evolve2 : TermElabM EvolutionM := do
       let step := initEv ++ piGoals ++ eqClosure
-      let ev := step.fixedPoint.evolve.andThenM (logResults <| ←  goals)
+      let ev := step.evolve.andThenM (logResults <| ←  goals)
       return ev 2 5000 initData
 
 def evolve0 : TermElabM EvolutionM := do
