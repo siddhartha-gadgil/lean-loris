@@ -28,7 +28,7 @@ def exploreProofs(ax1 : ∀ a b : M, (a * b) * b = a)(ax2 : ∀ a b : M, a * (a 
                   let lem1! := (m * n) * n = m 
                   let lem2! := (m * n) * ((m * n) * n) = n 
                   let lem3! := ((m * n) * m) * m = m * n  
-                  -- let seek123 := evolve! ^[app, name-app] %[lem1!, lem2!, lem3!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0)} !{(mul, 0)} 5 1000
+                  let seek123 := evolve! ^[app, name-app] %[lem1!, lem2!, lem3!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0)} !{(mul, 0)} 5 1000
                   let seekmn := evolve! ^[app, name-app] %[m * n] %{(m, 0), (n, 0)} !{(mul, 0)} 5 1000
                   -- let seek123mn := evolve! ^[app, name-app, name-binop, binop] %[lem1!, lem2!, lem3!] %{(ax1, 0), (ax2, 0), (m, 0), (n, 0), (m *n, 0)} !{(mul, 0), (Eq, 0)} 3 1000
                   -- let ⟨⟨lem1, w1⟩, ⟨lem2, w2⟩, ⟨lem3, w3⟩, _⟩ := seek123mn

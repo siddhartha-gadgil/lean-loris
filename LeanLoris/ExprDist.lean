@@ -121,11 +121,11 @@ def groupDistByArgs(arr: Array (Expr × Nat)) : TermElabM (HashMap (UInt64) Expr
       ) HashMap.empty
 
 def flattenDists(m: HashMap (UInt64) ExprDist) : TermElabM ExprDist := do
-  let termList := m.toList.bind (fun (_, d) => d.termsArr.toList)
-  let pfList := m.toList.bind (fun (_, d) => d.proofsArr.toList)
+  let termArr := (m.toArray.map (fun (_, d) => d.termsArr)).foldl (fun a b => a.append b) Array.empty
+  let pfArr := (m.toArray.map (fun (_, d) => d.proofsArr)).foldl (fun a b => a.append b) Array.empty
   -- IO.println s!"termList = {termList.length}"
   -- IO.println s!"pfList = {pfList.length}"
-  return ⟨termList.toArray, pfList.toArray⟩
+  return ⟨termArr, pfArr⟩
 
 def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
     -- IO.println s!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArr.size}, {fst.proofsArr.size}) ({snd.termsArr.size}, {snd.proofsArr.size})"

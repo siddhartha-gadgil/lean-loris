@@ -3,6 +3,7 @@ import Lean.Elab
 import LeanLoris.Core
 import LeanLoris.ProdSeq
 import LeanLoris.Evolution
+import LeanLoris.Syntax
 import Std
 open Std
 open Lean Meta Elab Term
@@ -18,19 +19,19 @@ syntax (name:=genOne) "gen1!" term : term
       let m := FinDist.fromList l
       for (x, w) in m.toArray do
         logInfo m!"{x} : {w}" 
-      let m1 ← prodGenM  applyOpt 4 100 m m (fun _ _ _ _ => true)
+      let m1 ← prodGenM  applyOpt 4 100 m m (fun _ _ _ _ => pure true)
       for (x, w) in m1.terms.toArray do
         logInfo m!"{x} : {w}" 
-      let m2 ← egEvolver  4 100 (← ExprDist.fromTermsM m) ()
+      let m2 ← egEvolver  4 100 () (← ExprDist.fromTermsM m) 
       for (x, w) in m2.terms.toArray do
         logInfo m!"{x} : {w}" 
       logInfo "Evolved state"
-      let m3 ← (egEvolver).evolve 12 100 (← ExprDist.fromTermsM m) ()
+      let m3 ← (egEvolver).evolve 12 100 () (← ExprDist.fromTermsM m)
       for (x, w) in m3.terms.toArray do
         logInfo m!"{x} : {w}" 
       logInfo "Full Evolved state"
-      let m4 ← (egEvolverFull).evolve 12 100 (← ExprDist.fromTermsM m) 
-                                          (HashMap.empty, [], [])
+      let m4 ← (egEvolverFull).evolve 12 100 (HashMap.empty, [], []) (← ExprDist.fromTermsM m) 
+                                          
       for (x, w) in m4.terms.toArray do
         logInfo m!"{x} : {w}" 
       return x
