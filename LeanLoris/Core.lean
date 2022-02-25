@@ -25,7 +25,7 @@ partial def exprNat : Expr → TermElabM Nat := fun expr =>
     else
       throwError m!"{expr} not a Nat expression"
 
-#eval exprNat (ToExpr.toExpr 3)
+-- #eval exprNat (ToExpr.toExpr 3)
 
 def parseNat : Syntax → TermElabM Nat := fun s => 
   do

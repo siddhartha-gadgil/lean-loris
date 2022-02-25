@@ -277,9 +277,6 @@ def egFamily := natRecFamily <| mkConst `egProp
 
 -- #eval egFamily
 
-
-#check Eq.refl
-
 def pp : Prop := 1 = 2
 
 -- #eval isProp (mkConst ``pp)
@@ -303,13 +300,7 @@ syntax(name:=sm) "sumEl!" : term
 @[termElab sm] def smImpl : TermElab := fun _ _ =>
     sumEl
 
-#eval sumEl! 1 2
-
--- #check Meta.induction
--- #check Meta.apply 
--- #check liftMetaTactic
--- #check forallTelescope
--- #check @Exists
+-- #eval sumEl! 1 2
 
 theorem constFn2{α : Type}(f: Nat → α):
     (∀ n : Nat, f n = f (n + 1)) →
@@ -331,6 +322,5 @@ def factorial : Nat →  Nat := by
     intro n ih
     exact ((n + 1) * ih)
 
-#eval factorial 5
+-- #eval factorial 5
 example : 1 = 1 := by exact rfl
-#check rfl

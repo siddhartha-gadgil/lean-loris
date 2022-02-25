@@ -204,15 +204,7 @@ syntax (name:= justterms) "terms!" term : term
       return e
   | _ => throwIllFormedSyntax
 
-#check roundtrip! (3, 10, "twelve", 13, ())
-
 infixr:65 ":::" => PProd.mk
-
-#check roundtrip!  (rfl : 1 = 1) ::: "this" ::: 4 ::: 3 ::: ()
-
--- #eval terms! "hello" ::: (rfl : 1 = 1) ::: "this" ::: 4 ::: 3 ::: ()
-
-
 
 end ProdSeq
 

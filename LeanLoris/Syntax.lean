@@ -95,8 +95,6 @@ syntax (name:= constpack) "const!" name_dist : term
           packWeighted c.toList
     | _ => throwIllFormedSyntax
 
-#check const! !{(Nat.add, 2), (Nat.zero, 4)}
-
 
 declare_syntax_cat evolver 
 syntax "app" : evolver
