@@ -160,8 +160,8 @@ def ForIn.toArray [ForIn Id l α](x : l): (Array α) := Id.run
       arr := arr.push a 
     return arr
 
-instance : Iterable Range Nat := 
-  ⟨fun r => ForIn.toArray r⟩
+instance {l α : Type}[ForIn Id l α] : Iterable l α :=
+  ⟨fun x => ForIn.toArray x⟩
 
 def r : Range := [0:3]
 def arr : Array Nat := mkArray r
