@@ -67,12 +67,12 @@ def goals : TermElabM (Array Expr) := do
 
 def evolve1: TermElabM EvolutionM := do
             let step := initEv ++ nameAppl ++ nameBinOp ++ eqIsles
-            let ev  := step.iterate.fixedPoint.andThenM (logResults <| ←  goals)
+            let ev  := step.evolve.andThenM (logResults <| ←  goals)
             return ev 3 6000 initData
 
 def evolve2: TermElabM EvolutionM := do
             let step := initEv ++ eqClosure
-            let ev  := step.iterate.fixedPoint.andThenM (logResults <| ←  goals)
+            let ev  := step.evolve.andThenM (logResults <| ←  goals)
             return ev 1 6000 initData
 
 def evolve : TermElabM EvolutionM := do
