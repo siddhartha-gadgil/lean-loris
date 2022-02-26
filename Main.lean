@@ -15,6 +15,7 @@ def main : IO Unit := do
     importModules [{module := `LeanLoris.CompiledCzSl}, {module := `LeanLoris.CompiledRecEg}] {}
   let c := coreView RecEg.view3
   let ei := c.run' {maxHeartbeats := 100000000000} {env}
+  let view := ei.toIO <| fun e => IO.Error.userError $ "Error while running" 
   match ←  ei.toIO' with
   | Except.ok view => 
       IO.println "\nRun completed"

@@ -6,7 +6,7 @@ open Lean Meta Elab
 
 -- Auxiliary functions mainly from lean source for finding subexpressions
 
-def isBlackListed  (declName : Name) : TermElabM  Bool := do
+def isBlackListed  (declName : Name) : MetaM  Bool := do
   let env ← getEnv
   return (declName.isInternal
   || isAuxRecursor env declName
@@ -14,20 +14,20 @@ def isBlackListed  (declName : Name) : TermElabM  Bool := do
   || isRecCore env declName
   || isMatcherCore env declName)
 
-def isAux (declName : Name) : TermElabM  Bool := do
+def isAux (declName : Name) : MetaM  Bool := do
   let env ← getEnv
   return (isAuxRecursor env declName
           || isNoConfusion env declName)
   
-def isNotAux  (declName : Name) : TermElabM  Bool := do
+def isNotAux  (declName : Name) : MetaM  Bool := do
   let nAux ← isAux declName
   return (not nAux)
 
-def isWhiteListed (declName : Name) : TermElabM Bool := do
+def isWhiteListed (declName : Name) : MetaM Bool := do
   let bl ← isBlackListed  declName
   return !bl
 
-def view(expr: Expr): TermElabM String := do
+def view(expr: Expr): MetaM String := do
   let stx ← PrettyPrinter.delab (← getCurrNamespace) (← getOpenDecls) expr
   let fmt ← PrettyPrinter.ppTerm stx
   return fmt.pretty

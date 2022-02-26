@@ -17,13 +17,13 @@ def cacheName (withDoms: Bool)(e: Expr) (offs : List Name) : IO Unit := do
   expNamesCache.set (cache.insert withDoms $ prev.insert e offs)
   return ()
 
-def nameExpr? : Name → TermElabM ( Option Expr) := 
+def nameExpr? : Name → MetaM ( Option Expr) := 
   fun name => do
       let info := ((← getEnv).find? name)
       return Option.bind info ConstantInfo.value?
 
 -- does not look within types for lambda's and pi's
-partial def exprNames (withDoms : Bool): Expr → TermElabM (List Name) :=
+partial def exprNames (withDoms : Bool): Expr → MetaM (List Name) :=
   fun e =>
   do 
   match ← getCachedNames? withDoms e with

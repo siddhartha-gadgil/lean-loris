@@ -400,7 +400,6 @@ def viewGoals(dist: ExprDist)(goals : Array Expr)(showStatement: Bool := false)
     return s
 
 def coreView(l : TermElabM String) : CoreM  String := do
-
       let m := l.run'
       m.run'
 
