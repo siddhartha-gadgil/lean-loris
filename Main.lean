@@ -19,8 +19,10 @@ def main : IO Unit := do
   let ei := offCore.run' {maxHeartbeats := 100000000000} {env}
   match ←  ei.toIO' with
   | Except.ok view => 
-      IO.println "\nRun completed"
+      IO.println "\nData obtained"
       IO.println view.size 
+      IO.println view[0]
+      IO.println view[1]
   | Except.error e =>
     do
           let msg ← e.toMessageData.toString

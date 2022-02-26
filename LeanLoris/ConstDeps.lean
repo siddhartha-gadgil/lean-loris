@@ -1,10 +1,22 @@
 import Lean
 import Lean.Meta
 import Init.System
-import Std.Data.HashMap
+import Std
 import LeanLoris.Utils
 import LeanLoris.ExprPieces
-open Lean Meta
+open Lean Meta Std
+
+initialize exprRecCache : IO.Ref (HashMap Expr (Array Name)) ← IO.mkRef (HashMap.empty)
+
+def getCached? (e : Expr) : IO (Option (Array Name)) := do
+  let cache ← exprRecCache.get
+  return cache.find? e
+
+def cache (e: Expr) (offs : Array Name) : IO Unit := do
+  let cache ← exprRecCache.get
+  exprRecCache.set (cache.insert  e offs)
+  return ()
+
 
 def constantNames  : MetaM (Array Name) := do
   let env ← getEnv
@@ -26,24 +38,25 @@ def inferTypeOpt(e: Expr) : MetaM (Option Expr) := do
     return some type
   catch _ => return none
 
-partial def recExprNames: Expr → MetaM (List Name) :=
+
+partial def recExprNames: Expr → MetaM (Array Name) :=
   fun e =>
   do 
-  -- match ← getCached? e with
-  -- | some offs => return offs
-  -- | none =>
+  match ← getCached? e with
+  | some offs => return offs
+  | none =>
     -- IO.println s!"recExprNames: ${e}"
     let res ← match e with
       | Expr.const name _ _  =>
         do
         if ← (isWhiteListed name) 
-          then return [name] 
+          then return #[name] 
           else
           if ← (isNotAux name)  then
             match ←  nameExpr?  name with
             | some e => recExprNames e
-            | none => return []
-          else pure []        
+            | none => return #[]
+          else pure #[]        
       | Expr.app f a _ => 
           do  
             -- let ftype ← inferTypeIO f env
@@ -57,7 +70,7 @@ partial def recExprNames: Expr → MetaM (List Name) :=
             let s := 
               if !expl then fdeps else
                 fdeps ++ adeps
-            return s.eraseDups
+            return s
       | Expr.lam _ _ b _ => 
           do
             return ← recExprNames b 
@@ -65,8 +78,8 @@ partial def recExprNames: Expr → MetaM (List Name) :=
           return  ← recExprNames b 
       | Expr.letE _ _ _ b _ => 
             return ← recExprNames b
-      | _ => pure []
-    -- cache e res
+      | _ => pure #[]
+    cache e res
     -- IO.println s!"found result recExprNames: ${e}"
     return res
 
@@ -78,7 +91,7 @@ def offSpring? (name: Name) : MetaM (Option (Array Name)) := do
   match expr with
   | some e => 
     -- IO.println s!"found expr {e}"
-    return  some <| (← recExprNames e).toArray
+    return  some <| (← recExprNames e)
   | none => return none
 
 partial def descendants (name: Name) : MetaM (Array Name) := do
@@ -92,7 +105,7 @@ partial def descendants (name: Name) : MetaM (Array Name) := do
 def exprDescendants (expr: Expr) : MetaM (Array Name) := do
   -- IO.println s!"exprDescendants: {expr}"
   let offs ← recExprNames expr
-  let groups ← offs.toArray.mapM (fun n => descendants n)
+  let groups ← offs.mapM (fun n => descendants n)
   return groups.foldl (fun acc n => acc.append n) #[]
 
 def offSpringTriple(excludePrefixes: List Name := [])
@@ -110,10 +123,10 @@ def offSpringTriple(excludePrefixes: List Name := [])
           let l := (← offSpring? n).getD #[]
           let l := l.filter fun n => !(excludePrefixes.any (fun pfx => pfx.isPrefixOf n))
           -- IO.println $ "found descendants of " ++ n ++ ": "
-          let tl ←  recExprNames type
+          let tl ←  exprDescendants type
           -- IO.println $ "found type descendants of " ++ n ++ ": "
           let tl := tl.filter fun n => !(excludePrefixes.any (fun pfx => pfx.isPrefixOf n))
-          return (n, l, tl.toArray)
+          return (n, l, tl)
   return kv
 
 def offSpringTripleCore: 
