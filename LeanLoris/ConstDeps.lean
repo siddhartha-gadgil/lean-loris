@@ -134,6 +134,59 @@ def offSpringTripleCore:
           (offSpringTriple [`Lean, `Std, `IO, 
           `Char, `String, `ST, `StateT, `Repr, `ReaderT, `EIO, `BaseIO]).run' 
 
-#check @Lean.instToExprOption
-#check Lean.LocalContext.foldrM
-#check Expr.isType
+def binom (n k: Nat)(p: Float) : Float := Id.run do
+  let mut acc := ((1 - p)^ (n - k).toFloat)
+  for i in [0:k] do 
+      acc :=  acc * (n - i).toFloat * p / (k - i).toFloat
+  return acc
+
+def binomAbove (n k: Nat)(p: Float) : Float := Id.run do
+  let mut acc := 0
+  for j in [k: n+ 1] do
+    acc :=  acc + (binom n j p)
+  return acc 
+
+
+structure FrequencyData where
+  size : Nat
+  termFreqs: HashMap Name Nat
+  typeFreqs: HashMap Name Nat
+  typeTermFreqs: HashMap (Name × Name) Nat
+
+namespace FrequencyData
+def get (triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyData := do
+  let size := triples.size
+  let mut termFreqs := HashMap.empty
+  let mut typeFreqs := HashMap.empty
+  let mut typeTermFreqs := HashMap.empty
+  for (_, terms, types) in triples do
+    for x in terms.toList.eraseDups do
+      termFreqs := termFreqs.insert x ((termFreqs.findD x 0) + 1)
+    for x in types.toList.eraseDups do
+      typeFreqs := typeFreqs.insert x ((typeFreqs.findD x 0) + 1)
+    for y in types.toList.eraseDups do
+      for x in terms.toList.eraseDups do      
+        typeTermFreqs := typeTermFreqs.insert (y, x) ((typeTermFreqs.findD (y, x) 0) + 1)  
+  pure ⟨size, termFreqs, typeFreqs, typeTermFreqs⟩
+
+def termFreqData (data: FrequencyData) : IO (Array (Name × Nat)) := do
+  let freqs := data.termFreqs.toArray
+  let freqs := freqs.qsort (fun  (k, v) (k', v') => v > v')
+  return freqs
+
+def typeFreqData (data: FrequencyData) : IO (Array (Name × Nat)) := do
+  let freqs := data.typeFreqs.toArray
+  let freqs := freqs.qsort (fun  (k, v) (k', v') => v > v')
+  return freqs
+
+-- (type, term, p-value, conditional probability of term, probability of term) 
+def termPickData (data: FrequencyData) : (Array (Name × Name × Float × Float × Float)) :=  
+  let base :=  (data.typeTermFreqs.toList.take 1000).toArray.map $ fun ((type, term), k) =>
+      let n := data.typeFreqs.find! type
+      let p := (data.termFreqs.find! term).toFloat / data.size.toFloat
+      (term, type, binomAbove n k p, k.toFloat / n.toFloat, p)
+  base.qsort (fun (_, _, x, _, _) (_, _, y, _, _) => x < y)
+
+end FrequencyData
+
+#eval binomAbove 10 9 0.5

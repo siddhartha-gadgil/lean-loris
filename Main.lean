@@ -20,11 +20,19 @@ def main : IO Unit := do
   let offCore := offSpringTripleCore
   let ei := offCore.run' {maxHeartbeats := 100000000000} {env := mathenv}
   match ←  ei.toIO' with
-  | Except.ok view => 
+  | Except.ok triples => 
       IO.println "\nData obtained"
-      IO.println view.size 
-      IO.println view[0]
-      IO.println view[1]
+      IO.println triples.size 
+      let data ← FrequencyData.get triples
+      let terms ← data.termFreqData
+      let types ← data.typeFreqData
+      IO.println s!"terms:\n${terms}"
+      IO.println s!"types:\n${types}"
+      let pairs := data.typeTermFreqs
+      IO.println s!"pairs:{pairs.size}"
+      let pickData := data.termPickData
+      let pickData := pickData.toList.take 30
+      IO.println s!"significant pairs: {pickData}"
   | Except.error e =>
     do
           let msg ← e.toMessageData.toString
