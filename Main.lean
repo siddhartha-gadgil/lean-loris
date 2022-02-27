@@ -31,7 +31,7 @@ def main : IO Unit := do
       let pairs := data.typeTermFreqs
       IO.println s!"pairs:{pairs.size}"
       let pickData := data.termPickData
-      let pickData := pickData.toList.take 30
+      let pickData := pickData.toList.take 3000
       IO.println s!"significant pairs: {pickData}"
   | Except.error e =>
     do

@@ -142,9 +142,9 @@ def binom (n k: Nat)(p: Float) : Float := Id.run do
 
 def binomAbove (n k: Nat)(p: Float) : Float := Id.run do
   let mut acc := 0
-  for j in [k: n+ 1] do
+  for j in [0: k] do
     acc :=  acc + (binom n j p)
-  return acc 
+  return 1.0 - acc 
 
 
 structure FrequencyData where
@@ -181,12 +181,14 @@ def typeFreqData (data: FrequencyData) : IO (Array (Name × Nat)) := do
 
 -- (type, term, p-value, conditional probability of term, probability of term) 
 def termPickData (data: FrequencyData) : (Array (Name × Name × Float × Float × Float)) :=  
-  let base :=  (data.typeTermFreqs.toList.take 1000).toArray.map $ fun ((type, term), k) =>
+  let baseTasks :=  data.typeTermFreqs.toArray.map $ fun ((type, term), k) =>
+    Task.spawn fun _ =>
       let n := data.typeFreqs.find! type
       let p := (data.termFreqs.find! term).toFloat / data.size.toFloat
       (term, type, binomAbove n k p, k.toFloat / n.toFloat, p)
+  let base := baseTasks.map $ fun t => t.get
   base.qsort (fun (_, _, x, _, _) (_, _, y, _, _) => x < y)
 
 end FrequencyData
 
-#eval binomAbove 10 9 0.5
+#eval binomAbove 10 4 0.5
