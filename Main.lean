@@ -26,18 +26,21 @@ def main : IO Unit := do
       let data ← FrequencyData.get triples
       let terms ← data.termFreqData
       let types ← data.typeFreqData
-      IO.println s!"terms:\n${terms}"
-      IO.println s!"types:\n${types}"
+      -- IO.println s!"terms:\n${terms}"
+      -- IO.println s!"types:\n${types}"
       let pairs := data.typeTermFreqs
       IO.println s!"pairs:{pairs.size}"
-      let pickData := data.termPickData
-      let pickData := pickData.toList.take 3000
-      IO.println s!"significant pairs: {pickData}"
+      -- let pickData := data.termPickData
+      -- let pickData := pickData.toList.take 3000
+      -- IO.println s!"significant pairs: {pickData}"
+      let file := System.mkFilePath ["data/type-terms.json"]
+      let typeTerm := data.typeTermView
+      IO.FS.writeFile file typeTerm
   | Except.error e =>
     do
           let msg ← e.toMessageData.toString
           IO.println msg
-  IO.println "Recursion example"
+  IO.println "\nRecursion example"
   let c := coreView RecEg.view3
   let ei := c.run' {maxHeartbeats := 100000000000} {env := env}
   let view := ei.toIO <| fun e => IO.Error.userError $ "Error while running" 

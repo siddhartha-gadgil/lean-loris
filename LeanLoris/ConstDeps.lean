@@ -4,6 +4,10 @@ import Init.System
 import Std
 import LeanLoris.Utils
 import LeanLoris.ExprPieces
+import Lean.Data.Json.Basic
+import Lean.Data.Json.Printer
+import Lean.Data.Json.Basic
+import Lean.Data.Json.FromToJson
 open Lean Meta Std
 
 initialize exprRecCache : IO.Ref (HashMap Expr (Array Name)) ← IO.mkRef (HashMap.empty)
@@ -152,6 +156,8 @@ structure FrequencyData where
   termFreqs: HashMap Name Nat
   typeFreqs: HashMap Name Nat
   typeTermFreqs: HashMap (Name × Name) Nat
+  typeTermMap : HashMap Name (HashMap Name Nat)
+  allObjects : HashSet Name
 
 namespace FrequencyData
 def get (triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyData := do
@@ -159,15 +165,46 @@ def get (triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyDa
   let mut termFreqs := HashMap.empty
   let mut typeFreqs := HashMap.empty
   let mut typeTermFreqs := HashMap.empty
-  for (_, terms, types) in triples do
+  let mut typeTermMap := HashMap.empty
+  let mut allObjects := HashSet.empty
+  for (name, terms, types) in triples do
+    allObjects := allObjects.insert name
     for x in terms.toList.eraseDups do
       termFreqs := termFreqs.insert x ((termFreqs.findD x 0) + 1)
+      allObjects := allObjects.insert x
     for x in types.toList.eraseDups do
       typeFreqs := typeFreqs.insert x ((typeFreqs.findD x 0) + 1)
+      allObjects := allObjects.insert x
     for y in types.toList.eraseDups do
       for x in terms.toList.eraseDups do      
-        typeTermFreqs := typeTermFreqs.insert (y, x) ((typeTermFreqs.findD (y, x) 0) + 1)  
-  pure ⟨size, termFreqs, typeFreqs, typeTermFreqs⟩
+        typeTermFreqs := typeTermFreqs.insert (y, x) ((typeTermFreqs.findD (y, x) 0) + 1)
+        let trms := (typeTermMap.findD y HashMap.empty)
+        let trms := trms.insert x (trms.findD x 0 + 1)
+        typeTermMap := typeTermMap.insert y trms 
+  pure ⟨size, termFreqs, typeFreqs, typeTermFreqs, typeTermMap, allObjects⟩
+
+def withMultiplicity(triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyData := do
+  let size := triples.size
+  let mut termFreqs := HashMap.empty
+  let mut typeFreqs := HashMap.empty
+  let mut typeTermFreqs := HashMap.empty
+  let mut typeTermMap := HashMap.empty
+  let mut allObjects := HashSet.empty
+  for (name, terms, types) in triples do
+    allObjects := allObjects.insert name
+    for x in terms do
+      termFreqs := termFreqs.insert x ((termFreqs.findD x 0) + 1)
+      allObjects := allObjects.insert x
+    for x in types do
+      typeFreqs := typeFreqs.insert x ((typeFreqs.findD x 0) + 1)
+      allObjects := allObjects.insert x
+    for y in types do
+      for x in terms do      
+        typeTermFreqs := typeTermFreqs.insert (y, x) ((typeTermFreqs.findD (y, x) 0) + 1)
+        let trms := (typeTermMap.findD y HashMap.empty)
+        let trms := trms.insert x (trms.findD x 0 + 1)
+        typeTermMap := typeTermMap.insert y trms 
+  pure ⟨size, termFreqs, typeFreqs, typeTermFreqs, typeTermMap, allObjects⟩
 
 def termFreqData (data: FrequencyData) : IO (Array (Name × Nat)) := do
   let freqs := data.termFreqs.toArray
@@ -189,6 +226,56 @@ def termPickData (data: FrequencyData) : (Array (Name × Name × Float × Float 
   let base := baseTasks.map $ fun t => t.get
   base.qsort (fun (_, _, x, _, _) (_, _, y, _, _) => x < y)
 
+def typeTermArray (data: FrequencyData) : Array (Name × Nat × (Array (Name × Nat))) := 
+  let base := data.typeTermMap.toArray.map <| fun (type, terms) => 
+      (type, data.typeFreqs.find! type, terms.toArray.qsort (fun (k, v) (k', v') => v > v'))
+  base.qsort (fun (_, y, _) (_, y', _) => y > y')
+
+def typeTermView(data: FrequencyData) : String := 
+  let arr : Array (Name × Nat × String)  := data.typeTermArray.map <| fun (type, freq, terms) => 
+      (type, freq, (terms.toList.drop 1).foldl (fun acc (x, freq) => 
+          let pair := s!"[\"{x}\", {freq}]"
+          acc ++ "," ++ pair) s!"[\"{terms[0].1}\", {terms[0].2}]")
+  let arr2 : Array String := arr.map $ fun (type, freq, terms) =>
+        s!"[\"{type}\", {freq}, [{terms}]]"
+  let multiline := (arr2.toList.drop 1).foldl (fun acc x => acc ++ ",\n" ++ x) s!"{arr2[0]}"
+  s!"[{multiline}]"
+
+def matrixData(triples: Array (Name × (Array Name) × (Array Name))) : 
+      (Array Name) × (Array (Array Nat)) × (Array (Array Nat)) := Id.run do
+        let mut allObjects : HashSet Name := HashSet.empty
+        for (name, terms, types) in triples do
+          allObjects := allObjects.insert name
+          for x in terms do
+            allObjects := allObjects.insert x
+          for x in types do
+            allObjects := allObjects.insert x
+        let objects := allObjects.toArray
+        let termsArr := triples.map $ fun (name, terms, types) =>
+            countVec objects (count terms)
+        let typesArr := triples.map $ fun (name, terms, types) =>
+            countVec objects (count types)
+        return ⟨objects, termsArr, typesArr⟩
+        where 
+          count (arr: Array Name) : HashMap Name Nat := Id.run do  
+            let mut m := HashMap.empty
+            for x in arr do
+              m := m.insert x (m.findD x 0 + 1)
+            return m
+          countVec (objs: Array Name) (m: HashMap Name Nat) :=
+            objs.map $ fun x => m.findD x 0
+
+def matrixJson(triples: Array (Name × (Array Name) × (Array Name))) : Json :=
+  let (objects, termsArr, typesArr) := matrixData triples
+  let namesJs := toJson objects
+  let termsJs := toJson termsArr
+  let typesJs := toJson typesArr
+  toJson [("names", namesJs), ("terms", termsJs), ("types", typesJs)]
+
 end FrequencyData
+
+#check Json.pretty
+
+#check Array.takeWhile
 
 #eval binomAbove 10 4 0.5

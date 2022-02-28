@@ -10,3 +10,4 @@ tmp//build
 /lean_packages
 tmp/
 callgrind.*
+venv/
