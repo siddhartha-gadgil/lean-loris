@@ -11,3 +11,4 @@ tmp//build
 tmp/
 callgrind.*
 venv/
+data/

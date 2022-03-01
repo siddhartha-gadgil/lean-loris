@@ -36,6 +36,9 @@ def main : IO Unit := do
       let file := System.mkFilePath ["data/type-terms.json"]
       let typeTerm := data.typeTermView
       IO.FS.writeFile file typeTerm
+      let file := System.mkFilePath ["data/matrices.json"]
+      let matrices := matrixView triples
+      IO.FS.writeFile file matrices
   | Except.error e =>
     do
           let msg ← e.toMessageData.toString

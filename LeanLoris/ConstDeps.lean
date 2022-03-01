@@ -241,6 +241,8 @@ def typeTermView(data: FrequencyData) : String :=
   let multiline := (arr2.toList.drop 1).foldl (fun acc x => acc ++ ",\n" ++ x) s!"{arr2[0]}"
   s!"[{multiline}]"
 
+end FrequencyData
+
 def matrixData(triples: Array (Name × (Array Name) × (Array Name))) : 
       (Array Name) × (Array (Array Nat)) × (Array (Array Nat)) := Id.run do
         let mut allObjects : HashSet Name := HashSet.empty
@@ -270,9 +272,11 @@ def matrixJson(triples: Array (Name × (Array Name) × (Array Name))) : Json :=
   let namesJs := toJson objects
   let termsJs := toJson termsArr
   let typesJs := toJson typesArr
-  toJson [("names", namesJs), ("terms", termsJs), ("types", typesJs)]
+  Json.mkObj [("names", namesJs), ("terms", termsJs), ("types", typesJs)]
 
-end FrequencyData
+def matrixView(triples: Array (Name × (Array Name) × (Array Name))) : String :=
+  (matrixJson triples).pretty
+
 
 #check Json.pretty
 
