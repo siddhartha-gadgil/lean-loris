@@ -12,3 +12,4 @@ tmp/
 callgrind.*
 venv/
 data/
+__pycache__/

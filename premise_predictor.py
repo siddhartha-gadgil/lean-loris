@@ -50,7 +50,7 @@ print(proofs_tensor.shape)
 model.compile(
     optimizer=keras.optimizers.Adam(),  # Optimizer
     # Loss function to minimize
-    loss=keras.losses.KLDivergence(),
+    loss=keras.losses.MeanSquaredError(),
     # List of metrics to monitor
     # metrics=[keras.metrics.SparseCategoricalAccuracy()],
 )
@@ -85,7 +85,7 @@ def sort_weighted(weights):
     ns = [names[x] for x in l]
     w = list(weights).copy()
     w.sort(reverse=True)
-    return [(ns[i], w[i]) for i in range(len(names))]
+    return [(ns[i], w[i]) for i in range(len(names)) if w[i] > 0]
 
 def name_prediction_weights(name):
     return sort_weighted(model.predict(namevec(name))[0])

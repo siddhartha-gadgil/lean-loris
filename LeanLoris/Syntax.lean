@@ -9,11 +9,11 @@ open Lean Elab Meta Term ProdSeq
 declare_syntax_cat expr_dist 
 
 syntax exprWt := "(" term "," num ")"
-syntax exprWtList := "%{" exprWt,* "}"
+syntax exprWtList := "exp!{" exprWt,* "}"
 syntax exprWtList : expr_dist
 
 def parseExprMap : Syntax → TermElabM (Array (Expr × Nat))
-  | `(expr_dist|%{$[$xs:exprWt],*}) =>
+  | `(expr_dist|exp!{$[$xs:exprWt],*}) =>
     do
           let m : Array (Expr × Nat) ←  xs.mapM (fun s => do
               match s with 
@@ -36,16 +36,16 @@ syntax (name:= exprDistPack) "packdist!" expr_dist : term
           packWeighted m.toList
     | _ => throwIllFormedSyntax
 
--- #eval packdist! %{(1, 2), ("Hello", 4)}
--- #check packdist! %{(1, 2), ("Hello", 4)}
+-- #eval packdist! exp!{(1, 2), ("Hello", 4)}
+-- #check packdist! exp!{(1, 2), ("Hello", 4)}
 
-#reduce (fun x y : Nat => packdist!%{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
+#reduce (fun x y : Nat => packdist! exp!{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
 
 declare_syntax_cat expr_list
-syntax "%[" term,* "]" : expr_list
+syntax "exp![" term,* "]" : expr_list
 
 def parseExprList : Syntax → TermElabM (Array Expr)
-  | `(expr_list|%[$[$xs],*]) =>
+  | `(expr_list|exp![$[$xs],*]) =>
     do
           let m : Array Expr ←  xs.mapM <| fun s => 
             do 
@@ -65,15 +65,15 @@ syntax (name:= exprPack) "pack!" expr_list : term
           pack m.toList
   | _ => throwIllFormedSyntax
 
--- #check pack! %[(1, 2), 3, ("Hello", 4), "over here"]
+-- #check pack! exp![(1, 2), 3, ("Hello", 4), "over here"]
 
 declare_syntax_cat name_dist
 syntax nameWt := "(" ident "," num ")"
-syntax nameWtList := "!{" nameWt,* "}"
+syntax nameWtList := "name!{" nameWt,* "}"
 syntax nameWtList : name_dist
 
 def parseNameMap : Syntax → TermElabM (Array (Name × Nat))
-  | `(name_dist|!{$[$xs:nameWt],*}) =>
+  | `(name_dist|name!{$[$xs:nameWt],*}) =>
     do
           let m : Array (Name × Nat) ←  xs.mapM (fun s => do
               match s with 
@@ -115,6 +115,7 @@ syntax "pi-goals": evolver
 syntax "pi-types": evolver
 syntax "rfl": evolver
 syntax "nat-rec": evolver
+syntax evolver "^" evolver : evolver
 
 declare_syntax_cat evolve_transformer
 syntax "by-type" (num)?: evolve_transformer
@@ -143,9 +144,9 @@ abbrev initEv := init FullData
 end RecEvolverM
 
 declare_syntax_cat evolver_list
-syntax "^[" evolver,* (">>" evolve_transformer)? "]" : evolver_list
+syntax "ev![" evolver,* (">>" evolve_transformer)? "]" : evolver_list
 
-def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
+partial def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
 | `(evolver|app) => return (applyEvolver FullData).tautRec
 | `(evolver|name-app) => return (nameApplyEvolver FullData).tautRec
 | `(evolver|binop) => return (applyPairEvolver FullData).tautRec
@@ -166,6 +167,10 @@ def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
 | `(evolver|pi-types) => return piGoalsEvolverM FullData false
 | `(evolver|rfl) => return (rflEvolverM FullData).tautRec
 | `(evolver|nat-rec) => return (natRecEvolverM FullData).tautRec
+| `(evolver|$x:evolver ^ $y:evolver) => do
+    let x ←  parseEvolver x
+    let y ← parseEvolver y
+    return (y.conjApply (x.fixedPoint)).tautRec
 
 | stx => throwError m!"Evolver not implemented for {stx}"
 
@@ -178,11 +183,11 @@ def parseEvolverTrans : Syntax → TermElabM (ExprDist → TermElabM ExprDist)
 
 
 def parseEvolverList : Syntax → TermElabM (RecEvolverM FullData)  
-  | `(evolver_list|^[$[$xs],*]) =>
+  | `(evolver_list|ev![$[$xs],*]) =>
     do
           let m : Array (RecEvolverM FullData) ←  xs.mapM <| fun s => parseEvolver s
           return m.foldl (fun acc x => acc ++ x) (RecEvolverM.init FullData)
-  | `(evolver_list|^[$[$xs],* >> $tr]) =>
+  | `(evolver_list|ev![$[$xs],* >> $tr]) =>
     do
           let m : Array (RecEvolverM FullData) ←  xs.mapM <| fun s => parseEvolver s
           return (m.foldl (fun acc x => acc ++ x) (RecEvolverM.init FullData)).transformM 
@@ -213,7 +218,7 @@ match s with
 def syn: MacroM Syntax :=  `(evolver|app)
 -- #check syn.run
 
-def syn2: TermElabM Syntax :=  `(evolver_list|^[app, name-app])
+def syn2: TermElabM Syntax :=  `(evolver_list|ev![app, name-app])
 -- #check syn2.run
 def lstfromsyn:  TermElabM (RecEvolverM FullData)  :=  do
         let syn ← syn2
