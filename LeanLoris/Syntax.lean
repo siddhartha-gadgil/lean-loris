@@ -145,54 +145,57 @@ end RecEvolverM
 
 declare_syntax_cat evolver_list
 syntax "ev![" evolver,* (">>" evolve_transformer)? "]" : evolver_list
-
-partial def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
-| `(evolver|app) => return (applyEvolver FullData).tautRec
-| `(evolver|name-app) => return (nameApplyEvolver FullData).tautRec
-| `(evolver|binop) => return (applyPairEvolver FullData).tautRec
-| `(evolver|name-binop) => return (nameApplyPairEvolver FullData).tautRec
-| `(evolver|simple-app) => return (simpleApplyEvolver FullData).tautRec
-| `(evolver|simple-binop) => return (simpleApplyPairEvolver FullData).tautRec
-| `(evolver|rewrite) => return (rewriteEvolver FullData true).tautRec
-| `(evolver|rewrite-flip) => return (rewriteEvolver FullData false).tautRec
-| `(evolver|congr) => return (congrEvolver FullData).tautRec
-| `(evolver|eq-isles) => return eqIsleEvolver FullData
-| `(evolver|all-isles) => return allIsleEvolver FullData
-| `(evolver|func-dom-isles) => return funcDomIsleEvolver FullData
-| `(evolver|eq-closure) => return (eqSymmTransEvolver FullData).tautRec
-| `(evolver|eq-closure $goals) => do
-        let goals ← parseExprList goals
-        return (eqSymmTransEvolver FullData goals).tautRec
-| `(evolver|pi-goals) => return piGoalsEvolverM FullData true
-| `(evolver|pi-types) => return piGoalsEvolverM FullData false
-| `(evolver|rfl) => return (rflEvolverM FullData).tautRec
-| `(evolver|nat-rec) => return (natRecEvolverM FullData).tautRec
-| `(evolver|$x:evolver ^ $y:evolver) => do
-    let x ←  parseEvolver x
-    let y ← parseEvolver y
-    return (y.conjApply (x.fixedPoint)).tautRec
-
-| stx => throwError m!"Evolver not implemented for {stx}"
+syntax "Σ" evolver_list : evolver
 
 def parseEvolverTrans : Syntax → TermElabM (ExprDist → TermElabM ExprDist)
-| `(evolve_transformer|by-type) => return weightByType 1
-| `(evolve_transformer|by-type $n) => do
-      let n ← parseNat n
-      return weightByType n
-| stx => throwError m!"Evolver transformer not implemented for {stx}"
+  | `(evolve_transformer|by-type) => return weightByType 1
+  | `(evolve_transformer|by-type $n) => do
+        let n ← parseNat n
+        return weightByType n
+  | stx => throwError m!"Evolver transformer not implemented for {stx}"
 
 
-def parseEvolverList : Syntax → TermElabM (RecEvolverM FullData)  
-  | `(evolver_list|ev![$[$xs],*]) =>
-    do
-          let m : Array (RecEvolverM FullData) ←  xs.mapM <| fun s => parseEvolver s
-          return m.foldl (fun acc x => acc ++ x) (RecEvolverM.init FullData)
-  | `(evolver_list|ev![$[$xs],* >> $tr]) =>
-    do
-          let m : Array (RecEvolverM FullData) ←  xs.mapM <| fun s => parseEvolver s
-          return (m.foldl (fun acc x => acc ++ x) (RecEvolverM.init FullData)).transformM 
-                    <| ← parseEvolverTrans tr
-  | _ => throwIllFormedSyntax
+mutual
+  partial def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
+  | `(evolver|app) => return (applyEvolver FullData).tautRec
+  | `(evolver|name-app) => return (nameApplyEvolver FullData).tautRec
+  | `(evolver|binop) => return (applyPairEvolver FullData).tautRec
+  | `(evolver|name-binop) => return (nameApplyPairEvolver FullData).tautRec
+  | `(evolver|simple-app) => return (simpleApplyEvolver FullData).tautRec
+  | `(evolver|simple-binop) => return (simpleApplyPairEvolver FullData).tautRec
+  | `(evolver|rewrite) => return (rewriteEvolver FullData true).tautRec
+  | `(evolver|rewrite-flip) => return (rewriteEvolver FullData false).tautRec
+  | `(evolver|congr) => return (congrEvolver FullData).tautRec
+  | `(evolver|eq-isles) => return eqIsleEvolver FullData
+  | `(evolver|all-isles) => return allIsleEvolver FullData
+  | `(evolver|func-dom-isles) => return funcDomIsleEvolver FullData
+  | `(evolver|eq-closure) => return (eqSymmTransEvolver FullData).tautRec
+  | `(evolver|eq-closure $goals) => do
+          let goals ← parseExprList goals
+          return (eqSymmTransEvolver FullData goals).tautRec
+  | `(evolver|pi-goals) => return piGoalsEvolverM FullData true
+  | `(evolver|pi-types) => return piGoalsEvolverM FullData false
+  | `(evolver|rfl) => return (rflEvolverM FullData).tautRec
+  | `(evolver|nat-rec) => return (natRecEvolverM FullData).tautRec
+  | `(evolver|$x:evolver ^ $y:evolver) => do
+      let x ←  parseEvolver x
+      let y ← parseEvolver y
+      return (y.conjApply (x.fixedPoint)).tautRec
+  | `(evolver|Σ $x) => parseEvolverList x
+  | stx => throwError m!"Evolver not implemented for {stx}"
+
+  partial def parseEvolverList : Syntax → TermElabM (RecEvolverM FullData)  
+    | `(evolver_list|ev![$[$xs],*]) =>
+      do
+            let m : Array (RecEvolverM FullData) ←  xs.mapM <| fun s => parseEvolver s
+            return m.foldl (fun acc x => acc ++ x) (RecEvolverM.init FullData)
+    | `(evolver_list|ev![$[$xs],* >> $tr]) =>
+      do
+            let m : Array (RecEvolverM FullData) ←  xs.mapM <| fun s => parseEvolver s
+            return (m.foldl (fun acc x => acc ++ x) (RecEvolverM.init FullData)).transformM 
+                      <| ← parseEvolverTrans tr
+    | _ => throwIllFormedSyntax
+end
 
 syntax (name:= evolution) 
   "evolve!" evolver_list (expr_list)? expr_dist (name_dist)? num num  : term
