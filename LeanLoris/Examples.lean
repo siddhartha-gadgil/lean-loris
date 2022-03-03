@@ -76,12 +76,12 @@ def two := succ one
 
 #check evolve! ev![app] exp![one, two] exp!{(succ, 0), (zero, 1)} name!{} 5 100 
 
-#check evolve! ev![app] exp![one, two, Nat] exp!{(succ, 0), (zero, 1)} 5 100 
+#check evolve! ev![app] exp![one, two] exp!{(succ, 0), (zero, 1)} 5 100 
 
 #check evolve! ev![app] exp!{(succ, 0), (zero, 1)}  5 100 
 
 def eveg(α : Type):= fun (f g: α →  α) (a: α) => 
-          evolve! ev![app] exp![f, f a, f (f a), α] exp!{(a, 1), (f, 0), (g, 1)} 5 100
+          evolve! ev![app] exp![f, f a, f (f a)] exp!{(a, 1), (f, 0), (g, 1)} 5 100
 
 #reduce eveg
 

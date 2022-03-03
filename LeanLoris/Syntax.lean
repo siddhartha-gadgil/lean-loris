@@ -112,7 +112,7 @@ syntax "func-dom-isles": evolver
 syntax "eq-closure": evolver
 syntax "eq-closure" (expr_list)?: evolver
 syntax "pi-goals": evolver
-syntax "pi-types": evolver
+syntax "pi-goals-all": evolver
 syntax "rfl": evolver
 syntax "nat-rec": evolver
 syntax evolver "^" evolver : evolver
@@ -135,8 +135,7 @@ abbrev eqIsles := eqIsleEvolver FullData
 abbrev allIsles := allIsleEvolver FullData
 abbrev funcDomIsles := funcDomIsleEvolver FullData
 abbrev eqClosure := (eqSymmTransEvolver FullData).tautRec
-abbrev piGoals := piGoalsEvolverM FullData true
-abbrev piTypes := piGoalsEvolverM FullData false
+abbrev piGoals := piGoalsEvolverM FullData 
 abbrev rflEv := (rflEvolverM FullData).tautRec
 abbrev natRecEv := (natRecEvolverM FullData).tautRec
 abbrev initEv := init FullData
@@ -173,8 +172,8 @@ mutual
   | `(evolver|eq-closure $goals) => do
           let goals ← parseExprList goals
           return (eqSymmTransEvolver FullData goals).tautRec
-  | `(evolver|pi-goals) => return piGoalsEvolverM FullData true
-  | `(evolver|pi-types) => return piGoalsEvolverM FullData false
+  | `(evolver|pi-goals) => return piGoalsEvolverM FullData
+  | `(evolver|pi-goals-all) => return piGoalsEvolverM FullData false
   | `(evolver|rfl) => return (rflEvolverM FullData).tautRec
   | `(evolver|nat-rec) => return (natRecEvolverM FullData).tautRec
   | `(evolver|$x:evolver ^ $y:evolver) => do
@@ -210,10 +209,12 @@ match s with
   let initData : FullData := (nameDist, [], [])
   let goals? ← goals?.mapM $ fun goals => parseExprList goals
   let goals := goals?.getD #[]
-  let ev := ev.fixedPoint.evolve.andThenM (logResults goals)
+  let ev := ev.fixedPoint.evolve
   let wb ← parseNat wb
   let card ← parseNat card
   let finalDist ← ev wb card initData (← ExprDist.fromArray initDist) 
+  logInfo "logging results"
+  logResults goals finalDist
   let reportDist ← goals.filterMapM $ fun g => finalDist.getProof? g
   return ← (ppackWeighted reportDist.toList)
 | _ => throwIllFormedSyntax

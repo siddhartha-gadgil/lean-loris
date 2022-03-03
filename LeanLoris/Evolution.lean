@@ -651,11 +651,10 @@ def piDomains(terms: Array (Expr × Nat)) : TermElabM (Array (Expr × Nat)) := d
   return domains
 
 -- generating from domains of pi-types
-def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D](goalsOnly: Bool) : RecEvolverM D := 
+def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D](excludeInit: Bool := true) : RecEvolverM D := 
   fun wb c init d evolve => 
   -- if wb = 0 then init else
   do
-    let targets ← if goalsOnly then init.goalsArr else pure init.allTermsArr
     let piDoms ← piDomains (init.termsArr)
     -- IO.println s!"pi-domains: {← piDoms.mapM <| fun (t , w) => do return (← view <| ← whnf t, w)}"
     -- IO.println s!"initial terms: {← init.termsArr.mapM (fun (t, w) => do return (← view t, w))}"
@@ -689,7 +688,7 @@ def piGoalsEvolverM(D: Type)[IsNew D][NewElem Expr D][IsleData D](goalsOnly: Boo
           ⟨isleTerms, init.proofsArr⟩
       let ic := c / (cumWeights.find! w)
       let isleDist ←   isleM type evolve (wb ) ic isleInit 
-                (isleData d init wb c) true false false true
+                (isleData d init wb c) true false false excludeInit
       finalDist ←  finalDist ++ isleDist
     -- logInfo "finished for loop for pi-domains"
     return finalDist
@@ -726,28 +725,33 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
     IO.println s!"number of proofs: {dist.proofsArr.size}"
     IO.println s!"term distribution : {(arrWeightCount dist.termsArr).toArray}"
     IO.println s!"proof distribution: {(arrWeightCount <| dist.proofsArr.map (fun (l, _, w) => (l, w))).toArray}"
-    -- IO.println s!"function distribution : {(arrWeightCount <| ←  dist.funcs).toArray}"
-    -- for (l, pf, w) in dist.proofsArr do
-      -- logInfo m!"{l} : {pf} : {w}" 
     let mut count := 0
     for g in goals do
       count := count + 1
       IO.println s!"goal {count}: {← view g}"
       let statement ←  (dist.allTermsArr.findM? $ fun (s, _) => isDefEq s g)
-      let statement ←  statement.mapM $ fun (e, w) => do
-        let e ← whnf e
-        pure (← view e, w) 
+      -- let statement ←  statement.mapM $ fun (e, w) => do
+      --   let e ← whnf e
+      --   pure (← view e, w) 
       if ← isProp g then
         IO.println s!"proposition generated: {statement}"
         let proof ←  dist.proofsArr.findM? $ fun (l, t, w) => 
                 do isDefEq l g
         match proof with
         | some (_, pf, w) =>
-          -- logInfo m!"found proof {pf} for proposition goal {count} : {g}"
+          logInfo m!"found proof {pf} for proposition goal {count} : {g}"
           IO.println s!"proof generated: {← view pf}, weight : {w}"
-        | none => pure () -- IO.println s!"no proof generated"
+        | none =>  
+          logWarning m!"no proof found for proposition goal {count} : {g}"
+          pure ()
       else
-        IO.println s!"term generated: {statement}"
+        match statement with
+        | some (e, w) =>
+          logInfo m!"generated term {e} for goal {count} : {g}, weight : {w}"
+          IO.println s!"generated term: {← view e} for goal {count} : {g} , weight : {w}"
+        | none => 
+          logWarning m!"no term found for goal {count} : {g}"
+          pure ()
 
 abbrev EvolutionM := ExprDist → TermElabM ExprDist
 

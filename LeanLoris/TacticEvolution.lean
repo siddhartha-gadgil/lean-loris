@@ -121,8 +121,8 @@ def typeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
                 -- logInfo m!"tactic failed for {type}" 
                 pure ()
               | some ys =>
-                logInfo m!"tactic succeeded for {type}, giving {ys}"
-                logInfo m!"head type : {← inferType ys[0]}" 
+                -- logInfo m!"tactic succeeded for {type}, giving {ys}"
+                -- logInfo m!"head type : {← inferType ys[0]}" 
                 for y in ys do terms := terms.push (y, w + 1)
             ExprDist.fromArray terms
 
@@ -139,8 +139,8 @@ def weightedTypeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
                 -- logInfo m!"tactic failed for {type}" 
                 pure ()
               | some ys =>
-                logInfo m!"tactic succeeded for {type}, giving {ys}"
-                logInfo m!"head type : {← inferType ys[0].1}" 
+                -- logInfo m!"tactic succeeded for {type}, giving {ys}"
+                -- logInfo m!"head type : {← inferType ys[0].1}" 
                 for (y, w0) in ys do terms := terms.push (y, w + w0)
             ExprDist.fromArray terms
 

@@ -3,7 +3,7 @@ import LeanLoris.Syntax
 
 def idPropTest(A: Prop) :=
   let idA := ∀ a : A, A
-  let seek := evolve! ev![pi-goals] exp![idA] exp!{(idA, 0)} 1 1000
+  let seek := evolve! ev![pi-goals-all] exp![idA] exp!{(idA, 0)} 1 1000
   ()
 
 def appTest(A B: Prop)(a : A)(f: A → B) :=
