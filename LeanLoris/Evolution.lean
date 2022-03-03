@@ -450,25 +450,24 @@ def eqIsleEvolver(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM D 
   do
     -- logInfo m!"isle called: weight-bound {wb}, cardinality: {c}"
     -- logInfo m!"initial time: {← IO.monoMsNow}"
-    let mut eqTypes: FinDist Expr := FinDist.empty -- lhs types, (minimum) weights
-    let mut eqs: FinDist Expr := FinDist.empty -- equalities, weights
+    let mut eqTypesArr: Array (Expr × Nat) := Array.empty
+    let mut eqs: ExprDist := ExprDist.empty -- equalities, weights
     let mut eqTriples : Array (Expr × Expr × Nat) := #[] -- equality, lhs type, weight
     for (l, exp, w) in init.proofsArr do
       match l.eq? with
       | none => pure ()
       | some (α, lhs, rhs) =>
-          eqTypes :=  eqTypes.update α w
-          eqs :=  eqs.update exp w
+          eqTypesArr := eqTypesArr.push (α, w)
+          eqs :=  eqs.pushProof l exp w
           eqTriples := eqTriples.push (exp, α, w)
-    let eqsCum := eqs.cumulWeightCount wb
+    let eqsCum := weightAbove eqs.allTermsArr wb
     let mut isleDistMap : HashMap Expr ExprDist := HashMap.empty
-    -- logInfo m!"equality types: {eqTypes.size}"
-    for (type, w) in eqTypes.toArray do
+    let eqTypesExpr ←  ExprDist.fromArray eqTypesArr
+    for (type, w) in eqTypesExpr.termsArr do
       if wb - w > 0 then
         let ic := c / (eqsCum.find! w) -- should not be missing
         let isleDist ←   isleM type evolve (wb -w -1) ic init d false true false true
         isleDistMap := isleDistMap.insert type isleDist
-    -- logInfo m!"tasks to be defined :{← IO.monoMsNow}"
     let finDistsAux : Array (Task (TermElabM ExprDist)) :=  
         (eqTriples.filter (fun (_, _, weq) => wb - weq > 0)).map <|
           fun (eq, type, weq) => 
@@ -483,10 +482,8 @@ def eqIsleEvolver(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM D 
                   | some y => 
                       d.updateExprM y (wf + weq + 1)
                 ) ExprDist.empty) 
-    -- logInfo m!"tasks defined :{← IO.monoMsNow}"
     let finDists ← finDistsAux.mapM <| fun t => t.get
     let finDists := finDists.filter (fun d => d.termsArr.size > 0 || d.proofsArr.size > 0)
-    -- logInfo m!"tasks executed :{← IO.monoMsNow}"
     let res := finDists.foldlM (fun x y => x ++ y) ExprDist.empty
     -- logInfo m!"isles done time: {← IO.monoMsNow}, isles: {finDists.size}"
     res

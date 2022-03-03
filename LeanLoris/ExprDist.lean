@@ -39,7 +39,7 @@ def updateTermM(m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist :=
         let (t, w) := m.termsArr.get! j 
         -- if !((← exprHash x) == (← exprHash t)) then 
         --     IO.println s!"{x} = {t} but {← exprHash x} != {← exprHash t}"
-        if w ≤ j then return m
+        if w ≤ d then return m
         else return ⟨m.termsArr.set! j (x, d), m.proofsArr⟩
       | none => 
           return ⟨m.termsArr.push (x, d), m.proofsArr⟩
