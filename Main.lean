@@ -10,12 +10,8 @@ open CzSl ExprDist Lean
 set_option maxHeartbeats 10000000
 set_option maxRecDepth 1000
 set_option compiler.extract_closed false
-def main : IO Unit := do
-  initSearchPath (← Lean.findSysroot?) ["build/lib", "lean_packages/mathlib/build/lib/"]
-  let env ← 
-    importModules [{module := `LeanLoris.CompiledCzSl}, {module := `LeanLoris.CompiledRecEg}] {}
-  let mathenv ← 
-    importModules [{module := `Mathlib}] {}
+
+def mathDepData(mathenv: Environment) : IO Unit := do
   IO.println "counting dependencies"
   let offCore := offSpringTripleCore
   let ei := offCore.run' {maxHeartbeats := 100000000000} {env := mathenv}
@@ -26,13 +22,8 @@ def main : IO Unit := do
       let data ← FrequencyData.get triples
       let terms ← data.termFreqData
       let types ← data.typeFreqData
-      -- IO.println s!"terms:\n${terms}"
-      -- IO.println s!"types:\n${types}"
       let pairs := data.typeTermFreqs
       IO.println s!"pairs:{pairs.size}"
-      -- let pickData := data.termPickData
-      -- let pickData := pickData.toList.take 3000
-      -- IO.println s!"significant pairs: {pickData}"
       let file := System.mkFilePath ["data/type-terms.json"]
       let typeTerm := data.typeTermView
       IO.FS.writeFile file typeTerm
@@ -43,6 +34,9 @@ def main : IO Unit := do
     do
           let msg ← e.toMessageData.toString
           IO.println msg
+  return ()
+
+def runRecEg(env: Environment) : IO Unit := do
   IO.println "\nRecursion example"
   let c := coreView RecEg.view3
   let ei := c.run' {maxHeartbeats := 100000000000} {env := env}
@@ -55,16 +49,8 @@ def main : IO Unit := do
     do
           let msg ← e.toMessageData.toString
           IO.println msg
-  -- IO.println "\nBinop"
-  -- let c := coreView RecEg.view0
-  -- let ei := c.run' {maxHeartbeats := 100000000000} {env}
-  -- match ←  ei.toIO' with
-  -- | Except.ok view => 
-  --     IO.println view 
-  -- | Except.error e =>
-  --   do
-  --         let msg ← e.toMessageData.toString
-  --         IO.println msg
+
+def runCzSl(env: Environment) : IO Unit := do
   IO.println "\nCzech-Slovak Olympiad example"
   let c := coreView view4
   let ei := c.run' {maxHeartbeats := 100000000000} {env := env}
@@ -76,4 +62,18 @@ def main : IO Unit := do
     do
           let msg ← e.toMessageData.toString
           IO.println msg
+
+def main (args: List String) : IO Unit := do
+  initSearchPath (← Lean.findSysroot?) ["build/lib", "lean_packages/mathlib/build/lib/"]
+  let env ← 
+    importModules [{module := `LeanLoris.CompiledCzSl}, {module := `LeanLoris.CompiledRecEg}] {}
+  let mathenv ← 
+    importModules [{module := `Mathlib}] {}
+  IO.println "Choose one or more of the following:"
+  IO.println "1. Recursion example"
+  IO.println "2. Czech-Slovak Olympiad example"
+  IO.println "3. Dependency generation"
+  if args.contains "1" then runRecEg env
+  if args.contains "2" then runCzSl env
+  if args.contains "3" then mathDepData mathenv
   return ()
