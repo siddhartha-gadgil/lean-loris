@@ -130,14 +130,14 @@ partial def exprHash : Expr → TermElabM UInt64 :=
         let isForAll := (typeOpt.map (fun type => type.isForall)).getD true
         if isForAll then return 7
         else
-        if ← (isWhiteListed name) 
-          then return name.hash 
-          else
-          if ← (isNotAux  name)  then
+        -- if ← (isWhiteListed name) 
+        --   then return name.hash 
+        --   else
+        --   if ← (isNotAux  name)  then
             match ← nameExpr?  name with
             | some e => exprHash e
             | none => return 7
-          else return 7        
+          -- else return 7        
       | Expr.app f a _ => 
           do  
             let ftypeOpt ← inferTypeOpt f 
@@ -153,8 +153,60 @@ partial def exprHash : Expr → TermElabM UInt64 :=
       | Expr.letE _ t v b _ => 
           return mixHash (← exprHash t) (← exprHash b)
       | Expr.lit _ d => return d.hash
-      | _ => return e.hash
+      | _ => return 7
 
+partial def exprHashV : Expr → TermElabM UInt64 :=
+  fun e => do 
+    logInfo m!"computing hash of {e}"
+    match e with
+      | Expr.const name _ _  =>
+        do
+        logInfo m!"{e} is a constant {name}"
+        let typeOpt ← inferTypeOpt e
+        let isForAll := (typeOpt.map (fun type => type.isForall)).getD true
+        if isForAll then
+          logInfo m!"{e} is forall" 
+          return 7
+        else
+        -- if ← (isWhiteListed name) 
+        --   then return name.hash 
+        --   else
+        --   if ← (isNotAux  name)  then
+            match ← nameExpr?  name with
+            | some e => exprHashV e
+            | none => 
+              logInfo m!"{e} is a name {name} with no definition"
+              return 7
+          -- else return 7        
+      | Expr.app f a _ => 
+          do  
+            logInfo m!"{e} is {f} applied to {a}" 
+            let ftypeOpt ← inferTypeOpt f 
+            let explOpt := 
+              ftypeOpt.map $ fun ftype =>
+              (ftype.data.binderInfo.isExplicit)
+            let expl := explOpt.getD true
+            if !expl then
+              logInfo m!"{e} isa function with argument not explicit" 
+              pure 7 
+            else
+              logInfo m!"Mixing hash of {f} and {a}" 
+              return mixHash (← exprHashV f) (← exprHashV a)
+      | Expr.lam _ t b _ => 
+          logInfo m!"{e} is a lambda {t} {b}"
+          return mixHash (← exprHashV t) (← exprHashV b)
+      | Expr.forallE _ t b _ => do
+          logInfo m!"{e} is a forall {t} {b}"
+          return mixHash (← exprHashV t) (← exprHashV b) 
+      | Expr.letE _ t v b _ => 
+          logInfo m!"{e} is a let {t} {v} {b}"
+          return mixHash (← exprHashV t) (← exprHashV b)
+      | Expr.lit _ d => 
+          logInfo m!"{e} is a literal"
+          return d.hash
+      | _ =>
+          logInfo m!"{e} is a weird expression {← whnf e} with hash {e.hash}" 
+          return 7
 
 
 partial def subExpr?(withDoms: Bool)(parent: Expr): Expr → TermElabM Bool := 

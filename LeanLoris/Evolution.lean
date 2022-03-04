@@ -718,7 +718,7 @@ def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist =>
                 do isDefEq l g
         match proof with
         | some (_, pf, w) =>
-          logInfo m!"found proof {pf} for proposition goal {count} : {g}"
+          logInfo m!"found proof {pf} for proposition goal {count} : {g}; weight {w}"
           IO.println s!"proof generated: {← view pf}, weight : {w}"
         | none =>  
           logWarning m!"no proof found for proposition goal {count} : {g}"

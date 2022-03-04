@@ -238,3 +238,23 @@ def lstfromsyn:  TermElabM (RecEvolverM FullData)  :=  do
         parseEvolverList syn
 
 -- #check lstfromsyn
+
+elab "hash!" t:term : term => do
+    let expr ← elabTerm t none
+    let expr ← whnf expr
+    let h ← exprHash expr
+    let n := h.toNat
+    logInfo m!"expr: {expr}"
+    logInfo m!"hash: {n}"
+    return ToExpr.toExpr n
+
+elab "hashv!" t:term : term => do
+    let expr ← elabTerm t none
+    let expr ← whnf expr
+    let h ← exprHashV expr
+    let n := h.toNat
+    logInfo m!"expr: {expr}"
+    logInfo m!"hash: {n}"
+    return ToExpr.toExpr n
+
+#check (3 : UInt64).toNat

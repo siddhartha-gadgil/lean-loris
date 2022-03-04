@@ -36,6 +36,7 @@ def view(expr: Expr): MetaM String := do
 def inferTypeOpt(e: Expr) : MetaM (Option Expr) := do
   try
     let type ← inferType e
+    let type ← whnf e
     return some type
   catch _ => return none
 
