@@ -32,17 +32,13 @@ def parseExprDist : Syntax → TermElabM ExprDist
       ExprDist.load name
   | _ => throwIllFormedSyntax
 
-syntax (name:= exprDistPack) "packdist!" expr_dist : term
-@[termElab exprDistPack] def exprDistPackImpl : TermElab := fun stx _ =>
-    match stx with 
-    | `(packdist! $s:expr_dist) => 
-        do
-          let m : Array (Expr × Nat)  := (←  parseExprDist s).allTermsArr
-          packWeighted m.toList
-    | _ => throwIllFormedSyntax
+elab (name:= exprDistPack) "packdist!" s:expr_dist : term => do
+  let m : Array (Expr × Nat)  := (←  parseExprDist s).allTermsArr
+  packWeighted m.toList
 
--- #eval packdist! exp!{(1, 2), ("Hello", 4)}
--- #check packdist! exp!{(1, 2), ("Hello", 4)}
+
+#eval packdist! exp!{(1, 2), ("Hello", 4)}
+#check packdist! exp!{(1, 2), ("Hello", 4)}
 
 -- #reduce (fun x y : Nat => packdist! exp!{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
 
@@ -61,16 +57,11 @@ def parseExprList : Syntax → TermElabM (Array Expr)
           return m
   | _ => throwIllFormedSyntax
 
-syntax (name:= exprPack) "pack!" expr_list : term
-@[termElab exprPack] def exprPackImpl : TermElab := fun stx expectedType =>
-  match stx with
-  | `(pack! $s:expr_list) => 
-    do
-          let m : Array (Expr) ←  parseExprList s
-          pack m.toList
-  | _ => throwIllFormedSyntax
+elab (name:= exprPack) "pack!" s:expr_list : term => do
+    let m : Array (Expr) ←  parseExprList s
+    pack m.toList
 
--- #check pack! exp![(1, 2), 3, ("Hello", 4), "over here"]
+#check pack! exp![(1, 2), 3, ("Hello", 4), "over here"]
 
 declare_syntax_cat name_dist
 syntax nameWt := "(" ident "," num ")"
@@ -90,15 +81,10 @@ def parseNameMap : Syntax → TermElabM (Array (Name × Nat))
           return m
   | _ => throwIllFormedSyntax
 
-syntax (name:= constpack) "const!" name_dist : term
-@[termElab constpack] def constpackImpl : TermElab := fun stx _ =>
-    match stx with 
-    | `(const! $s:name_dist) => 
-        do
-          let m : Array (Name × Nat) ←  parseNameMap s
-          let c := m.map (fun (n, w) => (mkConst n, w))
-          packWeighted c.toList
-    | _ => throwIllFormedSyntax
+elab (name:= constpack) "const!" s:name_dist : term  => do
+    let m : Array (Name × Nat) ←  parseNameMap s
+    let c := m.map (fun (n, w) => (mkConst n, w))
+    packWeighted c.toList
 
 
 declare_syntax_cat evolver 
@@ -202,10 +188,10 @@ mutual
 end
 
 syntax (name:= evolution) 
-  "evolve!" evolver_list (expr_list)? expr_dist (name_dist)? num num  : term
+  "evolve!" evolver_list (expr_list)? expr_dist (name_dist)? (ident)? num num  : term
 @[termElab evolution] def evolutionImpl : TermElab := fun s _ =>
 match s with
-| `(evolve! $evolvers $(goals?)? $initDist $(nameDist?)? $wb $card) => do
+| `(evolve! $evolvers $(goals?)? $initDist $(nameDist?)? $(saveTo?)? $wb $card) => do
   let ev ← parseEvolverList evolvers
   let initDist ← parseExprDist initDist
   let nameDist? ← nameDist?.mapM  $ fun nameDist => parseNameMap nameDist
@@ -215,10 +201,13 @@ match s with
   let goals? ← goals?.mapM $ fun goals => parseExprList goals
   let goals := goals?.getD #[]
   let ev := ev.fixedPoint.evolve
+  let saveTo? := saveTo?.map <| fun x => x.getId
   let wb ← parseNat wb
   let card ← parseNat card
   let finalDist ← ev wb card initData initDist 
-  logInfo "logging results"
+  match saveTo? with
+  | some name => ExprDist.save name finalDist
+  | none => pure ()
   logResults goals finalDist
   let reportDist ← goals.mapM $ fun g => do
     let pfOpt ←  (finalDist.getProof? g)

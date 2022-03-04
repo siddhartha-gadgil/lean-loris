@@ -229,8 +229,6 @@ def mergeM(fst snd: ExprDist) : TermElabM ExprDist := do
 instance : HAppend ExprDist ExprDist (TermElabM ExprDist) := 
   ⟨ExprDist.mergeGroupedM⟩
 
-def fromTermsM(dist: FinDist Expr): TermElabM ExprDist := do
-  dist.foldM  (fun m e n => m.updateExprM e n) ExprDist.empty
 
 def fromArray(arr: Array (Expr× Nat)): TermElabM ExprDist := do 
   let mut (terms, pfs) : (Array (Expr × Nat)) × (Array (Expr × Expr × Nat)) := 
@@ -308,22 +306,15 @@ def existsPropM(dist: ExprDist)(prop: Expr)(weight: Nat) : TermElabM Bool :=
               --   IO.println s!"{l} = {prop} but {← exprHash l} != {← exprHash prop}"
               return res
 
-def terms(dist: ExprDist) : FinDist Expr := 
-      FinDist.fromArray dist.termsArr
-
 def allTermsArr(dist: ExprDist) : Array (Expr × Nat) :=
   dist.termsArr ++ 
           (dist.proofsArr.map <| fun (_, t, w) => (t, w))
 
-def allTerms(dist: ExprDist) : FinDist Expr := 
-      FinDist.fromArray (dist.termsArr ++ 
-          (dist.proofsArr.map <| fun (_, t, w) => (t, w)))
-
-def allSorts(dist: ExprDist) : TermElabM (FinDist Expr) := do
+def allSortsArr(dist: ExprDist) : TermElabM (Array (Expr × Nat)) := do
   let types ←  dist.termsArr.filterM <| fun (e, w) => do
           return (← inferType e).isSort
   let props := dist.proofsArr.map <| fun (l, _, w) => (l, w)
-  return FinDist.fromArray <| types ++ props
+  return types ++ props
 
 def bound(dist: ExprDist)(wb cb: Nat) : ExprDist := Id.run do
   let mut cumCount : HashMap Nat Nat := HashMap.empty

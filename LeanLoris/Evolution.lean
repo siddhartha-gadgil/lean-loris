@@ -490,10 +490,10 @@ def eqIsleEvolver(D: Type)[IsNew D][NewElem Expr D][IsleData D] : RecEvolverM D 
 
 def allIsleEvolver(D: Type)[IsNew D][IsleData D] : RecEvolverM D := fun wb c init d evolve => 
   do
-    let typeDist ← init.allSorts
-    let typesCum := typeDist.cumulWeightCount wb
+    let typeDist ← init.allSortsArr
+    let typesCum := weightAbove typeDist wb
     let mut finalDist: ExprDist := ExprDist.empty
-    for (type, w) in typeDist.toArray do
+    for (type, w) in typeDist do
       if wb - w > 0 then
         let ic := c / (typesCum.find! w)
         let isleDist ←   isleM type evolve (wb -w -1) ic init d   

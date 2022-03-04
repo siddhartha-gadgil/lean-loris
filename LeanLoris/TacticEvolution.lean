@@ -296,11 +296,9 @@ def sumEl : TermElabM Expr := do
 
 -- #eval sumEl
 
-syntax(name:=sm) "sumEl!" : term
-@[termElab sm] def smImpl : TermElab := fun _ _ =>
-    sumEl
+elab "sumEl!" : term => sumEl
 
--- #eval sumEl! 1 2
+#eval sumEl! 1 2
 
 theorem constFn2{α : Type}(f: Nat → α):
     (∀ n : Nat, f n = f (n + 1)) →

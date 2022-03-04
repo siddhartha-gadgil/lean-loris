@@ -16,23 +16,24 @@ syntax (name:=genOne) "gen1!" term : term
     | `(gen1! $t) => do 
       let x ← elabTerm t none
       let l ← unpackWeighted x
+      let arr := l.toArray
       let m := FinDist.fromList l
-      for (x, w) in m.toArray do
+      for (x, w) in arr do
         logInfo m!"{x} : {w}" 
       let m1 ← prodGenM  applyOpt 4 100 m m (fun _ _ _ _ => pure true)
-      for (x, w) in m1.terms.toArray do
+      for (x, w) in m1.allTermsArr do
         logInfo m!"{x} : {w}" 
-      let m2 ← egEvolver  4 100 () (← ExprDist.fromTermsM m) 
-      for (x, w) in m2.terms.toArray do
+      let m2 ← egEvolver  4 100 () (← (ExprDist.fromArray arr)) 
+      for (x, w) in m2.allTermsArr do
         logInfo m!"{x} : {w}" 
       logInfo "Evolved state"
-      let m3 ← (egEvolver).evolve 12 100 () (← ExprDist.fromTermsM m)
-      for (x, w) in m3.terms.toArray do
+      let m3 ← (egEvolver).evolve 12 100 () (← (ExprDist.fromArray arr))
+      for (x, w) in m3.allTermsArr do
         logInfo m!"{x} : {w}" 
       logInfo "Full Evolved state"
-      let m4 ← (egEvolverFull).evolve 12 100 (HashMap.empty, [], []) (← ExprDist.fromTermsM m) 
+      let m4 ← (egEvolverFull).evolve 12 100 (HashMap.empty, [], []) (← (ExprDist.fromArray arr)) 
                                           
-      for (x, w) in m4.terms.toArray do
+      for (x, w) in m4.allTermsArr do
         logInfo m!"{x} : {w}" 
       return x
     | _ => throwIllFormedSyntax
