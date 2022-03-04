@@ -195,11 +195,13 @@ mutual
     | _ => throwIllFormedSyntax
 end
 
+syntax save_target := "=:" ident
+
 syntax (name:= evolution) 
-  "evolve!" evolver_list (expr_list)? expr_dist (name_dist)? (ident)? num num  : term
+  "evolve!" evolver_list (expr_list)? expr_dist (name_dist)? num num (save_target)?  : term
 @[termElab evolution] def evolutionImpl : TermElab := fun s _ =>
 match s with
-| `(evolve! $evolvers $(goals?)? $initDist $(nameDist?)? $(saveTo?)? $wb $card) => do
+| `(evolve! $evolvers $(goals?)? $initDist $(nameDist?)? $wb $card $(saveTo?)?)  => do
   let ev ← parseEvolverList evolvers
   let initDist ← parseExprDist initDist
   let nameDist? ← nameDist?.mapM  $ fun nameDist => parseNameMap nameDist
@@ -209,7 +211,10 @@ match s with
   let goals? ← goals?.mapM $ fun goals => parseExprArray goals
   let goals := goals?.getD #[]
   let ev := ev.fixedPoint.evolve
-  let saveTo? := saveTo?.map <| fun x => x.getId
+  let saveTo? := saveTo?.bind <| fun stx =>
+    match stx with  
+    | `(save_target|=:$x) => some x.getId
+    | _ => none
   let wb ← parseNat wb
   let card ← parseNat card
   let finalDist ← ev wb card initData initDist 
