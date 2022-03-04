@@ -62,7 +62,7 @@ def nameDist := #[(``mul, 0), (``ax1, 0), (``ax2, 0)]
 def initData : FullData := (FinDist.fromArray nameDist, [], [])
 
 def goals : TermElabM (Array Expr) := do
-                  parseExprList (← 
+                  parseExprArray (← 
                   `(expr_list|exp![lem1!, lem2!, lem3!, lem4!, lem5!, lem6!, thm!]))
 
 def evolve1: TermElabM EvolutionM := do
@@ -82,7 +82,7 @@ def init1 : TermElabM ExprDist := do
                   parseExprDist (← `(expr_dist|exp!{(m, 0), (n, 0), (m *n, 0)}))
 
 def goals4 : TermElabM (Array Expr) := do
-                  parseExprList (← `(expr_list|exp![thm!]))
+                  parseExprArray (← `(expr_list|exp![thm!]))
 def dist4 : TermElabM ExprDist := do
                   (← evolve) (←  init1) 
 

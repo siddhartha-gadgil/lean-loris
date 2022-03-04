@@ -9,11 +9,7 @@ open Std
 open Lean Meta Elab Term
 open ProdSeq
 
-syntax (name:=genOne) "gen1!" term : term
-@[termElab genOne] def gen1Impl : TermElab
-  | stx, _ => 
-  match stx with
-    | `(gen1! $t) => do 
+elab "gen1!" t:term : term => do 
       let x ← elabTerm t none
       let l ← unpackWeighted x
       let arr := l.toArray
@@ -36,7 +32,6 @@ syntax (name:=genOne) "gen1!" term : term
       for (x, w) in m4.allTermsArr do
         logInfo m!"{x} : {w}" 
       return x
-    | _ => throwIllFormedSyntax
 
 #check gen1! ((2, 1), (5, 2), (Nat.succ, 1), ())
 

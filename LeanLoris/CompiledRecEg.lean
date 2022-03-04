@@ -40,11 +40,11 @@ def initData : FullData := (FinDist.empty, [], [])
 -- the case that crashed
 
 def goals0 : TermElabM (Array Expr) := do
-                  parseExprList (← 
+                  parseExprArray (← 
                   `(expr_list|exp![thm!]))
 
 def goals : TermElabM (Array Expr) := do
-                  parseExprList (← 
+                  parseExprArray (← 
                   `(expr_list|exp![thm!, recFn!, base!, step!]))
 
 -- #eval goals0

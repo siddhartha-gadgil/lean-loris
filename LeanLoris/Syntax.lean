@@ -40,12 +40,20 @@ elab (name:= exprDistPack) "packdist!" s:expr_dist : term => do
 #eval packdist! exp!{(1, 2), ("Hello", 4)}
 #check packdist! exp!{(1, 2), ("Hello", 4)}
 
--- #reduce (fun x y : Nat => packdist! exp!{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
+#reduce (fun x y : Nat => packdist! exp!{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
+
+elab "find-proof!" p:term "in" d:expr_dist : term => do
+  let dist ← parseExprDist d
+  let prop ← elabType p
+  let proofOpt ← dist.getProof? prop
+  match proofOpt with
+  | some (x, _) => return x
+  | none => throwError "No proof found"
 
 declare_syntax_cat expr_list
 syntax "exp![" term,* "]" : expr_list
 
-def parseExprList : Syntax → TermElabM (Array Expr)
+def parseExprArray : Syntax → TermElabM (Array Expr)
   | `(expr_list|exp![$[$xs],*]) =>
     do
           let m : Array Expr ←  xs.mapM <| fun s => 
@@ -58,7 +66,7 @@ def parseExprList : Syntax → TermElabM (Array Expr)
   | _ => throwIllFormedSyntax
 
 elab (name:= exprPack) "pack!" s:expr_list : term => do
-    let m : Array (Expr) ←  parseExprList s
+    let m : Array (Expr) ←  parseExprArray s
     pack m.toList
 
 #check pack! exp![(1, 2), 3, ("Hello", 4), "over here"]
@@ -161,7 +169,7 @@ mutual
   | `(evolver|func-dom-isles) => return funcDomIsleEvolver FullData
   | `(evolver|eq-closure) => return (eqSymmTransEvolver FullData).tautRec
   | `(evolver|eq-closure $goals) => do
-          let goals ← parseExprList goals
+          let goals ← parseExprArray goals
           return (eqSymmTransEvolver FullData goals).tautRec
   | `(evolver|pi-goals) => return piGoalsEvolverM FullData
   | `(evolver|pi-goals-all) => return piGoalsEvolverM FullData false
@@ -198,7 +206,7 @@ match s with
   let nameDist := nameDist?.getD #[]
   let nameDist := FinDist.fromList (nameDist.toList)
   let initData : FullData := (nameDist, [], [])
-  let goals? ← goals?.mapM $ fun goals => parseExprList goals
+  let goals? ← goals?.mapM $ fun goals => parseExprArray goals
   let goals := goals?.getD #[]
   let ev := ev.fixedPoint.evolve
   let saveTo? := saveTo?.map <| fun x => x.getId
