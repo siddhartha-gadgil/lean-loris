@@ -200,7 +200,7 @@ def ExprDist.save (name: Name)(es: ExprDist) : TermElabM (Unit) := do
   let espair ← es.mapM (fun e => do 
        return (← Term.levelMVarToParam (← instantiateMVars e)).1)
   let es ← espair.mapM (fun e => do whnf <| ←  mkLambdaFVars fvars e)
-  logInfo m!"saving relative to: {fvars}"
+  -- logInfo m!"saving relative to: {fvars}"
   let varPack ← ProdSeq.lambdaPack fvars.toList
   let cache ← exprDistCache.get
   exprDistCache.set (cache.insert name (varPack, es))

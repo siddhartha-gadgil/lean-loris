@@ -201,7 +201,7 @@ syntax (name:= evolution)
   "evolve!" evolver_list (expr_list)? expr_dist (name_dist)? num num (save_target)?  : term
 @[termElab evolution] def evolutionImpl : TermElab := fun s _ =>
 match s with
-| `(evolve! $evolvers $(goals?)? $initDist $(nameDist?)? $wb $card $(saveTo?)?)  => do
+| `(evolve!%$tk $evolvers $(goals?)? $initDist $(nameDist?)? $wb $card $(saveTo?)?)  => do
   let ev ← parseEvolverList evolvers
   let initDist ← parseExprDist initDist
   let nameDist? ← nameDist?.mapM  $ fun nameDist => parseNameMap nameDist
@@ -221,7 +221,7 @@ match s with
   match saveTo? with
   | some name => ExprDist.save name finalDist
   | none => pure ()
-  logResults goals finalDist
+  logResults (some tk) goals finalDist
   let reportDist ← goals.mapM $ fun g => do
     let pfOpt ←  (finalDist.getProof? g)
     return pfOpt.getD (mkConst ``Unit, 0)

@@ -73,7 +73,7 @@ def tacticLambdaMVars(tactic : MVarId → TermElabM (List MVarId))(goalType: Exp
         Term.synthesizeSyntheticMVarsNoPostponing
         return some <| (←  metaToLambda mvars goal, mvars)
       catch exc =>
-        logInfo m!"tacticLambdaMVars failed for {goal}: ${exc.toMessageData}"
+        -- logInfo m!"tacticLambdaMVars failed for {goal}: ${exc.toMessageData}"
         return none
 
 

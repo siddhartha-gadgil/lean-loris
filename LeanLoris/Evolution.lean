@@ -699,37 +699,53 @@ def refineWeight(weight? : Expr → TermElabM (Option Nat)):
   return finalDist
 
 
-def logResults(goals : Array Expr) : ExprDist →  TermElabM Unit := fun dist => do
-    IO.println s!"number of terms : {dist.termsArr.size}"
-    IO.println s!"number of proofs: {dist.proofsArr.size}"
-    IO.println s!"term distribution : {(arrWeightCount dist.termsArr).toArray}"
-    IO.println s!"proof distribution: {(arrWeightCount <| dist.proofsArr.map (fun (l, _, w) => (l, w))).toArray}"
+def logResults(tk?: Option Syntax): Array Expr →  
+  ExprDist →  TermElabM Unit := fun goals dist => do
+    if tk?.isNone then
+      IO.println s!"number of terms : {dist.termsArr.size}"
+      IO.println s!"number of proofs: {dist.proofsArr.size}"
+      IO.println s!"term distribution : {(arrWeightCount dist.termsArr).toArray}"
+      IO.println s!"proof distribution: {(arrWeightCount <| dist.proofsArr.map (fun (l, _, w) => (l, w))).toArray}"
     let mut count := 0
     for g in goals do
       count := count + 1
-      IO.println s!"goal {count}: {← view g}"
+      if tk?.isNone then
+        IO.println s!"goal {count}: {← view g}"
       let statement ←  (dist.allTermsArr.findM? $ fun (s, _) => isDefEq s g)
       -- let statement ←  statement.mapM $ fun (e, w) => do
       --   let e ← whnf e
       --   pure (← view e, w) 
       if ← isProp g then
-        IO.println s!"proposition generated: {statement}"
+        if tk?.isNone then
+          IO.println s!"proposition generated: {statement}"
         let proof ←  dist.proofsArr.findM? $ fun (l, t, w) => 
                 do isDefEq l g
         match proof with
         | some (_, pf, w) =>
-          logInfo m!"found proof {pf} for proposition goal {count} : {g}; weight {w}"
-          IO.println s!"proof generated: {← view pf}, weight : {w}"
+          match tk? with 
+          | some tk => 
+              logInfoAt tk m!"found proof {pf} for proposition goal {count} : {g}; weight {w}"
+          | none =>  
+              IO.println s!"proof generated: {← view pf}, weight : {w}"
         | none =>  
-          logWarning m!"no proof found for proposition goal {count} : {g}"
+          match tk? with 
+          | some tk => 
+              logWarningAt tk m!"no proof found for proposition goal {count} : {g}"
+          | none =>  pure ()          
           pure ()
       else
         match statement with
         | some (e, w) =>
-          logInfo m!"generated term {e} for goal {count} : {g}, weight : {w}"
-          IO.println s!"generated term: {← view e} for goal {count} : {g} , weight : {w}"
+          match tk? with 
+            | some tk => 
+                logInfoAt tk m!"generated term {e} for goal {count} : {g}, weight : {w}"
+            | none =>            
+                IO.println s!"generated term: {← view e} for goal {count} : {g} , weight : {w}"
         | none => 
-          logWarning m!"no term found for goal {count} : {g}"
+          match tk? with 
+          | some tk => 
+            logWarningAt tk m!"no term found for goal {count} : {g}"
+          | none => pure ()
           pure ()
 
 abbrev EvolutionM := ExprDist → TermElabM ExprDist
