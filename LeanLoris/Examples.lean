@@ -16,7 +16,7 @@ elab "gen1!" t:term : term => do
       let m := FinDist.fromList l
       for (x, w) in arr do
         logInfo m!"{x} : {w}" 
-      let m1 ← prodGenM  applyOpt 4 100 m m (fun _ _ _ _ => pure true)
+      let m1 ← prodGenArrM  applyOpt 4 100 arr arr ()
       for (x, w) in m1.allTermsArr do
         logInfo m!"{x} : {w}" 
       let m2 ← egEvolver  4 100 () (← (ExprDist.fromArray arr)) 

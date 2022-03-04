@@ -328,6 +328,8 @@ def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ 
       return res
     else return ExprDist.empty
 
+-- Deprecated
+
 def prodGenM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
     (compose: α → β → TermElabM (Option Expr))
     (maxWeight card: Nat)(fst: FinDist α)(snd: FinDist β)

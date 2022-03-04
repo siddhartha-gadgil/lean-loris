@@ -33,6 +33,12 @@ def view(expr: Expr): MetaM String := do
   return fmt.pretty
 
 
+def inferTypeOpt(e: Expr) : MetaM (Option Expr) := do
+  try
+    let type ← inferType e
+    return some type
+  catch _ => return none
+
 -- matching some patterns 
 
 def existsTypeExpr? (eType: Expr) : MetaM (Option (Expr × Expr)) :=

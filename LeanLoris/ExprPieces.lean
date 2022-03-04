@@ -42,9 +42,11 @@ partial def exprNames (withDoms : Bool): Expr → MetaM (List Name) :=
           else return []        
       | Expr.app f a _ => 
           do  
-            let ftype ← inferType f 
-            let expl := ftype.data.binderInfo.isExplicit
-            let fdeps ← exprNames withDoms f
+            let ftypeOpt ← inferTypeOpt f 
+            let explOpt := 
+              ftypeOpt.map $ fun ftype =>
+              (ftype.data.binderInfo.isExplicit)
+            let expl := explOpt.getD true            let fdeps ← exprNames withDoms f
             let adeps ← exprNames withDoms a
             let s := 
               if !expl then fdeps else
@@ -88,8 +90,9 @@ partial def argList : Expr → TermElabM (List Name) :=
     let res ← match e with
       | Expr.const name _ _  =>
         do
-        let type ← inferType e
-        if type.isForall then return []
+        let typeOpt ← inferTypeOpt e
+        let isForAll := (typeOpt.map (fun type => type.isForall)).getD true
+        if isForAll then return []
         else
         if ← (isWhiteListed name) 
           then return [name] 
@@ -101,8 +104,11 @@ partial def argList : Expr → TermElabM (List Name) :=
           else return []        
       | Expr.app f a _ => 
           do  
-            let ftype ← inferType f 
-            let expl := ftype.data.binderInfo.isExplicit
+            let ftypeOpt ← inferTypeOpt f 
+            let explOpt := 
+              ftypeOpt.map $ fun ftype =>
+              (ftype.data.binderInfo.isExplicit)
+            let expl := explOpt.getD true
             if !expl then pure [] else return (← argList f) ++ (← argList a)
       | Expr.lam _ t b _ => 
           argList b 
@@ -120,8 +126,9 @@ partial def exprHash : Expr → TermElabM UInt64 :=
     match e with
       | Expr.const name _ _  =>
         do
-        let type ← inferType e
-        if type.isForall then return 7
+        let typeOpt ← inferTypeOpt e
+        let isForAll := (typeOpt.map (fun type => type.isForall)).getD true
+        if isForAll then return 7
         else
         if ← (isWhiteListed name) 
           then return name.hash 
@@ -133,8 +140,11 @@ partial def exprHash : Expr → TermElabM UInt64 :=
           else return 7        
       | Expr.app f a _ => 
           do  
-            let ftype ← inferType f 
-            let expl := ftype.data.binderInfo.isExplicit
+            let ftypeOpt ← inferTypeOpt f 
+            let explOpt := 
+              ftypeOpt.map $ fun ftype =>
+              (ftype.data.binderInfo.isExplicit)
+            let expl := explOpt.getD true
             if !expl then pure 7 else return mixHash (← exprHash f) (← exprHash a)
       | Expr.lam _ t b _ => 
           return mixHash (← exprHash t) (← exprHash b)

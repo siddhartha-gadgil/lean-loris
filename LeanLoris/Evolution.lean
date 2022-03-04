@@ -264,9 +264,6 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
         do
           -- IO.println s!"Isle variable type: {← view <| ← whnf <| ← inferType x}; is-proof? : {← isProof x}"
           let dist ←  init.updateExprM x 0
-          -- let pts ← dist.allTermsArr.mapM (fun (term, w) => do 
-          --   return (← view term, ← view <| ← inferType term, w))
-          -- IO.println s!"initial terms in isle: {pts}"
           let foldedFuncs : Array (Expr × Nat) ← 
             (← init.funcs).filterMapM (
               fun (f, w) => do
@@ -274,10 +271,6 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
                   let y ← (mkAppOpt f x)
                   return y.map (fun y => (y, w))
               )
-          -- IO.println s!"folded functions in isle: {foldedFuncs.size}"
-          -- let pts ← foldedFuncs.mapM (fun (term, w) => do 
-          --   return (← view term, ← view <| ← inferType term, w))
-          -- IO.println s!"folded terms in isle: {pts}"
           let dist ← dist.mergeArray foldedFuncs
           -- logInfo "started purging terms"
           let purgedTerms ← dist.termsArr.filterM (fun (term, w) => do
@@ -293,22 +286,11 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
                 return res
               | _ => pure true
           )
-          -- logInfo "finished purging terms"
-          -- let pts ← purgedTerms.mapM (fun (term, w) => do (← inferType term, w))
-          -- IO.println s!"terms in isle: {pts.size}"
           let dist := ⟨purgedTerms, dist.proofsArr⟩
-          -- IO.println s!"entered isle: {← IO.monoMsNow} "
-          -- let pts ← dist.allTermsArr.mapM (fun (term, w) => do 
-          --   return (← view term, ← view <| ← inferType term, w))
-          -- IO.println s!"modified terms in isle: {pts}"
 
           let eva ← evolve weightBound cardBound  
                   (isleData initData dist weightBound cardBound) dist
-          -- IO.println s!"inner isle distribution obtained: {← IO.monoMsNow} "
-          -- IO.println s!"initial size: {eva.termsArr.size}, {eva.proofsArr.size}"
           let evb ← if excludeInit then eva.diffM dist else pure eva
-          -- IO.println s!"diff size ({excludeInit}): {evb.termsArr.size}, {evb.proofsArr.size}"
-          -- IO.println s!"dist: {← dist.existsM x 0}, eva: {← eva.existsM x 0}, evb: {← evb.existsM x 0}"
           let innerTerms : Array (Expr × Nat) :=  if excludeProofs 
           then ← evb.termsArr.filterM ( fun (t, _) => do
               let b ← isDefEq t x

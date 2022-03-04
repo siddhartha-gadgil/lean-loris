@@ -51,7 +51,6 @@ partial def unpackWeighted (expr: Expr) : TermElabM (List (Expr × Nat)) :=
       | some (h, t) => 
         match (← split? h) with
         | some (x, wexp) =>
-            -- logInfo m!"weight: {← whnf wexp} with type {← whnf (← inferType wexp)}"
             let w ←  exprNat (← whnf wexp)
             let h := (← whnf x, w)
             return h :: (← unpackWeighted t)

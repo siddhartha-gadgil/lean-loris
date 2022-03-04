@@ -36,13 +36,6 @@ def constantNameTypes  : MetaM (Array (Name ×  Expr)) := do
   let names ← allNames.filterM (fun (name, _) => isWhiteListed name)
   return names
 
-def inferTypeOpt(e: Expr) : MetaM (Option Expr) := do
-  try
-    let type ← inferType e
-    return some type
-  catch _ => return none
-
-
 partial def recExprNames: Expr → MetaM (Array Name) :=
   fun e =>
   do 
@@ -63,7 +56,6 @@ partial def recExprNames: Expr → MetaM (Array Name) :=
           else pure #[]        
       | Expr.app f a _ => 
           do  
-            -- let ftype ← inferTypeIO f env
             let ftypeOpt ← inferTypeOpt f 
             let explOpt := 
               ftypeOpt.map $ fun ftype =>
