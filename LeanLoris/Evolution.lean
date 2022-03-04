@@ -259,7 +259,7 @@ instance {D: Type}: Pow (EvolverM D) (RecEvolverM D) :=
 instance {D: Type}: Append <| EvolverM D := ⟨fun fst snd => fst.merge snd⟩
 
 def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Nat)(cardBound: Nat)
-      (init : ExprDist)(initData: D)(includePi : Bool := true)(excludeProofs: Bool := false)(excludeLambda : Bool := false)(excludeInit : Bool := false): TermElabM (ExprDist) := 
+      (init : ExprDist)(initData: D)(includePi : Bool := true)(excludeProofs: Bool := false)(excludeLambda : Bool := false)(excludeInit : Bool := false): TermElabM ExprDist := 
     withLocalDecl Name.anonymous BinderInfo.default (type)  $ fun x => 
         do
           -- IO.println s!"Isle variable type: {← view <| ← whnf <| ← inferType x}; is-proof? : {← isProof x}"

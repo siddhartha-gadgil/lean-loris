@@ -201,7 +201,7 @@ def constNewElem{α D: Type}: Bool × Bool →  NewElem α D
 def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α][ToMessageData β]
     (compose: α → β → TermElabM (Option Expr))
     (maxWeight card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
-    (data: D) : TermElabM (ExprDist) := do 
+    (data: D) : TermElabM ExprDist := do 
     -- logInfo m!"generating from pairs {← IO.monoMsNow}"
     if maxWeight > 0 then
       let mut fstTagGrouped: HashMap Nat (Array (α × Bool × Bool)) := HashMap.empty
@@ -241,7 +241,7 @@ def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α
 def prodPolyGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α][ToMessageData β]
     (compose: α → β → TermElabM (Option (Array Expr)))
     (maxWeight card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
-    (data: D) : TermElabM (ExprDist) := do 
+    (data: D) : TermElabM ExprDist := do 
     -- logInfo m!"generating from pairs {← IO.monoMsNow}"
     if maxWeight > 0 then
       let mut fstTagGrouped: HashMap Nat (Array (α × Bool × Bool)) := HashMap.empty
@@ -284,7 +284,7 @@ def prodPolyGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageDat
 def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ D]
     (compose: α → β → γ → TermElabM (Option Expr))
     (maxWeight card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
-    (third : Array (γ × Nat))(data: D) : TermElabM (ExprDist) := do 
+    (third : Array (γ × Nat))(data: D) : TermElabM ExprDist := do 
     -- logInfo m!"generating from triples {← IO.monoMsNow}"
     if maxWeight > 0 then
       let mut fstTagGrouped: HashMap Nat (Array (α × Bool × Bool)) := HashMap.empty
@@ -331,7 +331,7 @@ def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ 
 def prodGenM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
     (compose: α → β → TermElabM (Option Expr))
     (maxWeight card: Nat)(fst: FinDist α)(snd: FinDist β)
-    (newPair: Nat → Nat →  α × β → Nat × Nat → TermElabM Bool) : TermElabM (ExprDist) := do 
+    (newPair: Nat → Nat →  α × β → Nat × Nat → TermElabM Bool) : TermElabM ExprDist := do 
     let mut w := ExprDist.empty
     if maxWeight > 0 then
       let fstBdd := fst.bound (maxWeight - 1) card

@@ -197,7 +197,7 @@ def applyTacticEvolver(D: Type)[IsNew D][NewElem Expr D] : EvolverM D :=
 
 def forallIsleM {D: Type}[IsleData D](type: Expr)(typedEvolve : Expr → EvolverM D)
     (weightBound: Nat)(cardBound: Nat)
-      (init : ExprDist)(initData: D): TermElabM (ExprDist) := 
+      (init : ExprDist)(initData: D): TermElabM ExprDist := 
       forallTelescope type <| fun xs y => do
       let isleInit ← xs.foldlM (fun d x => d.updateExprM x 0) init
       let isleFinal ← typedEvolve y weightBound cardBound 
@@ -207,7 +207,7 @@ def forallIsleM {D: Type}[IsleData D](type: Expr)(typedEvolve : Expr → Evolver
 def forallBoundedIsleM {D: Type}[IsleData D](bound: Nat)(type: Expr)
     (typedEvolve : Expr → EvolverM D)
     (weightBound: Nat)(cardBound: Nat)
-      (init : ExprDist)(initData: D): TermElabM (ExprDist) := 
+      (init : ExprDist)(initData: D): TermElabM ExprDist := 
       forallBoundedTelescope type (some bound) <| fun xs y => do
       let isleInit ← xs.foldlM (fun d x => d.updateExprM x 0) init
       let isleFinal ← typedEvolve y weightBound cardBound 

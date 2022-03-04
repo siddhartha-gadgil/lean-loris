@@ -11,8 +11,9 @@ declare_syntax_cat expr_dist
 syntax exprWt := "(" term "," num ")"
 syntax exprWtList := "exp!{" exprWt,* "}"
 syntax exprWtList : expr_dist
+syntax "@" ident : expr_dist
 
-def parseExprMap : Syntax → TermElabM (Array (Expr × Nat))
+def parseExprDist : Syntax → TermElabM ExprDist
   | `(expr_dist|exp!{$[$xs:exprWt],*}) =>
     do
           let m : Array (Expr × Nat) ←  xs.mapM (fun s => do
@@ -24,7 +25,11 @@ def parseExprMap : Syntax → TermElabM (Array (Expr × Nat))
               | _ =>
                 throwError m!"{s} is not a valid exprWt"
               )
-          return m
+          ExprDist.fromArray m
+  | `(expr_dist|@$x:ident) =>
+    do
+      let name := x.getId
+      ExprDist.load name
   | _ => throwIllFormedSyntax
 
 syntax (name:= exprDistPack) "packdist!" expr_dist : term
@@ -32,14 +37,14 @@ syntax (name:= exprDistPack) "packdist!" expr_dist : term
     match stx with 
     | `(packdist! $s:expr_dist) => 
         do
-          let m : Array (Expr × Nat) ←  parseExprMap s
+          let m : Array (Expr × Nat)  := (←  parseExprDist s).allTermsArr
           packWeighted m.toList
     | _ => throwIllFormedSyntax
 
 -- #eval packdist! exp!{(1, 2), ("Hello", 4)}
 -- #check packdist! exp!{(1, 2), ("Hello", 4)}
 
-#reduce (fun x y : Nat => packdist! exp!{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
+-- #reduce (fun x y : Nat => packdist! exp!{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
 
 declare_syntax_cat expr_list
 syntax "exp![" term,* "]" : expr_list
@@ -202,7 +207,7 @@ syntax (name:= evolution)
 match s with
 | `(evolve! $evolvers $(goals?)? $initDist $(nameDist?)? $wb $card) => do
   let ev ← parseEvolverList evolvers
-  let initDist ← parseExprMap initDist
+  let initDist ← parseExprDist initDist
   let nameDist? ← nameDist?.mapM  $ fun nameDist => parseNameMap nameDist
   let nameDist := nameDist?.getD #[]
   let nameDist := FinDist.fromList (nameDist.toList)
@@ -212,10 +217,12 @@ match s with
   let ev := ev.fixedPoint.evolve
   let wb ← parseNat wb
   let card ← parseNat card
-  let finalDist ← ev wb card initData (← ExprDist.fromArray initDist) 
+  let finalDist ← ev wb card initData initDist 
   logInfo "logging results"
   logResults goals finalDist
-  let reportDist ← goals.filterMapM $ fun g => finalDist.getProof? g
+  let reportDist ← goals.mapM $ fun g => do
+    let pfOpt ←  (finalDist.getProof? g)
+    return pfOpt.getD (mkConst ``Unit, 0)
   return ← (ppackWeighted reportDist.toList)
 | _ => throwIllFormedSyntax
 

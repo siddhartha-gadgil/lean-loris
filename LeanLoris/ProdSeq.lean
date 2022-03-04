@@ -226,7 +226,7 @@ def ExprDist.save (name: Name)(es: ExprDist) : TermElabM (Unit) := do
   exprDistCache.set (cache.insert name (varPack, es))
   return ()
 
-def ExprDist.load (name: Name) : TermElabM (ExprDist) := do
+def ExprDist.load (name: Name) : TermElabM ExprDist := do
   let cache ← exprDistCache.get
   match cache.find? name with
   | some (varPack, es) =>
