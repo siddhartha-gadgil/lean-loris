@@ -59,6 +59,10 @@ def lem6! := ((m * n) * m) * m = n * m
 def thm! := m * n = n * m
 
 def nameDist := #[(``mul, 0), (``ax1, 0), (``ax2, 0)]
+
+def init1 : TermElabM ExprDist := do
+                  parseExprDist (← `(expr_dist|exp!{(m, 0), (n, 0), (m *n, 0)}))
+
 def initData : FullData := (FinDist.fromArray nameDist, [], [])
 
 def goals : TermElabM (Array Expr) := do
@@ -77,9 +81,6 @@ def evolve2: TermElabM EvolutionM := do
 
 def evolve : TermElabM EvolutionM := do
       return (← evolve1) * (← evolve2) * (← evolve1) * (← evolve2)
-
-def init1 : TermElabM ExprDist := do
-                  parseExprDist (← `(expr_dist|exp!{(m, 0), (n, 0), (m *n, 0)}))
 
 def goals4 : TermElabM (Array Expr) := do
                   parseExprArray (← `(expr_list|exp![thm!]))

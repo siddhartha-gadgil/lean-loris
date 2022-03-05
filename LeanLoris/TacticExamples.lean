@@ -23,31 +23,34 @@ def rflTest(A: Type) :=
 set_option maxHeartbeats 100000000
 
 def recTest(f: Nat → Nat) :=
-  let p := (∀ x: Nat, f (x + 1) = f x) → (∀ x: Nat, f x = f 0)
-  let hyp := ∀ x: Nat, f (x + 1) = f x
+  let hyp! := ∀ x: Nat, f (x + 1) = f x
+  let claim! := ∀ n: Nat, f n = f 0
+  let baseclaim! := f 0 = f 0
+  let base! : Prop := hyp! → baseclaim!
+  let base : base! := fun hyp => Eq.refl (f 0)
+  let stepclaim! := (∀ (n : Nat), f n = f 0 → f (n + 1) = f 0)
+  let step! := hyp! → stepclaim!
+  let step : step! := fun h n ih => Eq.trans (h n) ih
+  let semistepclaim! := (∀ (n : Nat), f n = f 0 → f (n + 1) = f n)
+  let semistep! := hyp! → semistepclaim!
+  let semistep : semistep! := fun hyp n _ => hyp n
+  let recFn! := hyp! → baseclaim! → stepclaim! → claim!
+  let recFn : recFn! := fun _ : hyp! => natRec (fun n => f n = f 0)
+  let thm! := (∀ x: Nat, f (x + 1) = f x) → (∀ x: Nat, f x = f 0)
   let seek := evolve! ev![pi-goals, rfl, eq-closure, nat-rec, app, binop] 
-            exp![p, 
-            hyp → f 0 = f 0, 
-            hyp → (∀ (n : Nat), f n = f 0 → f (n + 1) = f 0),
-            hyp → (∀ (n : Nat), f n = f 0 → f (n + 1) = f n),
-            hyp → f 0 = f 0 → (∀ (n : Nat), f n = f 0 → f (n + 1) = f 0) → ∀ (n : Nat), f n = f 0] exp!{(p, 0)} 2 5000
-  let step := hyp → (∀ (n : Nat), f n = f 0 → f (n + 1) = f 0)
-  let stepPf : step := fun h n ih => Eq.trans (h n) ih
+            exp![
+            base!, 
+            semistep!,
+            recFn!] exp!{(thm!, 0)} 2 5000 =: dist1
   let seek2 := evolve! ev![pi-goals, rfl, eq-closure, nat-rec, app, binop] 
-            exp![p, 
-            hyp → f 0 = f 0, 
-            hyp → (∀ (n : Nat), f n = f 0 → f (n + 1) = f 0),
-            hyp → (∀ (n : Nat), f n = f 0 → f (n + 1) = f n),
-            hyp → f 0 = f 0 → (∀ (n : Nat), f n = f 0 → f (n + 1) = f 0) → ∀ (n : Nat), f n = f 0] exp!{(p, 0), (stepPf, 1)} 2 5000
-  let base : Prop := hyp → f 0 = f 0
-  let basePf : base := fun hyp => Eq.refl (f 0)
-  let recFn := fun _ : hyp => natRec (fun n => f n = f 0)
-  let seek3 := evolve! ev![simple-binop] exp![p, 
-            hyp → f 0 = f 0, 
-            hyp → (∀ (n : Nat), f n = f 0 → f (n + 1) = f 0),
-            hyp → (∀ (n : Nat), f n = f 0 → f (n + 1) = f n),
-            hyp → f 0 = f 0 → (∀ (n : Nat), f n = f 0 → f (n + 1) = f 0) → ∀ (n : Nat), f n = f 0] exp!{(p, 0), (basePf, 0), (recFn, 0), (stepPf, 0)} 2 5000
-  let pf : p := fun h => (recFn h) (basePf h) (stepPf h)
+            exp![ 
+            base!, 
+            semistep!,
+            step!,
+            recFn!] exp!{(thm!, 0), (semistep, 1)} 2 5000
+  let seek3 := evolve! ev![Σev![simple-binop] ^ Σev![pi-goals]] exp![thm!] 
+          exp!{(thm!, 0), (base, 0), (recFn, 0), (step, 0)} 2 5000
+  let pf : thm! := fun h => (recFn h) (base h) (step h)
   ()
 
 
