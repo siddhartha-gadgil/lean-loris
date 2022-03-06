@@ -11,7 +11,7 @@ declare_syntax_cat expr_dist
 syntax exprWt := "(" term "," num ")"
 syntax exprWtList := "exp!{" exprWt,* "}"
 syntax exprWtList : expr_dist
-syntax "@" ident : expr_dist
+syntax "load:[" name "]" : expr_dist
 
 def parseExprDist : Syntax → TermElabM ExprDist
   | `(expr_dist|exp!{$[$xs:exprWt],*}) =>
@@ -26,7 +26,7 @@ def parseExprDist : Syntax → TermElabM ExprDist
                 throwError m!"{s} is not a valid exprWt"
               )
           ExprDist.fromArray m
-  | `(expr_dist|@$x:ident) =>
+  | `(expr_dist|load:[$x:nameLit]) =>
     do
       let name := x.getId
       ExprDist.load name
@@ -195,7 +195,7 @@ mutual
     | _ => throwIllFormedSyntax
 end
 
-syntax save_target := "=:" ident
+syntax save_target := "=:" name
 
 syntax (name:= evolution) 
   "evolve!" evolver_list (expr_list)? expr_dist (name_dist)? num num (save_target)?  : term

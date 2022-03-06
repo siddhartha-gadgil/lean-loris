@@ -22,7 +22,7 @@ def rflTest(A: Type) :=
 
 set_option maxHeartbeats 100000000
 
-def recTest(f: Nat → Nat) :=
+def localConst0(f: Nat → Nat) :=
   let hyp! := ∀ x: Nat, f (x + 1) = f x
   let claim! := ∀ n: Nat, f n = f 0
   let baseclaim! := f 0 = f 0
@@ -41,7 +41,10 @@ def recTest(f: Nat → Nat) :=
             exp![
             base!, 
             semistep!,
-            recFn!] exp!{(thm!, 0)} 2 5000 =: dist1
+            recFn!] exp!{(thm!, 0)} 2 5000 =: `dist1
+  let ⟨⟨base1, _⟩, ⟨semistep1, _⟩, ⟨recFn1, _⟩⟩ := seek
+  let _ : semistep = semistep1 := by rfl
+  let _ : base = base1 := by rfl
   let seek2 := evolve! ev![pi-goals, rfl, eq-closure, nat-rec, app, binop] 
             exp![ 
             base!, 
@@ -50,8 +53,9 @@ def recTest(f: Nat → Nat) :=
             recFn!] exp!{(thm!, 0), (semistep, 1)} 2 5000
   let seek3 := evolve! ev![Σev![simple-binop] ^ Σev![pi-goals]] exp![thm!] 
           exp!{(thm!, 0), (base, 0), (recFn, 0), (step, 0)} 2 5000
+  let ⟨⟨thm, _⟩, _⟩ := seek3
   let pf : thm! := fun h => (recFn h) (base h) (step h)
-  ()
+  thm
 
 
-#check @Nat.brecOn
+#check localConst0
