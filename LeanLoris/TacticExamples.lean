@@ -22,7 +22,7 @@ def rflTest(A: Type) :=
 
 set_option maxHeartbeats 100000000
 
-def localConst0(f: Nat → Nat) :=
+def localConst(f: Nat → Nat) :=
   let hyp! := ∀ x: Nat, f (x + 1) = f x
   let claim! := ∀ n: Nat, f n = f 0
   let baseclaim! := f 0 = f 0
@@ -50,7 +50,7 @@ def localConst0(f: Nat → Nat) :=
             base!, 
             semistep!,
             step!,
-            recFn!] exp!{(thm!, 0), (semistep, 1)} 2 5000
+            recFn!] load:[`dist1] 2 5000 =: `dist2
   let seek3 := evolve! ev![Σev![simple-binop] ^ Σev![pi-goals]] exp![thm!] 
           exp!{(thm!, 0), (base, 0), (recFn, 0), (step, 0)} 2 5000
   let ⟨⟨thm, _⟩, _⟩ := seek3
@@ -58,4 +58,4 @@ def localConst0(f: Nat → Nat) :=
   thm
 
 
-#check localConst0
+#check localConst

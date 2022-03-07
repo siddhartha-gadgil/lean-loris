@@ -86,6 +86,8 @@ def lambdaPack : List Expr →  MetaM Expr
       let t ← lambdaPack ys
       let tail ← mkLambdaFVars #[x] t
       let expr ← mkAppM `PProd.mk #[x, tail]
+      let expr ← whnf expr
+      let expr ← reduce expr
       return expr
 
 partial def lambdaUnpack (expr: Expr) : TermElabM (List Expr) :=
@@ -93,6 +95,7 @@ partial def lambdaUnpack (expr: Expr) : TermElabM (List Expr) :=
       match (← split? expr) with
       | some (h, t) =>
         let tt ← whnf <| mkApp t h
+        let tt ← reduce tt
         let tail ←  lambdaUnpack tt
         return h :: tail
       | none =>
@@ -193,7 +196,11 @@ initialize exprDistCache : IO.Ref (HashMap Name (Expr × ExprDist))
 
 def ExprDist.save (name: Name)(es: ExprDist) : TermElabM (Unit) := do
   let lctx ← getLCtx
-  let fvarIds := lctx.getFVarIds
+  let fvarIds := 
+    lctx.decls.foldl (init := #[]) fun r decl? => 
+    match decl? with
+      | some decl => if !decl.isLet then r.push decl.fvarId else r
+      | none      => r
   let fvIds ← fvarIds.filterM $ fun fid => isWhiteListed ((lctx.get! fid).userName) 
   let fvars := fvIds.map mkFVar
   Term.synthesizeSyntheticMVarsNoPostponing 
@@ -202,15 +209,24 @@ def ExprDist.save (name: Name)(es: ExprDist) : TermElabM (Unit) := do
   let es ← espair.mapM (fun e => do whnf <| ←  mkLambdaFVars fvars e)
   -- logInfo m!"saving relative to: {fvars}"
   let varPack ← ProdSeq.lambdaPack fvars.toList
+  -- logInfo m!"varPack: {varPack}"
   let cache ← exprDistCache.get
   exprDistCache.set (cache.insert name (varPack, es))
   return ()
 
 def ExprDist.load (name: Name) : TermElabM ExprDist := do
-  let cache ← exprDistCache.get
-  match cache.find? name with
-  | some (varPack, es) =>
-        let fvars ← ProdSeq.lambdaUnpack varPack
-        IO.println s!"loading relative to: {fvars}"
-        es.mapM $ fun e => reduce (mkAppN e fvars.toArray)
-  | none => throwError m!"no cached expression distribution for {name}"
+  try
+    -- logInfo m!"loading {name}"
+    let cache ← exprDistCache.get
+    match cache.find? name with
+      | some (varPack, es) =>
+            -- logInfo m!"found in cache, packed: {varPack}"
+            let fvars ← ProdSeq.lambdaUnpack varPack
+            -- IO.println s!"loading relative to: {fvars}"
+            -- logInfo m!"loading relative to: {fvars}"
+            es.mapM $ fun e => do whnf <| ←  reduce (mkAppN e fvars.toArray)      
+      | none => 
+        throwError m!"no cached expression distribution for {name}"
+  catch ex => 
+    logWarning m!"Error {ex.toMessageData} while loading {name}"
+    return ExprDist.empty

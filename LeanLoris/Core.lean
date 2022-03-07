@@ -68,8 +68,9 @@ def mkAppOpt (f x : Expr) : TermElabM (Option Expr) :=
       let expr:= mkApp f x
       let exprType ← inferType expr
       if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  then 
+        let expr ← whnf expr
         Term.synthesizeSyntheticMVarsNoPostponing
-        return some <| ← whnf expr
+        return some expr
       else return none
     catch e =>
       return none
