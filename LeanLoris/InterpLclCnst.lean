@@ -1,25 +1,5 @@
 import LeanLoris.Syntax 
 
-
-def idPropTest(A: Prop) :=
-  let idA := ∀ a : A, A
-  let seek := evolve! ev![pi-goals-all] exp![idA] exp!{(idA, 0)} 1 1000
-  ()
-
-def appTest(A B: Prop)(a : A)(f: A → B) :=
-  let seek := evolve! ev![app] exp![B] exp!{(f, 0), (a, 0)} 1 1000
-  ()
-
-def mpTest(A B: Prop) :=
-  let mp := A → (A → B)→ B
-  let seek := evolve! ev![pi-goals, simple-app] exp![mp] exp!{(mp, 0)} 1 1000
-  ()
-
-def rflTest(A: Type) :=
-  let p := ∀ a: A, a = a
-  let seek := evolve! ev![pi-goals, rfl] exp![p] exp!{(p, 0)} 1 1000
-  ()
-
 set_option maxHeartbeats 100000000
 
 def localConst(f: Nat → Nat) :=

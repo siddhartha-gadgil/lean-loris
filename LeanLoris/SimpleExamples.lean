@@ -81,22 +81,3 @@ def eveg(α : Type):= fun (f g: α →  α) (a: α) =>
 
 #reduce eveg
 
-def egEqProp(a b c: Nat)(p: a = b)(q: a = c) :=
-    evolve! ev![eq-closure] exp![b = c, b = a, a = b] exp!{(p, 0), (q, 0)} 1 1000
-
-def left_right_identities(α : Type)[Mul α](eₗ eᵣ: α)
-      (idₗ : ∀ x : α, eₗ * x = x)(idᵣ : ∀ x: α, x * eᵣ = x) :=
-        let thm! := eₗ = eᵣ 
-        let directProof := evolve! ev![app, eq-closure] exp![thm!] 
-                exp!{(idₗ, 0), (idᵣ, 0), (eₗ, 0), (eᵣ, 0)} 2 5000
-        let ⟨⟨pf, _⟩, _⟩ := directProof
-        have _ : thm! := pf
-        let lem1! := eₗ * eᵣ = eᵣ
-        let lem2! := eₗ * eᵣ = eₗ
-        let step1 := evolve! ev![app] exp![lem1!, lem2!] 
-              exp!{(idₗ, 0), (idᵣ, 0), (eₗ, 0), (eᵣ, 0)} 1 1000 =: dist1
-        let step2 := evolve! ev![eq-closure] exp![thm!] dist1 1 1000 
-        let ⟨⟨thm, _⟩, _⟩ := step2
-        thm 
-
-#check left_right_identities 
