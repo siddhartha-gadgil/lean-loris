@@ -4,6 +4,10 @@ import Std
 open Lean Meta Elab Term
 open Nat Std
 
+/-
+Miscellaneous experiments, not used in the main code.
+-/
+
 def slowFib (id : Nat) : Nat → Nat
   | 0   => 1
   | 1   => 1

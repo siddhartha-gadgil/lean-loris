@@ -37,16 +37,16 @@ elab (name:= exprDistPack) "packdist!" s:expr_dist : term => do
   packWeighted m.toList
 
 
-#eval packdist! exp!{(1, 2), ("Hello", 4)}
-#check packdist! exp!{(1, 2), ("Hello", 4)}
+-- #eval packdist! exp!{(1, 2), ("Hello", 4)}
+-- #check packdist! exp!{(1, 2), ("Hello", 4)}
 
-#reduce (fun x y : Nat => packdist! exp!{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
+-- #reduce (fun x y : Nat => packdist! exp!{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
 
 elab "find-proof!" p:term "in" d:expr_dist : term => do
   let dist ← parseExprDist d
   let prop ← elabType p
-  let proofOpt ← dist.getProofM? prop
-  match proofOpt with
+  let proof? ← dist.getProofM? prop
+  match proof? with
   | some (x, _) => return x
   | none => throwError "No proof found"
 
@@ -69,7 +69,7 @@ elab (name:= exprPack) "pack!" s:expr_list : term => do
     let m : Array (Expr) ←  parseExprArray s
     pack m.toList
 
-#check pack! exp![(1, 2), 3, ("Hello", 4), "over here"]
+-- #check pack! exp![(1, 2), 3, ("Hello", 4), "over here"]
 
 declare_syntax_cat name_dist
 syntax nameWt := "(" ident "," num ")"
@@ -223,8 +223,8 @@ match s with
   | none => pure ()
   logResults (some tk) goals finalDist
   let reportDist ← goals.mapM $ fun g => do
-    let pfOpt ←  (finalDist.getProofM? g)
-    return pfOpt.getD (mkConst ``Unit, 0)
+    let pf? ←  (finalDist.getProofM? g)
+    return pf?.getD (mkConst ``Unit, 0)
   return ← (ppackWeighted reportDist.toList)
 | _ => throwIllFormedSyntax
 
@@ -256,5 +256,3 @@ elab "hashv!" t:term : term => do
     logInfo m!"expr: {expr}"
     logInfo m!"hash: {n}"
     return ToExpr.toExpr n
-
-#check (3 : UInt64).toNat

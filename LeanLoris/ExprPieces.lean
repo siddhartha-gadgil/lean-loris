@@ -42,11 +42,11 @@ partial def exprNames (withDoms : Bool): Expr → MetaM (List Name) :=
           else return []        
       | Expr.app f a _ => 
           do  
-            let ftypeOpt ← inferTypeOpt f 
-            let explOpt := 
-              ftypeOpt.map $ fun ftype =>
+            let ftype? ← inferType? f 
+            let expl? := 
+              ftype?.map $ fun ftype =>
               (ftype.data.binderInfo.isExplicit)
-            let expl := explOpt.getD true            let fdeps ← exprNames withDoms f
+            let expl := expl?.getD true            let fdeps ← exprNames withDoms f
             let adeps ← exprNames withDoms a
             let s := 
               if !expl then fdeps else
@@ -90,8 +90,8 @@ partial def argList : Expr → TermElabM (List Name) :=
     let res ← match e with
       | Expr.const name _ _  =>
         do
-        let typeOpt ← inferTypeOpt e
-        let isForAll := (typeOpt.map (fun type => type.isForall)).getD true
+        let type? ← inferType? e
+        let isForAll := (type?.map (fun type => type.isForall)).getD true
         if isForAll then return []
         else
         if ← (isWhiteListed name) 
@@ -104,11 +104,11 @@ partial def argList : Expr → TermElabM (List Name) :=
           else return []        
       | Expr.app f a _ => 
           do  
-            let ftypeOpt ← inferTypeOpt f 
-            let explOpt := 
-              ftypeOpt.map $ fun ftype =>
+            let ftype? ← inferType? f 
+            let expl? := 
+              ftype?.map $ fun ftype =>
               (ftype.data.binderInfo.isExplicit)
-            let expl := explOpt.getD true
+            let expl := expl?.getD true
             if !expl then pure [] else return (← argList f) ++ (← argList a)
       | Expr.lam _ t b _ => 
           argList b 
@@ -126,8 +126,8 @@ partial def exprHash : Expr → TermElabM UInt64 :=
     match e with
       | Expr.const name _ _  =>
         do
-        let typeOpt ← inferTypeOpt e
-        let isForAll := (typeOpt.map (fun type => type.isForall)).getD true
+        let type? ← inferType? e
+        let isForAll := (type?.map (fun type => type.isForall)).getD true
         if isForAll then return 7
         else
         -- if ← (isWhiteListed name) 
@@ -140,11 +140,11 @@ partial def exprHash : Expr → TermElabM UInt64 :=
           -- else return 7        
       | Expr.app f a _ => 
           do  
-            let ftypeOpt ← inferTypeOpt f 
-            let explOpt := 
-              ftypeOpt.map $ fun ftype =>
+            let ftype? ← inferType? f 
+            let expl? := 
+              ftype?.map $ fun ftype =>
               (ftype.data.binderInfo.isExplicit)
-            let expl := explOpt.getD true
+            let expl := expl?.getD true
             if !expl then pure 7 else return mixHash (← exprHash f) (← exprHash a)
       | Expr.lam _ t b _ => 
           return mixHash (← exprHash t) (← exprHash b)
@@ -162,8 +162,8 @@ partial def exprHashV : Expr → TermElabM UInt64 :=
       | Expr.const name _ _  =>
         do
         logInfo m!"{e} is a constant {name}"
-        let typeOpt ← inferTypeOpt e
-        let isForAll := (typeOpt.map (fun type => type.isForall)).getD true
+        let type? ← inferType? e
+        let isForAll := (type?.map (fun type => type.isForall)).getD true
         if isForAll then
           logInfo m!"{e} is forall" 
           return 7
@@ -181,11 +181,11 @@ partial def exprHashV : Expr → TermElabM UInt64 :=
       | Expr.app f a _ => 
           do  
             logInfo m!"{e} is {f} applied to {a}" 
-            let ftypeOpt ← inferTypeOpt f 
-            let explOpt := 
-              ftypeOpt.map $ fun ftype =>
+            let ftype? ← inferType? f 
+            let expl? := 
+              ftype?.map $ fun ftype =>
               (ftype.data.binderInfo.isExplicit)
-            let expl := explOpt.getD true
+            let expl := expl?.getD true
             if !expl then
               logInfo m!"{e} isa function with argument not explicit" 
               pure 7 

@@ -57,11 +57,11 @@ partial def recExprNames: Expr → MetaM (Array Name) :=
       | Expr.app f a _ => 
           do  
             -- IO.println s!"app"
-            let ftypeOpt ← inferTypeOpt f 
-            let explOpt := 
-              ftypeOpt.map $ fun ftype =>
+            let ftype? ← inferType? f 
+            let expl? := 
+              ftype?.map $ fun ftype =>
               (ftype.data.binderInfo.isExplicit)
-            let expl := explOpt.getD true
+            let expl := expl?.getD true
             -- IO.println s!"explicit? {expl}" 
             let s ←  
               if !expl then recExprNames f else
@@ -91,8 +91,8 @@ def offSpring? (name: Name) : MetaM (Option (Array Name)) := do
   | none => return none
 
 partial def descendants (name: Name) : MetaM (Array Name) := do
-  let offOpt ← offSpring? name
-  match offOpt with 
+  let off? ← offSpring? name
+  match off? with 
   | some off => do
       let recDesc ← off.mapM (fun n => descendants n)
       return recDesc.foldl (fun acc n => acc.append n) #[name]

@@ -146,12 +146,12 @@ def weightedTypeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
 
 def typeOptEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
          TermElabM (Array (Expr × Nat)))
-          (tacOpt : Expr → TermElabM (Option Expr)) : EvolverM D := 
+          (tac? : Expr → TermElabM (Option Expr)) : EvolverM D := 
             fun wb cb data dist => do
             let typeArray ← types wb cb data dist
             let mut terms : Array (Expr × Nat) := Array.empty
             for (type, w) in typeArray do
-              match ← tacOpt type with
+              match ← tac? type with
               | none => pure ()
               | some y =>
                 terms := terms.push (y, w)
@@ -167,15 +167,15 @@ def tacticPropEvolverM{D: Type}(tactic : MVarId → TermElabM (List MVarId))(ind
       typeSumEvolverM (fun wb cb data dist => (dist.bound wb cb).propsArr) 
         (tacticExprArray tactic indepGoals)
 
-def optProofTypeEvolverM{D: Type}(tacOpt : Expr → TermElabM (Option Expr)) : 
+def optProofTypeEvolverM{D: Type}(tac? : Expr → TermElabM (Option Expr)) : 
     EvolverM D := 
       typeOptEvolverM (fun wb cb data dist => (dist.bound wb cb).typesArr) 
-        tacOpt
+        tac?
 
-def optProofPropEvolverM{D: Type}(tacOpt : Expr → TermElabM (Option Expr)) : 
+def optProofPropEvolverM{D: Type}(tac? : Expr → TermElabM (Option Expr)) : 
     EvolverM D := 
       typeOptEvolverM (fun wb cb data dist => (dist.bound wb cb).propsArr) 
-        tacOpt
+        tac?
 
 def applyPairing(type func: Expr) : TermElabM (Option (Array Expr)) := do
   let goal ← mkFreshExprMVar (some type)
@@ -264,8 +264,8 @@ def natRecEvolverM(D: Type) : EvolverM D :=
   let tactic : Expr → TermElabM (Option (Array (Expr× Nat))) := 
     fun type => 
       do
-      let fmlyOpt ← natRecFamily type
-      fmlyOpt.mapM <| fun fmly =>
+      let fmly? ← natRecFamily type
+      fmly?.mapM <| fun fmly =>
         return #[(← mkAppM ``natRec #[fmly], 0), 
         (← whnf <| mkApp fmly (mkConst ``Nat.zero), 1), 
         (← whnf <| ← mkAppM ``natRecStep #[fmly], 1)] 

@@ -27,13 +27,13 @@ def isWhiteListed (declName : Name) : MetaM Bool := do
   let bl ← isBlackListed  declName
   return !bl
 
+
 def view(expr: Expr): MetaM String := do
   let stx ← PrettyPrinter.delab (← getCurrNamespace) (← getOpenDecls) expr
   let fmt ← PrettyPrinter.ppTerm stx
   return fmt.pretty
 
-
-def inferTypeOpt(e: Expr) : MetaM (Option Expr) := do
+def inferType?(e: Expr) : MetaM (Option Expr) := do
   try
     let type ← inferType e
     -- let type ← whnf e
@@ -96,13 +96,3 @@ def negate (p: Expr) : MetaM Expr := do
                 return (mkOr (mkAnd l (mkNot r)) (mkAnd r (mkNot l)))
             | none =>
                 return (mkNot p)
-
-
-#check mkNot
-
-#check Expr.eq?
-#check @Eq
-#check Expr.and?
-#check @Exists
-#check mkArrow
-#check mkForall

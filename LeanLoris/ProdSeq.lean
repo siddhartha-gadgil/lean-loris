@@ -41,9 +41,9 @@ def splitProd?(expr: Expr) : TermElabM (Option (Expr × Expr)) :=
 
 def split? (expr: Expr) : TermElabM (Option (Expr × Expr)) :=
     do
-      let hOpt ← splitPProd? expr 
-      let hpOpt ← splitProd? expr
-      return hOpt.orElse (fun _ => hpOpt)
+      let h? ← splitPProd? expr 
+      let hp? ← splitProd? expr
+      return h?.orElse (fun _ => hp?)
 
 partial def unpackWeighted (expr: Expr) : TermElabM (List (Expr × Nat)) :=
     do
@@ -152,9 +152,9 @@ def packTerms : List Expr →  TermElabM Expr
 elab (name := prodHead) "prodHead!" t:term : term => 
     do
       let expr ← elabTerm t none
-      let hOpt ← splitPProd? expr 
-      let hpOpt ← splitProd? expr
-      match (hOpt.orElse (fun _ => hpOpt)) with
+      let h? ← splitPProd? expr 
+      let hp? ← splitProd? expr
+      match (h?.orElse (fun _ => hp?)) with
       | some (h, t) => return h
       | none => throwAbortTerm    
 

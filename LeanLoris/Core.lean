@@ -37,7 +37,7 @@ def parseNat : Syntax → TermElabM Nat := fun s =>
 -- Basic functions for generation
 
 -- (optional) function application with unification
-def applyOpt (f x : Expr) : TermElabM (Option Expr) :=
+def apply? (f x : Expr) : TermElabM (Option Expr) :=
   do
     try
       let expr ← elabAppArgs f #[] #[Arg.expr x] none (explicit := false) (ellipsis := false)
@@ -49,7 +49,7 @@ def applyOpt (f x : Expr) : TermElabM (Option Expr) :=
     catch e =>
       return none
 
-def applyPairOpt (f x y : Expr) : TermElabM (Option Expr) :=
+def applyPair? (f x y : Expr) : TermElabM (Option Expr) :=
   do
     try
       let expr ← elabAppArgs f #[] #[Arg.expr x, Arg.expr y] none 
@@ -62,7 +62,7 @@ def applyPairOpt (f x y : Expr) : TermElabM (Option Expr) :=
     catch e =>
       return none
 
-def mkAppOpt (f x : Expr) : TermElabM (Option Expr) :=
+def mkApp? (f x : Expr) : TermElabM (Option Expr) :=
   do
     try
       let expr:= mkApp f x
@@ -75,7 +75,7 @@ def mkAppOpt (f x : Expr) : TermElabM (Option Expr) :=
     catch e =>
       return none
 
-def mkAppPairOpt (f x y : Expr) : TermElabM (Option Expr) :=
+def mkAppPair? (f x y : Expr) : TermElabM (Option Expr) :=
   do
     try
       let expr:= mkAppN f #[x, y]
@@ -88,7 +88,7 @@ def mkAppPairOpt (f x y : Expr) : TermElabM (Option Expr) :=
       return none
 
 -- (optional) function application with unification given name of function
-def nameApplyOpt (f: Name) (x : Expr) : TermElabM (Option Expr) :=
+def nameApply? (f: Name) (x : Expr) : TermElabM (Option Expr) :=
   do
     try
       let expr ← mkAppM f #[x]
@@ -106,7 +106,7 @@ def nameApplyOpt (f: Name) (x : Expr) : TermElabM (Option Expr) :=
       return none
 
 -- (optional) function application with unification given name of function and a pair of arguments
-def nameApplyPairOpt (f: Name) (x y: Expr) : TermElabM (Option Expr) :=
+def nameApplyPair? (f: Name) (x y: Expr) : TermElabM (Option Expr) :=
   do
     try
       let expr ← mkAppM f #[x, y]
@@ -154,11 +154,11 @@ def rewriteProof (e: Expr) (heq : Expr) (symm : Bool := false) : MetaM (Option E
     return some eqPrf
 
 -- transports a term using equlity if its type can be rewritten
-def rwPushOpt(symm : Bool)(e : Expr) (heq : Expr) : TermElabM (Option Expr) :=
+def rwPush?(symm : Bool)(e : Expr) (heq : Expr) : TermElabM (Option Expr) :=
   do
     let t ← inferType e
-    let pfOpt ← rewriteProof t heq symm
-    match pfOpt with
+    let pf? ← rewriteProof t heq symm
+    match pf? with
     | none => return none
     | some pf =>
       try
@@ -173,7 +173,7 @@ def rwPushOpt(symm : Bool)(e : Expr) (heq : Expr) : TermElabM (Option Expr) :=
         return none
 
 -- (optional) congrArg for an equality
-def congrArgOpt (f: Expr)(eq : Expr) : TermElabM (Option Expr) :=
+def congrArg? (f: Expr)(eq : Expr) : TermElabM (Option Expr) :=
   do
     try
       let expr ← mkAppM ``congrArg #[f, eq]
