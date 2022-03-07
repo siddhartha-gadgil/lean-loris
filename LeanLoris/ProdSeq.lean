@@ -79,7 +79,7 @@ def ppackWeighted : List (Expr × Nat) →  TermElabM Expr
       let expr ← mkAppM `PProd.mk #[h, t]
       return expr
 
-def lambdaPack : List Expr →  MetaM Expr 
+def lambdaPack : List Expr →  TermElabM Expr 
   | [] => return mkConst ``Unit.unit
   | x :: ys => 
     do

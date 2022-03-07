@@ -234,8 +234,8 @@ def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α
                       oe.map (fun e4 => (e4, w) ))
       let arr2 ←  arr1.filterMapM <| fun t => t
       -- logInfo m!"obtained resulting compositions {← IO.monoMsNow}; size: {arr2.size}"
-      let res ← ExprDist.fromArray arr2 
-      -- logInfo m!"obtained merged result {← IO.monoMsNow}; size : {res.termsArr.size} + {res.proofsArr.size}"
+      let res ← ExprDist.fromArrayM arr2 
+      -- logInfo m!"obtained merged result {← IO.monoMsNow}; size : {res.termsArray.size} + {res.proofsArray.size}"
       return res
     else return ExprDist.empty
 
@@ -277,8 +277,8 @@ def prodPolyGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageDat
             arr1 := arr1.push (some (e3, w))        
       let arr2 :=  arr1.filterMap <| fun t => t
       -- logInfo m!"obtained resulting compositions {← IO.monoMsNow}; size: {arr2.size}"
-      let res ← ExprDist.fromArray arr2 
-      -- logInfo m!"obtained merged result {← IO.monoMsNow}; size : {res.termsArr.size} + {res.proofsArr.size}"
+      let res ← ExprDist.fromArrayM arr2 
+      -- logInfo m!"obtained merged result {← IO.monoMsNow}; size : {res.termsArray.size} + {res.proofsArray.size}"
       return res
     else return ExprDist.empty
 
@@ -324,8 +324,8 @@ def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ 
                       oe.map (fun e4 => (e4, w) ))
       let arr2 ←  arr1.filterMapM <| fun t => t
       -- logInfo m!"obtained resulting compositions {← IO.monoMsNow}; size: {arr2.size}"
-      let res ← ExprDist.fromArray arr2
-      -- logInfo m!"obtained merged result {← IO.monoMsNow}; size : {res.termsArr.size} + {res.proofsArr.size}"
+      let res ← ExprDist.fromArrayM arr2
+      -- logInfo m!"obtained merged result {← IO.monoMsNow}; size : {res.termsArray.size} + {res.proofsArray.size}"
       return res
     else return ExprDist.empty
 

@@ -88,7 +88,7 @@ def dist4 : TermElabM ExprDist := do
                   (← evolve) (←  init1) 
 
 def view4 : TermElabM String := do
-                  (← dist4).viewGoals (← goals4)                
+                  (← dist4).viewGoalsM (← goals4)                
 
 #check @mul
 #check @HMul.hMul

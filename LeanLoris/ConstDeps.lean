@@ -42,7 +42,7 @@ partial def recExprNames: Expr → MetaM (Array Name) :=
   match ← getCached? e with
   | some offs => return offs
   | none =>
-    -- IO.println s!"recExprNames: ${e}"
+    IO.println s!"finding recExprNames"
     let res ← match e with
       | Expr.const name _ _  =>
         do
@@ -56,16 +56,16 @@ partial def recExprNames: Expr → MetaM (Array Name) :=
           else pure #[]        
       | Expr.app f a _ => 
           do  
+            IO.println s!"app"
             let ftypeOpt ← inferTypeOpt f 
             let explOpt := 
               ftypeOpt.map $ fun ftype =>
               (ftype.data.binderInfo.isExplicit)
             let expl := explOpt.getD true
-            let fdeps ← recExprNames f
-            let adeps ← recExprNames a
-            let s := 
-              if !expl then fdeps else
-                fdeps ++ adeps
+            IO.println s!"explicit? {expl}" 
+            let s ←  
+              if !expl then recExprNames f else
+                return (← recExprNames f) ++ (← recExprNames a)
             return s
       | Expr.lam _ _ b _ => 
           do
@@ -76,17 +76,17 @@ partial def recExprNames: Expr → MetaM (Array Name) :=
             return ← recExprNames b
       | _ => pure #[]
     cache e res
-    -- IO.println s!"found result recExprNames: ${e}"
+    IO.println s!"found result recExprNames"
     return res
 
 
 def offSpring? (name: Name) : MetaM (Option (Array Name)) := do
-  -- IO.println "finding offspring"
+  IO.println "finding offspring"
   let expr ← nameExpr?  name
-  -- IO.println "found expr opt"
+  IO.println "found expr opt"
   match expr with
   | some e => 
-    -- IO.println s!"found expr {e}"
+    IO.println s!"found expr {e}"
     return  some <| (← recExprNames e)
   | none => return none
 
@@ -99,9 +99,10 @@ partial def descendants (name: Name) : MetaM (Array Name) := do
   | none => return #[name]
 
 def exprDescendants (expr: Expr) : MetaM (Array Name) := do
-  -- IO.println s!"exprDescendants: {expr}"
+  IO.println s!"exprDescendants: {expr}"
   let offs ← recExprNames expr
   let groups ← offs.mapM (fun n => descendants n)
+  IO.println s!"offs: {offs}"
   return groups.foldl (fun acc n => acc.append n) #[]
 
 def offSpringTriple(excludePrefixes: List Name := [])
@@ -115,12 +116,12 @@ def offSpringTriple(excludePrefixes: List Name := [])
   let kv : Array (Name × (Array Name) × (Array Name)) ←  (goodKeys).mapM $ 
       fun (n, type) => 
           do 
-          -- IO.println $ "descendants of " ++ n ++ ": " 
+          IO.println $ "descendants of " ++ n ++ ": " 
           let l := (← offSpring? n).getD #[]
           let l := l.filter fun n => !(excludePrefixes.any (fun pfx => pfx.isPrefixOf n))
-          -- IO.println $ "found descendants of " ++ n ++ ": "
+          IO.println $ "found descendants of " ++ n ++ ": "
           let tl ←  exprDescendants type
-          -- IO.println $ "found type descendants of " ++ n ++ ": "
+          IO.println $ "found type descendants of " ++ n ++ ": "
           let tl := tl.filter fun n => !(excludePrefixes.any (fun pfx => pfx.isPrefixOf n))
           return (n, l, tl)
   return kv
@@ -245,11 +246,11 @@ def matrixData(triples: Array (Name × (Array Name) × (Array Name))) :
           for x in types do
             allObjects := allObjects.insert x
         let objects := allObjects.toArray
-        let termsArr := triples.map $ fun (name, terms, types) =>
+        let termsArray := triples.map $ fun (name, terms, types) =>
             countVec objects (count terms)
         let typesArr := triples.map $ fun (name, terms, types) =>
             countVec objects (count types)
-        return ⟨objects, termsArr, typesArr⟩
+        return ⟨objects, termsArray, typesArr⟩
         where 
           count (arr: Array Name) : HashMap Name Nat := Id.run do  
             let mut m := HashMap.empty
@@ -260,9 +261,9 @@ def matrixData(triples: Array (Name × (Array Name) × (Array Name))) :
             objs.map $ fun x => m.findD x 0
 
 def matrixJson(triples: Array (Name × (Array Name) × (Array Name))) : Json :=
-  let (objects, termsArr, typesArr) := matrixData triples
+  let (objects, termsArray, typesArr) := matrixData triples
   let namesJs := toJson objects
-  let termsJs := toJson termsArr
+  let termsJs := toJson termsArray
   let typesJs := toJson typesArr
   Json.mkObj [("names", namesJs), ("terms", termsJs), ("types", typesJs)]
 

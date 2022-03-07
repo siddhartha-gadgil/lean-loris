@@ -25,7 +25,7 @@ def parseExprDist : Syntax → TermElabM ExprDist
               | _ =>
                 throwError m!"{s} is not a valid exprWt"
               )
-          ExprDist.fromArray m
+          ExprDist.fromArrayM m
   | `(expr_dist|$x:ident) =>
     do
       let name := x.getId
@@ -33,7 +33,7 @@ def parseExprDist : Syntax → TermElabM ExprDist
   | _ => throwIllFormedSyntax
 
 elab (name:= exprDistPack) "packdist!" s:expr_dist : term => do
-  let m : Array (Expr × Nat)  := (←  parseExprDist s).allTermsArr
+  let m : Array (Expr × Nat)  := (←  parseExprDist s).allTermsArray
   packWeighted m.toList
 
 
@@ -45,7 +45,7 @@ elab (name:= exprDistPack) "packdist!" s:expr_dist : term => do
 elab "find-proof!" p:term "in" d:expr_dist : term => do
   let dist ← parseExprDist d
   let prop ← elabType p
-  let proofOpt ← dist.getProof? prop
+  let proofOpt ← dist.getProofM? prop
   match proofOpt with
   | some (x, _) => return x
   | none => throwError "No proof found"
@@ -223,7 +223,7 @@ match s with
   | none => pure ()
   logResults (some tk) goals finalDist
   let reportDist ← goals.mapM $ fun g => do
-    let pfOpt ←  (finalDist.getProof? g)
+    let pfOpt ←  (finalDist.getProofM? g)
     return pfOpt.getD (mkConst ``Unit, 0)
   return ← (ppackWeighted reportDist.toList)
 | _ => throwIllFormedSyntax

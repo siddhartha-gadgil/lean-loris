@@ -124,7 +124,7 @@ def typeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
                 -- logInfo m!"tactic succeeded for {type}, giving {ys}"
                 -- logInfo m!"head type : {← inferType ys[0]}" 
                 for y in ys do terms := terms.push (y, w + 1)
-            ExprDist.fromArray terms
+            ExprDist.fromArrayM terms
 
 def weightedTypeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist → 
   TermElabM (Array (Expr × Nat)))
@@ -142,7 +142,7 @@ def weightedTypeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
                 -- logInfo m!"tactic succeeded for {type}, giving {ys}"
                 -- logInfo m!"head type : {← inferType ys[0].1}" 
                 for (y, w0) in ys do terms := terms.push (y, w + w0)
-            ExprDist.fromArray terms
+            ExprDist.fromArrayM terms
 
 def typeOptEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
          TermElabM (Array (Expr × Nat)))
@@ -155,7 +155,7 @@ def typeOptEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
               | none => pure ()
               | some y =>
                 terms := terms.push (y, w)
-            ExprDist.fromArray terms
+            ExprDist.fromArrayM terms
 
 def tacticTypeEvolverM{D: Type}(tactic : MVarId → TermElabM (List MVarId))(indepGoals: Bool) :
     EvolverM D := 

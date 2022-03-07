@@ -17,19 +17,19 @@ elab "gen1!" t:term : term => do
       for (x, w) in arr do
         logInfo m!"{x} : {w}" 
       let m1 ← prodGenArrM  applyOpt 4 100 arr arr ()
-      for (x, w) in m1.allTermsArr do
+      for (x, w) in m1.allTermsArray do
         logInfo m!"{x} : {w}" 
-      let m2 ← egEvolver  4 100 () (← (ExprDist.fromArray arr)) 
-      for (x, w) in m2.allTermsArr do
+      let m2 ← egEvolver  4 100 () (← (ExprDist.fromArrayM arr)) 
+      for (x, w) in m2.allTermsArray do
         logInfo m!"{x} : {w}" 
       logInfo "Evolved state"
-      let m3 ← (egEvolver).evolve 12 100 () (← (ExprDist.fromArray arr))
-      for (x, w) in m3.allTermsArr do
+      let m3 ← (egEvolver).evolve 12 100 () (← (ExprDist.fromArrayM arr))
+      for (x, w) in m3.allTermsArray do
         logInfo m!"{x} : {w}" 
       logInfo "Full Evolved state"
-      let m4 ← (egEvolverFull).evolve 12 100 (HashMap.empty, [], []) (← (ExprDist.fromArray arr)) 
+      let m4 ← (egEvolverFull).evolve 12 100 (HashMap.empty, [], []) (← (ExprDist.fromArrayM arr)) 
                                           
-      for (x, w) in m4.allTermsArr do
+      for (x, w) in m4.allTermsArray do
         logInfo m!"{x} : {w}" 
       return x
 

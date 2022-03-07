@@ -73,7 +73,7 @@ def dist2 : TermElabM ExprDist := do
                   (← evolve1) * (← evolve2) <| (← init1)  
 
 def view2 : TermElabM String := do
-                  (← dist2).viewGoals (← goals)
+                  (← dist2).viewGoalsM (← goals)
 
 def dist3 : TermElabM ExprDist := do
                   (← evolve1) * (← evolve1) * (← evolve0) <| 
@@ -83,8 +83,8 @@ def view3 : TermElabM String := do
               let res ← dist3
               ExprDist.save `dist3 res
               let loaded ← ExprDist.load `dist3
-              IO.println s!"saved and loaded; terms: {loaded.termsArr.size}, proofs: {loaded.proofsArr.size}"
-              loaded.viewGoals (← goals)
+              IO.println s!"saved and loaded; terms: {loaded.termsArray.size}, proofs: {loaded.proofsArray.size}"
+              loaded.viewGoalsM (← goals)
 
 def init0 : TermElabM ExprDist := do
                   parseExprDist (← `(expr_dist|exp!{(hyp! → claim!, 0), (base, 1), (recFn, 1), (step, 1)}))
@@ -94,5 +94,5 @@ def dist0 : TermElabM ExprDist := do
                   (← evolve0) (←  init0) 
 
 def view0 : TermElabM String := do
-                  (← dist0).viewGoals (← goals0)  
+                  (← dist0).viewGoalsM (← goals0)  
 end RecEg
