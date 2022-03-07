@@ -43,7 +43,7 @@ def runRecEg(env: Environment) : IO Unit := do
   let view := ei.toIO <| fun e => IO.Error.userError $ "Error while running" 
   match ←  ei.toIO' with
   | Except.ok view => 
-      IO.println "\nRun completed"
+      IO.println "\n# Run completed\n"
       IO.println view 
   | Except.error e =>
     do
@@ -51,12 +51,12 @@ def runRecEg(env: Environment) : IO Unit := do
           IO.println msg
 
 def runCzSl(env: Environment) : IO Unit := do
-  IO.println "\nCzech-Slovak Olympiad example"
+  IO.println "\nCzech-Slovak Olympiad example\n"
   let c := coreView view4
   let ei := c.run' {maxHeartbeats := 100000000000} {env := env}
   match ←  ei.toIO' with
   | Except.ok view => 
-      IO.println "\nRun completed"
+      IO.println "\n# Run completed\n"
       IO.println view 
   | Except.error e =>
     do

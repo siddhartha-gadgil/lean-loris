@@ -168,11 +168,11 @@ def evolveAux{D: Type}[DataUpdate D](ev : EvolverM D)(incWt accumWt cardBound: N
                      | 0 => fun initDist _ _ => return initDist
                      | m + 1 => fun initDist d  => 
                       do
-                        IO.println s!"Evolver step: weight-bound = {accumWt+ 1}; cardinality-bound = {cardBound}; mono-time = {← IO.monoMsNow}"
-                        IO.println s!"initial terms: {initDist.termsArray.size}, initial proofs: {initDist.proofsArray.size}"
+                        -- IO.println s!"Evolver step: weight-bound = {accumWt+ 1}; cardinality-bound = {cardBound}; mono-time = {← IO.monoMsNow}"
+                        -- IO.println s!"initial terms: {initDist.termsArray.size}, initial proofs: {initDist.proofsArray.size}"
                         let newDist ← ev (accumWt + 1) cardBound d initDist 
-                        IO.println s!"step completed: weight-bound = {accumWt+ 1}; cardinality-bound = {cardBound}; mono-time = {← IO.monoMsNow}"
-                        IO.println s!"final terms: {newDist.termsArray.size}, final proofs: {newDist.proofsArray.size}"
+                        -- IO.println s!"step completed: weight-bound = {accumWt+ 1}; cardinality-bound = {cardBound}; mono-time = {← IO.monoMsNow}"
+                        -- IO.println s!"final terms: {newDist.termsArray.size}, final proofs: {newDist.proofsArray.size}"
                         let newData := dataUpdate initDist accumWt cardBound d
                         -- IO.println s!"data updated: wb = {accumWt+ 1} cardBound = {cardBound} time = {← IO.monoMsNow} "
                         evolveAux ev m (accumWt + 1) cardBound newDist newData 
@@ -703,22 +703,24 @@ def refineWeight(weight? : Expr → TermElabM (Option Nat)):
 def logResults(tk?: Option Syntax): Array Expr →  
   ExprDist →  TermElabM Unit := fun goals dist => do
     if tk?.isNone then
-      IO.println s!"number of terms : {dist.termsArray.size}"
-      IO.println s!"number of proofs: {dist.proofsArray.size}"
-      IO.println s!"term distribution : {(arrWeightCount dist.termsArray).toArray}"
-      IO.println s!"proof distribution: {(arrWeightCount <| dist.proofsArray.map (fun (l, _, w) => (l, w))).toArray}"
+      IO.println "# Results of evolution step:\n"
+      IO.println s!"* number of terms : {dist.termsArray.size}"
+      IO.println s!"* number of proofs: {dist.proofsArray.size}\n"
     let mut count := 0
     for g in goals do
       count := count + 1
       if tk?.isNone then
-        IO.println s!"goal {count}: {← view g}"
+        IO.println s!"- goal {count}: {← view g}"
       let statement ←  (dist.allTermsArray.findM? $ fun (s, _) => isDefEq s g)
       -- let statement ←  statement.mapM $ fun (e, w) => do
       --   let e ← whnf e
       --   pure (← view e, w) 
       if ← isProp g then
         if tk?.isNone then
-          IO.println s!"proposition generated: {statement}"
+          match statement with
+          | some (s, w) => 
+            IO.println s!"  statement generated: ({← view s}, {w})"
+          | none => pure ()
         let proof ←  dist.proofsArray.findM? $ fun (l, t, w) => 
                 do isDefEq l g
         match proof with
@@ -727,21 +729,22 @@ def logResults(tk?: Option Syntax): Array Expr →
           | some tk => 
               logInfoAt tk m!"found proof {pf} for proposition goal {count} : {g}; weight {w}"
           | none =>  
-              IO.println s!"proof generated: {← view pf}, weight : {w}"
+              IO.println s!"  proof generated: {← view pf}; weight: {w}\n"
         | none =>  
           match tk? with 
           | some tk => 
               logWarningAt tk m!"no proof found for proposition goal {count} : {g}"
-          | none =>  pure ()          
+          | none =>  
+              IO.println s!"  no proof found for goal {count}\n"         
           pure ()
       else
         match statement with
         | some (e, w) =>
           match tk? with 
             | some tk => 
-                logInfoAt tk m!"generated term {e} for goal {count} : {g}, weight : {w}"
+                logInfoAt tk m!"generated term {e} for goal {count} : {g}; weight: {w}"
             | none =>            
-                IO.println s!"generated term: {← view e} for goal {count} : {g} , weight : {w}"
+                IO.println s!"  generated term: {← view e} for goal {count} : {g}; weight: {w}"
         | none => 
           match tk? with 
           | some tk => 

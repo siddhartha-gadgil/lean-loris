@@ -81,10 +81,7 @@ def dist3 : TermElabM ExprDist := do
 
 def view3 : TermElabM String := do
               let res ← dist3
-              ExprDist.save `dist3 res
-              let loaded ← ExprDist.load `dist3
-              IO.println s!"saved and loaded; terms: {loaded.termsArray.size}, proofs: {loaded.proofsArray.size}"
-              loaded.viewGoalsM (← goals)
+              res.viewGoalsM (← goals)
 
 def init0 : TermElabM ExprDist := do
                   parseExprDist (← `(expr_dist|exp!{(hyp! → claim!, 0), (base, 1), (recFn, 1), (step, 1)}))
