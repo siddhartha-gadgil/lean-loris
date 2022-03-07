@@ -11,7 +11,7 @@ declare_syntax_cat expr_dist
 syntax exprWt := "(" term "," num ")"
 syntax exprWtList := "exp!{" exprWt,* "}"
 syntax exprWtList : expr_dist
-syntax "load:[" name "]" : expr_dist
+syntax ident : expr_dist
 
 def parseExprDist : Syntax → TermElabM ExprDist
   | `(expr_dist|exp!{$[$xs:exprWt],*}) =>
@@ -19,14 +19,14 @@ def parseExprDist : Syntax → TermElabM ExprDist
           let m : Array (Expr × Nat) ←  xs.mapM (fun s => do
               match s with 
               | `(exprWt|($x:term , $n:numLit)) => 
-                  let expr ← whnf <| ←  elabTerm x none
+                  let expr ← whnf <| ← reduce <| ←  elabTerm x none
                   Term.synthesizeSyntheticMVarsNoPostponing
                   return (expr, (Syntax.isNatLit? n).get!)
               | _ =>
                 throwError m!"{s} is not a valid exprWt"
               )
           ExprDist.fromArray m
-  | `(expr_dist|load:[$x:nameLit]) =>
+  | `(expr_dist|$x:ident) =>
     do
       let name := x.getId
       ExprDist.load name
@@ -195,7 +195,7 @@ mutual
     | _ => throwIllFormedSyntax
 end
 
-syntax save_target := "=:" name
+syntax save_target := "=:" ident
 
 syntax (name:= evolution) 
   "evolve!" evolver_list (expr_list)? expr_dist (name_dist)? num num (save_target)?  : term

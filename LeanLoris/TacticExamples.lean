@@ -41,7 +41,7 @@ def localConst(f: Nat → Nat) :=
             exp![
             base!, 
             semistep!,
-            recFn!] exp!{(thm!, 0)} 2 5000 =: `dist1
+            recFn!] exp!{(thm!, 0)} 2 5000 =: dist1
   let ⟨⟨base1, _⟩, ⟨semistep1, _⟩, ⟨recFn1, _⟩⟩ := seek
   let _ : semistep = semistep1 := by rfl
   let _ : base = base1 := by rfl
@@ -50,7 +50,7 @@ def localConst(f: Nat → Nat) :=
             base!, 
             semistep!,
             step!,
-            recFn!] load:[`dist1] 2 5000 =: `dist2
+            recFn!] dist1 2 5000 =: dist2
   let seek3 := evolve! ev![Σev![simple-binop] ^ Σev![pi-goals]] exp![thm!] 
           exp!{(thm!, 0), (base, 0), (recFn, 0), (step, 0)} 2 5000
   let ⟨⟨thm, _⟩, _⟩ := seek3

@@ -1,7 +1,7 @@
 import LeanLoris
 import Lean.Meta
 import LeanLoris.CompiledCzSl
-import LeanLoris.CompiledRecEg
+import LeanLoris.CompiledLclCnst
 import LeanLoris.ExprDist
 import LeanLoris.ConstDeps
 import Mathlib
@@ -66,7 +66,7 @@ def runCzSl(env: Environment) : IO Unit := do
 def main (args: List String) : IO Unit := do
   initSearchPath (← Lean.findSysroot?) ["build/lib", "lean_packages/mathlib/build/lib/"]
   let env ← 
-    importModules [{module := `LeanLoris.CompiledCzSl}, {module := `LeanLoris.CompiledRecEg}] {}
+    importModules [{module := `LeanLoris.CompiledCzSl}, {module := `LeanLoris.CompiledLclCnst}] {}
   let mathenv ← 
     importModules [{module := `Mathlib}] {}
   IO.println "Choose one or more of the following:"
