@@ -22,6 +22,68 @@ def nameExpr? : Name → MetaM ( Option Expr) :=
       let info := ((← getEnv).find? name)
       return Option.bind info ConstantInfo.value?
 
+partial def exprHash : Expr → TermElabM UInt64 
+  | e =>
+    match e with
+      | Expr.const name _ _  =>
+        do
+        let type? ← inferType? e
+        let isForAll := (type?.map (fun type => type.isForall)).getD true
+        if isForAll then return 7
+        else
+          match ← nameExpr?  name with
+          | some e => exprHash e
+          | none => return 7
+      | Expr.app f a _ => 
+          do  
+            let ftype? ← inferType? f 
+            let expl? := 
+              ftype?.map $ fun ftype =>
+              (ftype.data.binderInfo.isExplicit)
+            let expl := expl?.getD true
+            if !expl then pure 7 else return mixHash (← exprHash f) (← exprHash a)
+      | Expr.lam _ t b _ => 
+          return mixHash (← exprHash t) (← exprHash b)
+      | Expr.forallE _ t b _ => do
+          return mixHash (← exprHash t) (← exprHash b) 
+      | Expr.letE _ t v b _ => 
+          return mixHash (← exprHash t) (← exprHash b)
+      | Expr.lit _ d => return d.hash
+      | _ => return 7
+
+
+/- 
+Finding whether an expression is contained in another; to be used in (not yet implemented) transformations that reduce weights for sub-expressions of goals.
+-/
+partial def subExpr?(withDoms: Bool)(parent: Expr): Expr → TermElabM Bool := 
+    fun e => do
+      if ← isDefEq parent e then return true
+      else
+      match ← whnf e with
+        | Expr.app f a _ => 
+            (subExpr? withDoms parent f) <||>
+                  (subExpr? withDoms parent a)
+        | Expr.lam _ t b _ => 
+            (subExpr? withDoms parent b) <||>
+                  (pure withDoms) <&&>  (subExpr? withDoms parent t)
+        | Expr.forallE _ t b _ => 
+            (subExpr? withDoms parent b) <||>
+                  (pure withDoms) <&&>  (subExpr? withDoms parent t)
+        | Expr.letE _ t v b _ => do
+            (subExpr? withDoms parent b) <||>
+                  (subExpr? withDoms parent v) <||>
+                  (pure withDoms) <&&>  (subExpr? withDoms parent t)
+        | _ => return false
+
+/-
+Computing optional weight based on whether an expression is contained in another.
+-/
+def subExprWeight(cost: Nat)(withDoms: Bool)(parent: Expr): Expr → TermElabM (Option Nat) :=
+    fun e => do
+        if (← subExpr? withDoms parent e) then return (some cost) else return none
+
+-- None of the code below is currently used; it remains from other approaches (and is kept for possible changes in approach)
+
 -- does not look within types for lambda's and pi's
 partial def exprNames (withDoms : Bool): Expr → MetaM (List Name) :=
   fun e =>
@@ -119,42 +181,8 @@ partial def argList : Expr → TermElabM (List Name) :=
       | _ => return []
     return res
 
-#check mixHash
 
-partial def exprHash : Expr → TermElabM UInt64 :=
-  fun e => 
-    match e with
-      | Expr.const name _ _  =>
-        do
-        let type? ← inferType? e
-        let isForAll := (type?.map (fun type => type.isForall)).getD true
-        if isForAll then return 7
-        else
-        -- if ← (isWhiteListed name) 
-        --   then return name.hash 
-        --   else
-        --   if ← (isNotAux  name)  then
-            match ← nameExpr?  name with
-            | some e => exprHash e
-            | none => return 7
-          -- else return 7        
-      | Expr.app f a _ => 
-          do  
-            let ftype? ← inferType? f 
-            let expl? := 
-              ftype?.map $ fun ftype =>
-              (ftype.data.binderInfo.isExplicit)
-            let expl := expl?.getD true
-            if !expl then pure 7 else return mixHash (← exprHash f) (← exprHash a)
-      | Expr.lam _ t b _ => 
-          return mixHash (← exprHash t) (← exprHash b)
-      | Expr.forallE _ t b _ => do
-          return mixHash (← exprHash t) (← exprHash b) 
-      | Expr.letE _ t v b _ => 
-          return mixHash (← exprHash t) (← exprHash b)
-      | Expr.lit _ d => return d.hash
-      | _ => return 7
-
+-- Verbose hashing for debugging (not used currently)
 partial def exprHashV : Expr → TermElabM UInt64 :=
   fun e => do 
     logInfo m!"computing hash of {e}"
@@ -168,16 +196,11 @@ partial def exprHashV : Expr → TermElabM UInt64 :=
           logInfo m!"{e} is forall" 
           return 7
         else
-        -- if ← (isWhiteListed name) 
-        --   then return name.hash 
-        --   else
-        --   if ← (isNotAux  name)  then
-            match ← nameExpr?  name with
-            | some e => exprHashV e
-            | none => 
-              logInfo m!"{e} is a name {name} with no definition"
-              return 7
-          -- else return 7        
+          match ← nameExpr?  name with
+          | some e => exprHashV e
+          | none => 
+            logInfo m!"{e} is a name {name} with no definition"
+            return 7
       | Expr.app f a _ => 
           do  
             logInfo m!"{e} is {f} applied to {a}" 
@@ -209,26 +232,3 @@ partial def exprHashV : Expr → TermElabM UInt64 :=
           return 7
 
 
-partial def subExpr?(withDoms: Bool)(parent: Expr): Expr → TermElabM Bool := 
-    fun e => do
-      if ← isDefEq parent e then return true
-      else
-      match ← whnf e with
-        | Expr.app f a _ => 
-            (subExpr? withDoms parent f) <||>
-                  (subExpr? withDoms parent a)
-        | Expr.lam _ t b _ => 
-            (subExpr? withDoms parent b) <||>
-                  (pure withDoms) <&&>  (subExpr? withDoms parent t)
-        | Expr.forallE _ t b _ => 
-            (subExpr? withDoms parent b) <||>
-                  (pure withDoms) <&&>  (subExpr? withDoms parent t)
-        | Expr.letE _ t v b _ => do
-            (subExpr? withDoms parent b) <||>
-                  (subExpr? withDoms parent v) <||>
-                  (pure withDoms) <&&>  (subExpr? withDoms parent t)
-        | _ => return false
-
-def subExprWeight(cost: Nat)(withDoms: Bool)(parent: Expr): Expr → TermElabM (Option Nat) :=
-    fun e => do
-        if (← subExpr? withDoms parent e) then return (some cost) else return none

@@ -265,7 +265,7 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
                   let y ← (mkApp? f x)
                   return y.map (fun y => (y, w))
               )
-          let dist ← dist.mergeArray foldedFuncs
+          let dist ← dist.mergeArrayM foldedFuncs
           let purgedTerms ← dist.termsArray.filterM (fun (term, w) => do
               match term with
               | Expr.lam _ t y _ => 
@@ -660,10 +660,7 @@ def logResults(tk?: Option Syntax): Array Expr →
       count := count + 1
       if tk?.isNone then
         IO.println s!"- goal {count}: {← view g}"
-      let statement ←  (dist.allTermsArray.findM? $ fun (s, _) => isDefEq s g)
-      -- let statement ←  statement.mapM $ fun (e, w) => do
-      --   let e ← whnf e
-      --   pure (← view e, w) 
+      let statement ← (dist.allTermsArray.findM? $ fun (s, _) => isDefEq s g)
       if ← isProp g then
         if tk?.isNone then
           match statement with
@@ -710,11 +707,4 @@ def EvolutionM.followedBy(fst snd: EvolutionM): EvolutionM := fun dist => do
 instance : Mul EvolutionM := 
   ⟨fun fst snd => fst.followedBy snd⟩
 
--- examples
-
-def egEvolver : EvolverM Unit := 
-  ((applyEvolver Unit).tautRec ++ (RecEvolverM.init Unit)).fixedPoint
-
-def egEvolverFull : EvolverM FullData := 
-  ((applyEvolver FullData).tautRec ++ (RecEvolverM.init FullData)).fixedPoint
 

@@ -10,12 +10,11 @@ open Std.HashMap
 open Nat
 
 /- 
-  Hashmaps for distributions; especially for expressions; with basic map, filter methods
-  including Mondaic forms
+  Hashmaps for distributions;  with basic map, filter methods
+  including Mondaic forms. For expressions we use `ExprDist` instead
+  as we want Definitional equality, not Boolean equality.
 -/
 abbrev FinDist (α : Type)[Hashable α][BEq α] := HashMap α Nat 
-
-
 
 abbrev NameDist := FinDist Name
 

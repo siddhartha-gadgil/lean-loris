@@ -9,6 +9,16 @@ open Std
 open Lean Meta Elab Term
 open ProdSeq
 
+/-
+Examples for checking generation by combination rules, updating finite distributions, and evolution.
+-/
+
+def egEvolver : EvolverM Unit := 
+  ((applyEvolver Unit).tautRec ++ (RecEvolverM.init Unit)).fixedPoint
+
+def egEvolverFull : EvolverM FullData := 
+  ((applyEvolver FullData).tautRec ++ (RecEvolverM.init FullData)).fixedPoint
+
 elab "gen1!" t:term : term => do 
       let x ← elabTerm t none
       let l ← unpackWeighted x
