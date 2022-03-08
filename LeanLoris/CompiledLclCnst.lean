@@ -13,8 +13,11 @@ open Elab
 open Lean.Elab.Term
 open RecEvolverM
 
-namespace RecEg
+namespace LclConst
 
+constant α : Type
+axiom a : α 
+noncomputable instance : Inhabited α := ⟨a⟩
 constant f : Nat → Nat 
 
 -- the claims and proofs
@@ -92,4 +95,4 @@ def dist0 : TermElabM ExprDist := do
 
 def view0 : TermElabM String := do
                   (← dist0).viewGoalsM (← goals0)  
-end RecEg
+end LclConst

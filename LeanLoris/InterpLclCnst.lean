@@ -2,7 +2,7 @@ import LeanLoris.Syntax
 
 set_option maxHeartbeats 100000000
 
-def localConst(f: Nat → Nat) :=
+def localConst{α : Type}(f: Nat → α) :=
   let hyp! := ∀ x: Nat, f (x + 1) = f x
   let claim! := ∀ n: Nat, f n = f 0
   let baseclaim! := f 0 = f 0
