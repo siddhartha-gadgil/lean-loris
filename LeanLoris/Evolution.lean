@@ -35,27 +35,10 @@ instance : DataUpdate Unit := idUpate
 instance : DataUpdate NameDist := idUpate
 
 -- Deprecated
-class IsNew (D: Type) where
-  isNew: D → Nat → Nat →  Expr → Nat →  TermElabM Bool
-  isNewPair : D → Nat → Nat →  Expr → Nat →  Expr → Nat → TermElabM Bool
-  isNewTriple : D → Nat → Nat →  Expr → Nat →  Expr → Nat → Expr → Nat →   TermElabM Bool
-
-def isNew{D: Type}[c: IsNew D] : D → Nat → Nat →   Expr  → Nat  → TermElabM Bool :=
-  c.isNew
-
-def allNew{D: Type} : IsNew D :=
-  ⟨fun d _ _ e _ => pure true, fun d _ _ _ _ _ _  => pure true,
-  fun _ _ _ _ _ _ _ _ _ => pure true⟩
-
-instance : IsNew Unit := allNew
 
 instance : NewElem Expr Unit := constNewElem (true, true)
 
 instance {D: Type} : NewElem Name D := constNewElem (false, true)
-
-def isNewPair{D: Type}[c: IsNew D] : D → Nat → Nat →  
-        (Expr ×   Expr) → (Nat × Nat)  → TermElabM Bool :=
-  fun d wb cb (e1, e2) (w1, w2) => c.isNewPair d wb cb e1 w1 e2 w2
 
 class GetNameDist (D: Type) where
   nameDist: D → NameDist
@@ -67,35 +50,18 @@ instance : GetNameDist NameDist := ⟨fun nd => nd⟩
 
 instance : GetNameDist Unit := ⟨fun _ => FinDist.empty⟩
 
-instance : IsNew NameDist := allNew
-
 instance : NewElem Expr NameDist := constNewElem (true, true)
 
 class DistHist (D: Type) where
   distHist: D → List GeneratedDist
   extDists : D → List HashExprDist
 
-def newFromHistory {D: Type}[cl: DistHist D] : IsNew D :=
-  ⟨fun d wb c e w => do
-    let exs ← ((cl.distHist d).anyM <| fun dist =>  dist.exprDist.existsM e w)
-    return !exs,
-  fun d wb c e1 w1 e2 w2 => do
-    let exs ← ((cl.distHist d).anyM <| fun ⟨wt, _,dist⟩ => 
-      dist.existsM e1 w1 <&&>  (dist.existsM e2 w2) <&&> return (w1 + w2 + 1 ≤ wt))
-    return !exs,
-    fun d wb c e1 w1 e2 w2 e3 w3 => do
-    let exst ← ((cl.distHist d).anyM <| fun ⟨wt, _,dist⟩ => do
-      dist.existsM e1 w1 <&&> (dist.existsM e2 w2) <&&> (dist.existsM e3 w3) <&&>
-        return (w1 + w2 + w3 + 1 ≤ wt))
-     return !exst⟩
 
 def newElemFromHistory {D: Type}[cl: DistHist D] : NewElem Expr D :=
   ⟨fun d  e w => do
     let exst ← ((cl.distHist d).anyM <| fun dist =>  dist.exprDist.existsM e w)
     let extrn ← ((cl.extDists d).anyM <| fun dist =>  dist.existsM e w)
     return (!exst, !extrn)⟩
-
-instance {D: Type}[cl: DistHist D] : IsNew D := newFromHistory 
 
 instance {D: Type}[cl: DistHist D] : NewElem Expr D := newElemFromHistory 
 

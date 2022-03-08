@@ -179,7 +179,7 @@ def applyPairing(type func: Expr) : TermElabM (Option (Array Expr)) := do
     return some (goalLambda :: newGoals).toArray
   catch _ => return none
 
-def applyTacticEvolver(D: Type)[IsNew D][NewElem Expr D] : EvolverM D := 
+def applyTacticEvolver(D: Type)[NewElem Expr D] : EvolverM D := 
   fun wb c d init => 
   do
     prodPolyGenArrM applyPairing wb c (← init.typesArr) (← init.funcs) d
