@@ -104,18 +104,6 @@ partial def lambdaUnpack (expr: Expr) : TermElabM (List Expr) :=
           do throwError m!"{expr} is neither product nor unit" 
         return []
 
-elab (name:= roundtripWtd) "roundtrip-weighted!" t:term : term =>
-    do
-      let expr ← elabTerm t none
-      let l ← unpackWeighted expr
-      let e ← ppackWeighted l
-      let ll ← unpackWeighted e
-      let ee ← packWeighted ll
-      return ee
-
-
-#eval roundtrip-weighted! (((), 9), (2, 7), ("Hello", 12), ())
-
 partial def unpack (expr: Expr) : TermElabM (List Expr) :=
     do
       match (← split? expr) with
@@ -145,44 +133,6 @@ def packTerms : List Expr →  TermElabM Expr
       else 
         let expr ← mkAppM `Prod.mk #[x, t]
         return expr
-
-elab (name := prodHead) "prodHead!" t:term : term => 
-    do
-      let expr ← elabTerm t none
-      let h? ← splitPProd? expr 
-      let hp? ← splitProd? expr
-      match (h?.orElse (fun _ => hp?)) with
-      | some (h, t) => return h
-      | none => throwAbortTerm    
-
--- #eval prodHead! (10, 12, 15, 13)
-
-
-elab "prodlHead!" t:term : term => 
-    do
-      let expr ← elabTerm t none
-      let l ← try 
-        unpack expr
-        catch exc => throwError m!"Error {exc.toMessageData} while unpacking {expr}"
-      return l.head!   
-
-#eval prodlHead! (3, 10, 12, 13, ())
-
-elab (name:= roundtrip) "roundtrip!" t:term : term => 
-    do
-      let expr ← elabTerm t none
-      let l ← unpack expr
-      let e ← pack l
-      let ll ← unpack e
-      let ee ← pack ll
-      return ee
-
-elab (name:= justterms) "terms!" t:term : term => 
-    do
-      let expr ← elabTerm t none
-      let l ← unpack expr
-      let e ← packTerms l
-      return e
 
 infixr:65 ":::" => PProd.mk
 
