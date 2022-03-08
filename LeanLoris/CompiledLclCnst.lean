@@ -13,6 +13,11 @@ open Elab
 open Lean.Elab.Term
 open RecEvolverM
 
+/-
+Our main example of mixed reasoning is the result that if `f: Nat → α` is a function from natural numbers to a type `α` such that `∀ n : Nat, f (n + 1) = f n`, then `∀n : Nat, f n = f 0`, i.e. `f` is a constant function if it is locally constant.
+
+We use two forms of backward reasoning: induction and introduction of variables based on goals (the latter can be replaced by forward reasoning). The forward reasoning we use is mainly function application and closure of equality under symmetry and transitivity. In the latter we implicitly use our key "lemma recognition" principle: proofs of simple statements are treated like simple terms while generating.
+-/
 namespace LclConst
 
 constant α : Type
@@ -84,7 +89,7 @@ def dist3 : TermElabM ExprDist := do
 
 def view3 : TermElabM String := do
               let res ← dist3
-              res.viewGoalsM (← goals)
+              res.viewGoalsM (← goals0)
 
 def init0 : TermElabM ExprDist := do
                   parseExprDist (← `(expr_dist|exp!{(hyp! → claim!, 0), (base, 1), (recFn, 1), (step, 1)}))

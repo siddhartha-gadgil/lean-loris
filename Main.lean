@@ -12,18 +12,19 @@ set_option maxRecDepth 1000
 set_option compiler.extract_closed false
 
 def mathDepData(mathenv: Environment) : IO Unit := do
-  IO.println "counting dependencies"
+  IO.println "\n# Dependencies for data for machine learning.\n"
+  IO.println "We consider dependencies in MathLib4 and generate various forms of data for machine learning. As of now these are for basic experiments.\n"
   let offCore := offSpringTripleCore
   let ei := offCore.run' {maxHeartbeats := 100000000000} {env := mathenv}
   match ←  ei.toIO' with
   | Except.ok triples => 
       IO.println "\nData obtained"
-      IO.println triples.size 
+      IO.println s!"Using {triples.size} definitions" 
       let data ← FrequencyData.get triples
       let terms ← data.termFreqData
       let types ← data.typeFreqData
       let pairs := data.typeTermFreqs
-      IO.println s!"pairs:{pairs.size}"
+      IO.println s!"Obtained {pairs.size} term-type pairs"
       let file := System.mkFilePath ["data/type-terms.json"]
       let typeTerm := data.typeTermView
       IO.FS.writeFile file typeTerm
@@ -36,8 +37,11 @@ def mathDepData(mathenv: Environment) : IO Unit := do
           IO.println msg
   return ()
 
+def lclConstDocs: String :=
+"Our main example of mixed reasoning is the result that if `f: Nat → α` is a function from natural numbers to a type `α` such that `∀ n : Nat, f (n + 1) = f n`, then `∀n : Nat, f n = f 0`, i.e. `f` is a constant function if it is locally constant.\n"
+
 def runLclConst(env: Environment) : IO Unit := do
-  IO.println "\nRecursion example"
+  IO.println s!"\n# Induction: locally constant functions\n\n{lclConstDocs}"
   let c := coreView LclConst.view3
   let ei := c.run' {maxHeartbeats := 100000000000} {env := env}
   let view := ei.toIO <| fun e => IO.Error.userError $ "Error while running" 
@@ -92,7 +96,7 @@ def main (args: List String) : IO Unit := do
   let mathenv ← 
     importModules [{module := `Mathlib}] {}
   IO.println "Choose one or more of the following:"
-  IO.println "1. Recursion example"
+  IO.println "1. Induction: locally constant functions"
   IO.println "2. Czech-Slovak Olympiad example"
   IO.println "3. Dependency generation"
   if args.contains "1" then runLclConst env

@@ -109,10 +109,10 @@ def offSpringTriple(excludePrefixes: List Name := [])
               : MetaM (Array (Name × (Array Name) × (Array Name) )) :=
   do
   let keys ←  constantNameTypes  
-  IO.println s!"keys: {keys.size}"
+  IO.println s!"Tokens: {keys.size}"
   let goodKeys := keys.filter fun (name, _) =>
     !(excludePrefixes.any (fun pfx => pfx.isPrefixOf name))
-  IO.println s!"good-keys: {goodKeys.size}"
+  IO.println s!"Tokens considered (excluding system code): {goodKeys.size}"
   let kv : Array (Name × (Array Name) × (Array Name)) ←  (goodKeys).mapM $ 
       fun (n, type) => 
           do 

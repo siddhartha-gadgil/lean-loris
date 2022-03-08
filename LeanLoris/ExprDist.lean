@@ -386,7 +386,7 @@ def viewGoalsM(dist: ExprDist)(goals : Array Expr)(showStatement: Bool := false)
   do
     let pfs ← dist.getGoalsM goals showStatement
     let view : Array String ←  pfs.mapM <| fun (g, pf, w) => do
-      return s!"Propn: {← view g}\nProof: {← view pf}; weight: {w}\n"
+      return s!"Theorem: {← view g}\nProof: {← view pf}; weight: {w}\n"
     let s := view.foldl (fun acc e => acc ++ "\n" ++ e) "## Proofs obtained:\n"
     return s
 

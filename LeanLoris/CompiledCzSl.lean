@@ -38,6 +38,8 @@ To understand the (automated) reasoning steps (and for use during tuning and deb
 * `def thm! := m * n = n * m`
 
 The `view4` function below is run in the `Main` module and its result is output (as are indicators of progress in intermediate steps).
+
+The forward reasoning we use is mainly function application and closure of equality under symmetry and transitivity. In the latter we implicitly use our key "lemma recognition" principle: proofs of simple statements are treated like simple terms while generating.
 -/
 namespace CzSl
 constant M : Type

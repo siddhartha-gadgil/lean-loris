@@ -2,6 +2,13 @@ import LeanLoris.Syntax
 
 set_option maxHeartbeats 100000000
 
+/-
+Our main example of mixed reasoning is the result that if `f: Nat → α` is a function from natural numbers to a type `α` such that `∀ n : Nat, f (n + 1) = f n`, then `∀n : Nat, f n = f 0`, i.e. `f` is a constant function if it is locally constant.
+
+We use two forms of backward reasoning: induction and introduction of variables based on goals (the latter can be replaced by forward reasoning). The forward reasoning we use is mainly function application and closure of equality under symmetry and transitivity. In the latter we implicitly use our key "lemma recognition" principle: proofs of simple statements are treated like simple terms while generating.
+
+Running this is a little too resource intesive for the interpreter (but we have a compiled version that runs in `Main`). In the transition between the second and the third (final) step we cherry-pick the lemmas we want to use. However the transition from the first to the second step is done by saving and reloading the generated distribution on expressions.
+-/
 def localConst{α : Type}(f: Nat → α) :=
   let hyp! := ∀ x: Nat, f (x + 1) = f x
   let claim! := ∀ n: Nat, f n = f 0
