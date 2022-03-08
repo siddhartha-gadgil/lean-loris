@@ -168,13 +168,8 @@ def evolveAux{D: Type}[DataUpdate D](ev : EvolverM D)(incWt accumWt cardBound: N
                      | 0 => fun initDist _ _ => return initDist
                      | m + 1 => fun initDist d  => 
                       do
-                        -- IO.println s!"Evolver step: weight-bound = {accumWt+ 1}; cardinality-bound = {cardBound}; mono-time = {← IO.monoMsNow}"
-                        -- IO.println s!"initial terms: {initDist.termsArray.size}, initial proofs: {initDist.proofsArray.size}"
                         let newDist ← ev (accumWt + 1) cardBound d initDist 
-                        -- IO.println s!"step completed: weight-bound = {accumWt+ 1}; cardinality-bound = {cardBound}; mono-time = {← IO.monoMsNow}"
-                        -- IO.println s!"final terms: {newDist.termsArray.size}, final proofs: {newDist.proofsArray.size}"
                         let newData := dataUpdate initDist accumWt cardBound d
-                        -- IO.println s!"data updated: wb = {accumWt+ 1} cardBound = {cardBound} time = {← IO.monoMsNow} "
                         evolveAux ev m (accumWt + 1) cardBound newDist newData 
 
 def evolve{D: Type}[DataUpdate D](ev: EvolverM D) : EvolverM D :=
@@ -210,7 +205,6 @@ def iterateAux{D: Type}[DataUpdate D](stepEv : RecEvolverM D)(incWt accumWt card
                         IO.println s!"step completed: weight-bound = {accumWt+ 1}; cardinality-bound = {cardBound}; mono-time = {← IO.monoMsNow}"
                         IO.println s!"final terms: {newDist.termsArray.size}, final proofs: {newDist.proofsArray.size}"
                         let newData := dataUpdate initDist accumWt cardBound d
-                        -- IO.println s!"data updated: wb = {accumWt+ 1} cardBound = {cardBound} time = {← IO.monoMsNow} "
                         iterateAux stepEv m (accumWt + 1) cardBound newDist newData evo
 
 def iterate{D: Type}[DataUpdate D](stepEv : RecEvolverM D): RecEvolverM D := 
@@ -263,7 +257,6 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
       (init : ExprDist)(initData: D)(includePi : Bool := true)(excludeProofs: Bool := false)(excludeLambda : Bool := false)(excludeInit : Bool := false): TermElabM ExprDist := 
     withLocalDecl Name.anonymous BinderInfo.default (type)  $ fun x => 
         do
-          -- IO.println s!"Isle variable type: {← view <| ← whnf <| ← inferType x}; is-proof? : {← isProof x}"
           let dist ←  init.updateExprM x 0
           let foldedFuncs : Array (Expr × Nat) ← 
             (← init.funcs).filterMapM (
@@ -273,17 +266,13 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
                   return y.map (fun y => (y, w))
               )
           let dist ← dist.mergeArray foldedFuncs
-          -- logInfo "started purging terms"
           let purgedTerms ← dist.termsArray.filterM (fun (term, w) => do
-              -- logInfo m!"considering term: {term}"
               match term with
               | Expr.lam _ t y _ => 
-                -- logInfo m!"term is lambda t: {t}, y: {y}"
                 let res ←  
                   try 
                     return !(← isType y <&&> isDefEq (← inferType x) t)
                   catch _ => pure true
-                -- if !res then logInfo m!"purged term: {term}"
                 return res
               | _ => pure true
           )
@@ -308,39 +297,32 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(weightBound: Na
             Term.synthesizeSyntheticMVarsNoPostponing
             return (← inferType expPf , expPf , w))
           let mut evl : ExprDist := ExprDist.empty
-          -- IO.println s!"inner isle distribution exported: {← IO.monoMsNow} "
           let res := 
             ⟨if includePi then 
                 if excludeLambda then piTypes else lambdaTerms ++ piTypes  
               else  lambdaTerms, if excludeProofs then #[] else proofs⟩
-          -- IO.println s!"outer isle distribution obtained: {← IO.monoMsNow} "
           return res
 
 -- Some evolution cases; just one step (so update not needed)
 
 def applyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init => 
   do
-    -- logInfo m!"apply evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     let res ← prodGenArrM apply? wb c (← init.funcs) init.allTermsArray d 
-    -- logInfo m!"apply evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     return res
 
 def applyPairEvolver(D: Type)[NewElem Expr D]: EvolverM D := 
   fun wb c d init =>
   do
-    -- logInfo m!"apply pair evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     let funcs ← init.termsArray.filterM $ fun (e, _) => 
        do return Expr.isForall <| ← inferType e
     let pfFuncs ← init.proofsArray.filterMapM <| fun (l, f, w) =>
       do if (l.isForall) then return some (f, w) else return none
     let res ← tripleProdGenArrM applyPair? wb c 
           (← init.funcs) init.allTermsArray init.allTermsArray d
-    -- logInfo m!"apply pair evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     return res
 
 def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init => 
   do
-    -- IO.println s!"simple apply evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     /- for a given type α; functions with domain α and terms with type α  
     -/ 
     let mut grouped : HashMap UInt64 (Array (Expr × (Array (Expr  × Nat)) × (Array (Expr × Nat)))) 
@@ -387,35 +369,27 @@ def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init 
               Term.synthesizeSyntheticMVarsNoPostponing
               resTerms := resTerms.push (y, w)
     let res ←  ExprDist.fromArrayM resTerms
-    -- let res ← prodGenArrM mkApp? wb c (← init.funcs) init.allTermsArray d 
-    -- IO.println s!"simple apply evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     return res
 
 def simpleApplyPairEvolver(D: Type)[NewElem Expr D]: EvolverM D := 
   fun wb c d init =>
   do
-    -- logInfo m!"apply pair evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     let res ← tripleProdGenArrM mkAppPair? wb c 
           (← init.funcs) init.allTermsArray init.allTermsArray d
-    -- logInfo m!"apply pair evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     return res
 
 def nameApplyEvolver(D: Type)[GetNameDist D][NewElem Expr D]: EvolverM D := 
   fun wb c d init =>
   do
-    -- logInfo m!"name apply evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     let names := (nameDist d).toArray
     let res ← prodGenArrM nameApply? wb c names init.allTermsArray d
-    -- logInfo m!"name apply evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     return res
 
 def nameApplyPairEvolver(D: Type)[GetNameDist D][NewElem Expr D]: 
         EvolverM D := fun wb c d init  =>
   do
-    -- logInfo m!"name apply pair evolver started, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     let names := (nameDist d).toArray
     let res ← tripleProdGenArrM nameApplyPair? wb c names init.allTermsArray init.allTermsArray d
-    -- logInfo m!"name apply pair evolver finished, wb: {wb}, c: {c}, time: {← IO.monoMsNow}"
     return res
 
 def rewriteEvolver(D: Type)(flip: Bool := true)[NewElem Expr D] : EvolverM D := 
@@ -431,8 +405,6 @@ def congrEvolver(D: Type)[NewElem Expr D] : EvolverM D :=
 def eqIsleEvolver(D: Type)[NewElem Expr D][IsleData D] : RecEvolverM D := 
   fun wb c init d evolve => 
   do
-    -- logInfo m!"isle called: weight-bound {wb}, cardinality: {c}"
-    -- logInfo m!"initial time: {← IO.monoMsNow}"
     let mut eqTypesArr: Array (Expr × Nat) := Array.empty
     let mut eqs: ExprDist := ExprDist.empty -- equalities, weights
     let mut eqTriples : Array (Expr × Expr × Nat) := #[] -- equality, lhs type, weight
@@ -468,7 +440,6 @@ def eqIsleEvolver(D: Type)[NewElem Expr D][IsleData D] : RecEvolverM D :=
     let finDists ← finDistsAux.mapM <| fun t => t.get
     let finDists := finDists.filter (fun d => d.termsArray.size > 0 || d.proofsArray.size > 0)
     let res := finDists.foldlM (fun x y => x ++ y) ExprDist.empty
-    -- logInfo m!"isles done time: {← IO.monoMsNow}, isles: {finDists.size}"
     res
 
 def allIsleEvolver(D: Type)[IsleData D] : RecEvolverM D := fun wb c init d evolve => 
@@ -486,9 +457,6 @@ def allIsleEvolver(D: Type)[IsleData D] : RecEvolverM D := fun wb c init d evolv
 def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D 
   := fun wb card d init => 
   do
-    -- IO.println s!"eqSymmTrans called: weight-bound {wb}, cardinality: {card}"
-    -- IO.println s!"initial terms: {init.termsArray.size}"
-    -- IO.println s!"initial proofs: {init.proofsArray.size}"        
     let mut eqs := ExprDist.empty -- new equations only
     let mut allEquationGroups : HashMap (UInt64) ExprDist := HashMap.empty
     -- let mut allEquations := ExprDist.empty
@@ -557,7 +525,6 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
             grouped := grouped.insert key <|
               (grouped.findD key  #[]).set! j (lhs, withRhs, withLhs.push (rhs, pf, weight))
     -- count cumulative weights of pairs, deleting reflexive pairs (assuming symmetry)
-    -- IO.println s!"grouped; mono-time {←  IO.monoMsNow}"
     let mut cumPairCount : HashMap Nat Nat := HashMap.empty
     for (key, group) in grouped.toArray do
       for (_, m ,_) in group do
@@ -569,19 +536,10 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
         for w1 in weights do 
           for j in [w1 + w1:wb + 1] do
             cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 - 1)
-    -- IO.println s!"cumulative pair count: {cumPairCount.toArray}"
-    -- for g in goalterms do
-    --   IO.println s!"goalterm: {g},  {← init.getTermM? g}" 
     for (key, group) in grouped.toArray do
-      -- IO.println s!"group: {key}, size : {group.size}"
       for (y, withRhs, withLhs) in group do
-        -- let focus ← goalterms.anyM <| fun t => isDefEq t y
-        -- if focus then 
-        -- IO.println s!"y: {y}, withRhs: {withRhs.size}, withLhs: {withLhs.size}"
         for (x, eq1, w1) in withRhs do
-          -- IO.println s!"x: {x}, w1: {w1}"
           for (z, eq2, w2) in withLhs do
-          -- IO.println s!"z: {z}, w2: {w2}"
           let w := w1 + w2
               -- if focus then IO.println s!"x: {x}, z: {z}, w: {w}" 
               if w ≤ wb && (cumPairCount.findD w 0) ≤ card * 2 then 
@@ -592,7 +550,6 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
                 let key ← exprHash prop
                 unless ← (allEquationGroups.findD key ExprDist.empty).existsPropM prop w do
                   eqs := eqs.pushProof prop eq3 w   
-    -- IO.println s!"eqs: {eqs.proofsArray.size}"
     return eqs
 
 
@@ -636,8 +593,6 @@ def piGoalsEvolverM(D: Type)[IsleData D](excludeInit: Bool := true) : RecEvolver
   -- if wb = 0 then init else
   do
     let piDoms ← piDomains (init.termsArray)
-    -- IO.println s!"pi-domains: {← piDoms.mapM <| fun (t , w) => do return (← view <| ← whnf t, w)}"
-    -- IO.println s!"initial terms: {← init.termsArray.mapM (fun (t, w) => do return (← view t, w))}"
     let cumWeights := FinDist.cumulWeightCount  (FinDist.fromArray piDoms) wb
     let mut finalDist: ExprDist := ExprDist.empty
     for (type, w) in piDoms do
@@ -647,22 +602,17 @@ def piGoalsEvolverM(D: Type)[IsleData D](excludeInit: Bool := true) : RecEvolver
           match t with
           | Expr.forallE _ l b _ =>
             if ← isDefEq l type then
-              -- logInfo m!"made pi to lambda"
               withLocalDecl Name.anonymous BinderInfo.default t  $ fun f =>
               withLocalDecl Name.anonymous BinderInfo.default l  $ fun x => do
                 let y :=  mkApp f x
                 let bt ← inferType y
-                -- logInfo m!"x: {x}; y: {y}, bt: {bt}"
                 let t ← mkLambdaFVars #[x] bt
                 let t ← whnf t
                 Term.synthesizeSyntheticMVarsNoPostponing
                 pure (t, w)
             else
-              -- logInfo m!"not made pi to lambda as {l} is not {type}" 
               pure (t, w)
           | _ => pure (t, w))
-      -- logInfo "obtained isle-terms"
-      -- IO.println s!"initial proofs: {← init.proofsArray.mapM (fun (l, t, w) => do return (← view l, ← view t, w))}"
       let isleInit :=
           -- ←  ExprDist.fromArrayM isleTerms  
           ⟨isleTerms, init.proofsArray⟩
@@ -670,7 +620,6 @@ def piGoalsEvolverM(D: Type)[IsleData D](excludeInit: Bool := true) : RecEvolver
       let isleDist ←   isleM type evolve (wb ) ic isleInit 
                 (isleData d init wb c) true false false excludeInit
       finalDist ←  finalDist ++ isleDist
-    -- logInfo "finished for loop for pi-domains"
     return finalDist
 
 def weightByType(cost: Nat): ExprDist → TermElabM ExprDist := fun init => do

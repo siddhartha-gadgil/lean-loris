@@ -73,7 +73,6 @@ def tacticLambdaMVars(tactic : MVarId → TermElabM (List MVarId))(goalType: Exp
         Term.synthesizeSyntheticMVarsNoPostponing
         return some <| (←  metaToLambda mvars goal, mvars)
       catch exc =>
-        -- logInfo m!"tacticLambdaMVars failed for {goal}: ${exc.toMessageData}"
         return none
 
 
@@ -113,16 +112,12 @@ def typeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
           (tacList : Expr → TermElabM (Option (Array Expr))) : EvolverM D := 
             fun wb cb data dist => do
             let typeArray ← types wb cb data dist
-            -- logInfo m!"applying tactic to {typeArray.size} types: {typeArray}"
             let mut terms : Array (Expr × Nat) := Array.empty
             for (type, w) in typeArray do
               match ← tacList type with
               | none =>
-                -- logInfo m!"tactic failed for {type}" 
                 pure ()
               | some ys =>
-                -- logInfo m!"tactic succeeded for {type}, giving {ys}"
-                -- logInfo m!"head type : {← inferType ys[0]}" 
                 for y in ys do terms := terms.push (y, w + 1)
             ExprDist.fromArrayM terms
 
@@ -131,16 +126,12 @@ def weightedTypeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
           (tacList : Expr → TermElabM (Option (Array (Expr × Nat)))) : EvolverM D := 
             fun wb cb data dist => do
             let typeArray ← types wb cb data dist
-            -- logInfo m!"applying tactic to {typeArray.size} types: {typeArray}"
             let mut terms : Array (Expr × Nat) := Array.empty
             for (type, w) in typeArray do
               match ← tacList type with
               | none =>
-                -- logInfo m!"tactic failed for {type}" 
                 pure ()
               | some ys =>
-                -- logInfo m!"tactic succeeded for {type}, giving {ys}"
-                -- logInfo m!"head type : {← inferType ys[0].1}" 
                 for (y, w0) in ys do terms := terms.push (y, w + w0)
             ExprDist.fromArrayM terms
 

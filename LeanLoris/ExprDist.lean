@@ -123,24 +123,18 @@ def groupDistByHash(arr: Array (Expr × Nat)) : TermElabM (HashMap (UInt64) Expr
 def flattenDists(m: HashMap (UInt64) ExprDist) : TermElabM ExprDist := do
   let termArray := (m.toArray.map (fun (_, d) => d.termsArray)).foldl (fun a b => a.append b) Array.empty
   let pfArray := (m.toArray.map (fun (_, d) => d.proofsArray)).foldl (fun a b => a.append b) Array.empty
-  -- IO.println s!"termList = {termList.length}"
-  -- IO.println s!"pfList = {pfList.length}"
   return ⟨termArray, pfArray⟩
 
 def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
-    -- IO.println s!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArray.size}, {fst.proofsArray.size}) ({snd.termsArray.size}, {snd.proofsArray.size})"
     let ⟨fstTerms, fstProofs⟩ := fst
     let mut gpFstTerms ←  groupTermsByHash fstTerms
     let mut gpFstPfs ←  groupProofsByHash fstProofs
     let mut ⟨sndTerms, sndProofs⟩ := ExprDist.empty
-    -- IO.println s!"grouped first terms and proofs; groups: {gpFstTerms.size} {gpFstPfs.size}"
     for (prop, x, d) in snd.proofsArray do
       let key ← exprHash prop
       match ← ((gpFstPfs.findD key #[]).findIdxM? <| fun (l, _, w) =>  isDefEq l prop)  with
       | some j => 
           let (l, p, w) := (gpFstPfs.findD key #[]).get! j
-          -- if !((← exprHash l) == (← exprHash prop)) then 
-          --   IO.println s!"{l} = {prop} but {← exprHash l} != {← exprHash prop}"
           if w ≤ d then pure ()
           else 
            gpFstPfs := gpFstPfs.insert key <| (gpFstPfs.findD key #[]).eraseIdx j 
@@ -152,15 +146,12 @@ def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
       match ← ((gpFstTerms.findD key #[]).findIdxM? <| fun (t, w) =>  isDefEq t x)  with
       | some j => 
           let (t, w) := (gpFstTerms.findD key #[]).get! j
-          -- if !((← exprHash x) == (← exprHash t)) then 
-          --   IO.println s!"{x} = {t} but {← exprHash x} != {← exprHash t}"
           if w ≤ d then pure ()
           else 
            gpFstTerms := gpFstTerms.insert key <| (gpFstTerms.findD key #[]).eraseIdx j 
            sndTerms := sndTerms.push (x, d)
       | none => 
           sndTerms := sndTerms.push (x, d)
-    -- IO.println "added second terms and proofs"
     let mut gpdDists : HashMap (UInt64) ExprDist := HashMap.empty
     for (key, termarr) in gpFstTerms.toArray do
       for (x, w) in termarr do
@@ -170,14 +161,11 @@ def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
       for (l, pf, w) in pfarr do
         gpdDists :=  
           gpdDists.insert key ((gpdDists.findD key ExprDist.empty).pushProof l pf w)
-    -- IO.println "created grouped dists; to flatten"
     let fstDist ←  flattenDists gpdDists
     let res := ⟨fstDist.termsArray ++ sndTerms, fstDist.proofsArray ++ sndProofs⟩
-    -- IO.println s!"merged arrays obtained; time: {← IO.monoMsNow}; size: {fstTerms.size + sndTerms.size}; {fstProofs.size + sndProofs.size}"
     return res
 
 def diffM(fst snd: ExprDist) : TermElabM ExprDist := do
-    -- IO.println s!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArray.size}, {fst.proofsArray.size}) ({snd.termsArray.size}, {snd.proofsArray.size})"
     let ⟨sndTerms, sndProofs⟩ := snd
     let gpTerms ←  groupTermsByHash sndTerms
     let gpPfs ←  groupProofsByHash sndProofs
@@ -193,7 +181,6 @@ def diffM(fst snd: ExprDist) : TermElabM ExprDist := do
     return ⟨filteredTerms, filteredProofs⟩
 
 def mergeSimpleM(fst snd: ExprDist) : TermElabM ExprDist := do
-    -- logInfo m!"merging; time: {← IO.monoMsNow}; sizes: ({fst.termsArray.size}, {fst.proofsArray.size}) ({snd.termsArray.size}, {snd.proofsArray.size})"
     let mut ⟨fstTerms, fstProofs⟩ := fst
     let mut ⟨sndTerms, sndProofs⟩ := ExprDist.empty
     for (prop, x, d) in snd.proofsArray do
@@ -223,7 +210,6 @@ def mergeSimpleM(fst snd: ExprDist) : TermElabM ExprDist := do
       | none => 
           sndTerms := sndTerms.push (x, d)
     let res := ⟨fstTerms ++ sndTerms, fstProofs ++ sndProofs⟩
-    -- logInfo m!"merged arrays obtained; time: {← IO.monoMsNow}; size: {fstTerms.size + sndTerms.size}; {fstProofs.size + sndProofs.size}"
     return res
 
 instance : HAppend ExprDist ExprDist (TermElabM ExprDist) := 
@@ -239,7 +225,6 @@ def fromArrayM(arr: Array (Expr× Nat)): TermElabM ExprDist := do
     else
       let l ← inferType e
       pfs := pfs.push (l, e, n)
-  -- IO.println s!"terms = {terms.size}; pfs = {pfs.size}"
   let gpTerms ←  groupTermsByHash terms
   let gpPfs ←  groupProofsByHash pfs
   let mut gpdDists : HashMap (UInt64) ExprDist := HashMap.empty
@@ -251,7 +236,6 @@ def fromArrayM(arr: Array (Expr× Nat)): TermElabM ExprDist := do
     for (l, pf, w) in pfarr do
       gpdDists :=  
         gpdDists.insert key (← (gpdDists.findD key ExprDist.empty).updateProofM l pf w)
-  -- IO.println s!"{gpdDists.size} groups"
   flattenDists gpdDists
 
 def mergeArray(fst: ExprDist)(arr: Array (Expr× Nat)): TermElabM ExprDist := do 
@@ -263,7 +247,6 @@ def mergeArray(fst: ExprDist)(arr: Array (Expr× Nat)): TermElabM ExprDist := do
     else
       let l ← inferType e
       pfs := pfs.push (l, e, n)
-  -- IO.println s!"terms = {terms.size}; pfs = {pfs.size}"
   let gpTerms ←  groupTermsByHash terms
   let gpPfs ←  groupProofsByHash pfs
   let ⟨fstTerms, fstProofs⟩ := fst
@@ -283,7 +266,6 @@ def mergeArray(fst: ExprDist)(arr: Array (Expr× Nat)): TermElabM ExprDist := do
     for (l, pf, w) in pfarr do
       gpdDists :=  
         gpdDists.insert key (← (gpdDists.findD key ExprDist.empty).updateProofM l pf w)
-  -- IO.println s!"{gpdDists.size} groups"
   flattenDists gpdDists
 
 

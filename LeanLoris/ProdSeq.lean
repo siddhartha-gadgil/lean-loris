@@ -108,9 +108,6 @@ elab (name:= roundtripWtd) "roundtrip-weighted!" t:term : term =>
     do
       let expr ← elabTerm t none
       let l ← unpackWeighted expr
-      -- logInfo m!"unpacked {l.length}"
-      -- for (e, w) in l do
-      --   logInfo m!"{← whnf e} : {w}"
       let e ← ppackWeighted l
       let ll ← unpackWeighted e
       let ee ← packWeighted ll
@@ -207,23 +204,17 @@ def ExprDist.save (name: Name)(es: ExprDist) : TermElabM (Unit) := do
   let espair ← es.mapM (fun e => do 
        return (← Term.levelMVarToParam (← instantiateMVars e)).1)
   let es ← espair.mapM (fun e => do whnf <| ←  mkLambdaFVars fvars e)
-  -- logInfo m!"saving relative to: {fvars}"
   let varPack ← ProdSeq.lambdaPack fvars.toList
-  -- logInfo m!"varPack: {varPack}"
   let cache ← exprDistCache.get
   exprDistCache.set (cache.insert name (varPack, es))
   return ()
 
 def ExprDist.load (name: Name) : TermElabM ExprDist := do
   try
-    -- logInfo m!"loading {name}"
     let cache ← exprDistCache.get
     match cache.find? name with
       | some (varPack, es) =>
-            -- logInfo m!"found in cache, packed: {varPack}"
             let fvars ← ProdSeq.lambdaUnpack varPack
-            -- IO.println s!"loading relative to: {fvars}"
-            -- logInfo m!"loading relative to: {fvars}"
             es.mapM $ fun e => do whnf <| ←  reduce (mkAppN e fvars.toArray)      
       | none => 
         throwError m!"no cached expression distribution for {name}"

@@ -42,7 +42,6 @@ partial def recExprNames: Expr → MetaM (Array Name) :=
   match ← getCached? e with
   | some offs => return offs
   | none =>
-    -- IO.println s!"finding recExprNames"
     let res ← match e with
       | Expr.const name _ _  =>
         do
@@ -56,13 +55,11 @@ partial def recExprNames: Expr → MetaM (Array Name) :=
           else pure #[]        
       | Expr.app f a _ => 
           do  
-            -- IO.println s!"app"
             let ftype? ← inferType? f 
             let expl? := 
               ftype?.map $ fun ftype =>
               (ftype.data.binderInfo.isExplicit)
             let expl := expl?.getD true
-            -- IO.println s!"explicit? {expl}" 
             let s ←  
               if !expl then recExprNames f else
                 return (← recExprNames f) ++ (← recExprNames a)
@@ -76,17 +73,13 @@ partial def recExprNames: Expr → MetaM (Array Name) :=
             return ← recExprNames b
       | _ => pure #[]
     cache e res
-    -- IO.println s!"found result recExprNames"
     return res
 
 
 def offSpring? (name: Name) : MetaM (Option (Array Name)) := do
-  -- IO.println "finding offspring"
   let expr ← nameExpr?  name
-  -- IO.println "found expr opt"
   match expr with
   | some e => 
-    -- IO.println s!"found expr {e}"
     return  some <| (← recExprNames e)
   | none => return none
 
@@ -99,10 +92,8 @@ partial def descendants (name: Name) : MetaM (Array Name) := do
   | none => return #[name]
 
 def exprDescendants (expr: Expr) : MetaM (Array Name) := do
-  -- IO.println s!"exprDescendants: {expr}"
   let offs ← recExprNames expr
   let groups ← offs.mapM (fun n => descendants n)
-  -- IO.println s!"offs: {offs}"
   return groups.foldl (fun acc n => acc.append n) #[]
 
 def offSpringTriple(excludePrefixes: List Name := [])
@@ -116,12 +107,9 @@ def offSpringTriple(excludePrefixes: List Name := [])
   let kv : Array (Name × (Array Name) × (Array Name)) ←  (goodKeys).mapM $ 
       fun (n, type) => 
           do 
-          -- IO.println $ "descendants of " ++ n ++ ": " 
           let l := (← offSpring? n).getD #[]
           let l := l.filter fun n => !(excludePrefixes.any (fun pfx => pfx.isPrefixOf n))
-          -- IO.println $ "found descendants of " ++ n ++ ": "
           let tl ←  exprDescendants type
-          -- IO.println $ "found type descendants of " ++ n ++ ": "
           let tl := tl.filter fun n => !(excludePrefixes.any (fun pfx => pfx.isPrefixOf n))
           return (n, l, tl)
   return kv
@@ -269,10 +257,3 @@ def matrixJson(triples: Array (Name × (Array Name) × (Array Name))) : Json :=
 
 def matrixView(triples: Array (Name × (Array Name) × (Array Name))) : String :=
   (matrixJson triples).pretty
-
-
-#check Json.pretty
-
-#check Array.takeWhile
-
-#eval binomAbove 10 4 0.5
