@@ -6,19 +6,24 @@ import LeanLoris.ProdSeq
 import LeanLoris.TacticEvolution
 open Lean Elab Meta Term ProdSeq
 
+def parseNat : Syntax → TermElabM Nat := fun s => 
+  do
+    let expr ← elabTerm s none
+    exprNat expr
+
 declare_syntax_cat expr_dist 
 
-syntax exprWt := "(" term "," num ")"
-syntax exprWtList := "exp!{" exprWt,* "}"
+syntax exprWt := "(" term "," term ")"
+syntax exprWtList := "expr!{" exprWt,* "}"
 syntax exprWtList : expr_dist
 syntax ident : expr_dist
 
 def parseExprDist : Syntax → TermElabM ExprDist
-  | `(expr_dist|exp!{$[$xs:exprWt],*}) =>
+  | `(expr_dist|expr!{$[$xs:exprWt],*}) =>
     do
           let m : Array (Expr × Nat) ←  xs.mapM (fun s => do
               match s with 
-              | `(exprWt|($x:term , $n:numLit)) => 
+              | `(exprWt|($x:term , $n:term)) => 
                   let expr ← whnf <| ← reduce <| ←  elabTerm x none
                   Term.synthesizeSyntheticMVarsNoPostponing
                   return (expr, (Syntax.isNatLit? n).get!)
@@ -41,10 +46,10 @@ elab "find-proof!" p:term "in" d:expr_dist : term => do
   | none => throwError "No proof found"
 
 declare_syntax_cat expr_list
-syntax "exp![" term,* "]" : expr_list
+syntax "expr![" term,* "]" : expr_list
 
 def parseExprArray : Syntax → TermElabM (Array Expr)
-  | `(expr_list|exp![$[$xs],*]) =>
+  | `(expr_list|expr![$[$xs],*]) =>
     do
           let m : Array Expr ←  xs.mapM <| fun s => 
             do 

@@ -49,16 +49,16 @@ def initData : FullData := (FinDist.empty, [], [])
 
 def goals0 : TermElabM (Array Expr) := do
                   parseExprArray (← 
-                  `(expr_list|exp![thm!]))
+                  `(expr_list|expr![thm!]))
 
 def goals : TermElabM (Array Expr) := do
                   parseExprArray (← 
-                  `(expr_list|exp![thm!, recFn!, base!, step!]))
+                  `(expr_list|expr![thm!, recFn!, base!, step!]))
 
 -- #eval goals0
 
 def init1 : TermElabM ExprDist := do
-                  parseExprDist (← `(expr_dist|exp!{(thm!, 0)}))
+                  parseExprDist (← `(expr_dist|expr!{(thm!, 0)}))
 
 def evolve1 : TermElabM EvolutionM := do
       let step := initEv ++ piGoals ++ rflEv ++ eqClosure ++ natRecEv ++ appl
@@ -92,7 +92,7 @@ def view3 : TermElabM String := do
               res.viewGoalsM (← goals0)
 
 def init0 : TermElabM ExprDist := do
-                  parseExprDist (← `(expr_dist|exp!{(hyp! → claim!, 0), (base, 1), (recFn, 1), (step, 1)}))
+                  parseExprDist (← `(expr_dist|expr!{(hyp! → claim!, 0), (base, 1), (recFn, 1), (step, 1)}))
 -- #eval init0
 
 def dist0 : TermElabM ExprDist := do

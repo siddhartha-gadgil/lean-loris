@@ -68,28 +68,28 @@ open Nat
 def one := succ zero
 def two := succ one
 
-#check evolve! ev![app] exp![one, two] exp!{(succ, 0), (zero, 1)} name!{} 5 100 
-#check evolve! ev![app] exp![one, two] exp!{(succ, 0), (zero, 1)} 5 100 
-#check evolve! ev![app] exp!{(succ, 0), (zero, 1)}  5 100 
+#check evolve! ev![app] expr![one, two] expr!{(succ, 0), (zero, 1)} name!{} 5 100 
+#check evolve! ev![app] expr![one, two] expr!{(succ, 0), (zero, 1)} 5 100 
+#check evolve! ev![app] expr!{(succ, 0), (zero, 1)}  5 100 
 
 def eveg(α : Type):= fun (f g: α →  α) (a: α) => 
-          evolve! ev![app] exp![f, f a, f (f a)] exp!{(a, 1), (f, 0), (g, 1)} 5 100
+          evolve! ev![app] expr![f, f a, f (f a)] expr!{(a, 1), (f, 0), (g, 1)} 5 100
 #reduce eveg
 
 elab (name:= exprDistPack) "packdist!" s:expr_dist : term => do
   let m : Array (Expr × Nat)  := (←  parseExprDist s).allTermsArray
   packWeighted m.toList
 
-#eval packdist! exp!{(1, 2), ("Hello", 4)}
-#check packdist! exp!{(1, 2), ("Hello", 4)}
+#eval packdist! expr!{(1, 2), ("Hello", 4)}
+#check packdist! expr!{(1, 2), ("Hello", 4)}
 
-#reduce (fun x y : Nat => packdist! exp!{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
+#reduce (fun x y : Nat => packdist! expr!{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
 
 elab (name:= exprPack) "pack!" s:expr_list : term => do
     let m : Array (Expr) ←  parseExprArray s
     pack m.toList
 
-#check pack! exp![(1, 2), 3, ("Hello", 4), "over here"]
+#check pack! expr![(1, 2), 3, ("Hello", 4), "over here"]
 
 elab (name:= constpack) "const!" s:name_dist : term  => do
     let m : Array (Name × Nat) ←  parseNameMap s

@@ -9,14 +9,14 @@ open Std
 open Std.HashMap
 open Nat
 
-/- 
+/-- 
   Hashmaps for distributions;  with basic map, filter methods
   including Mondaic forms. For expressions we use `ExprDist` instead
   as we want Definitional equality, not Boolean equality.
 -/
 abbrev FinDist (α : Type)[Hashable α][BEq α] := HashMap α Nat 
 
-/-
+/--
 Distribution on names
 -/
 abbrev NameDist := FinDist Name
@@ -25,7 +25,7 @@ namespace FinDist
 
 def empty{α : Type} [Hashable α][BEq α] : FinDist α := HashMap.empty
 
-/-
+/--
 Merge finite distributions, with the lowest value for a key
 -/
 def merge{α : Type}[Hashable α][BEq α] 
@@ -43,7 +43,7 @@ def merge{α : Type}[Hashable α][BEq α]
 instance {α : Type}[Hashable α][BEq α ]: Append <| FinDist α  := 
                                   ⟨fun fst snd => fst.merge snd⟩
 
-/-
+/--
 map finite distributions, taking lowest value when images of keys are equal.
 -/
 def map{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
@@ -57,7 +57,7 @@ def map{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
       map.insert y val
     ) FinDist.empty
 
-/-
+/--
 monadic map finite distributions, taking lowest value when images of keys are equal.
 -/
 def mapM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
@@ -71,7 +71,7 @@ def mapM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
       return map.insert y val
     ) FinDist.empty
 
-/-
+/--
 number of keys with given value
 -/
 def weightCount{α : Type}[Hashable α][BEq α] 
@@ -84,7 +84,7 @@ def weightCount{α : Type}[Hashable α][BEq α]
           w.insert val 1
       ) HashMap.empty
 
-/-
+/--
 number of keys with value greater than or equal to given value, up to the maximum value
 -/
 def cumulWeightCount{α : Type}[Hashable α][BEq α] 
@@ -100,7 +100,7 @@ def cumulWeightCount{α : Type}[Hashable α][BEq α]
             w := w.insert j val
       return w
 
-/-
+/--
 filter the distribution.
 -/
 def filter{α : Type}[Hashable α][BEq α] 
@@ -111,7 +111,7 @@ def filter{α : Type}[Hashable α][BEq α]
     else w
   ) FinDist.empty
 
-/-
+/--
 monadic filter for the distribution.
 -/
 def filterM{α : Type}[Hashable α][BEq α]
@@ -122,7 +122,7 @@ def filterM{α : Type}[Hashable α][BEq α]
     else return w
   ) FinDist.empty
 
-/-
+/--
 cutoff the distribution given maximum weight and cardinality
 -/
 def bound{α : Type}[Hashable α][BEq α] 
@@ -135,14 +135,14 @@ def bound{α : Type}[Hashable α][BEq α]
       w := w.insert key val
   return w
 
-/-
+/--
 return distribution with all weights zero 
 -/
 def zeroLevel{α : Type}[Hashable α][BEq α] 
     (arr: Array α) : FinDist α := Id.run do
   arr.foldl (fun w x => w.insert x 0) FinDist.empty
 
-/-
+/--
 update the distribution, adding a key only if it is not already present
 or has a lower weight.
 -/
@@ -152,25 +152,25 @@ def update{α : Type}[Hashable α][BEq α]
   | some v => if d < v then m.insert x d else m
   | none => m.insert x d
 
-/-
+/--
 distribution from list of weighted elements.
 -/
 def fromList{α : Type}[Hashable α][BEq α] (l : List (α  × Nat)) : FinDist α :=
   l.foldl (fun m (a, n) => m.update a n) HashMap.empty
 
-/-
+/--
 distribution from array of weighted elements.
 -/
 def fromArray{α : Type}[Hashable α][BEq α] (arr: Array (α × Nat)) : FinDist α :=
   arr.foldl (fun m (x, w) => m.update x w) HashMap.empty
 
-/-
+/--
 the keys
 -/
 def keys{α : Type}[Hashable α][BEq α] 
     (m: FinDist α) := m.toList.map (fun (k, v) => k)
 
-/-
+/--
 (monadic) find optional weight of given element.
 -/
 def findM?{α : Type}[Hashable α][BEq α] 
@@ -187,7 +187,7 @@ def findM?{α : Type}[Hashable α][BEq α]
 
 end FinDist
 
-/-
+/--
 check if element exists with weight at most the bound.
 -/
 def FinDist.exists{α : Type}[Hashable α][BEq α] 
@@ -196,7 +196,7 @@ def FinDist.exists{α : Type}[Hashable α][BEq α]
     | some v => v ≤ weight
     | none => false
 
-/-
+/--
 given an array of elements with weights, return a map of the number of
 elements with weight at least a given number, up to the maximum weight.
 -/
@@ -212,7 +212,7 @@ def weightAbove{α : Type}(wtd : Array (α × Nat))(maxWeight: Nat):
             w := w.insert j 1
       return w
 
-/-
+/--
 return map of number of elements with a given weight in an array of pairs.
 -/
 def arrWeightCount{α : Type}[Hashable α][BEq α] 

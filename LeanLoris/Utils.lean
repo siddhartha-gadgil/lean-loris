@@ -42,15 +42,6 @@ partial def exprNat : Expr → TermElabM Nat := fun expr =>
     else
       throwError m!"{expr} not a Nat expression"
 
--- #eval exprNat (ToExpr.toExpr 3)
-
-def parseNat : Syntax → TermElabM Nat := fun s => 
-  do
-    let expr ← elabTerm s none
-    exprNat expr
-
-
-
 def view(expr: Expr): MetaM String := do
   let stx ← PrettyPrinter.delab (← getCurrNamespace) (← getOpenDecls) expr
   let fmt ← PrettyPrinter.ppTerm stx
