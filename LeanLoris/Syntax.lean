@@ -32,16 +32,6 @@ def parseExprDist : Syntax → TermElabM ExprDist
       ExprDist.load name
   | _ => throwIllFormedSyntax
 
-elab (name:= exprDistPack) "packdist!" s:expr_dist : term => do
-  let m : Array (Expr × Nat)  := (←  parseExprDist s).allTermsArray
-  packWeighted m.toList
-
-
--- #eval packdist! exp!{(1, 2), ("Hello", 4)}
--- #check packdist! exp!{(1, 2), ("Hello", 4)}
-
--- #reduce (fun x y : Nat => packdist! exp!{ (1, 2), ("Hello", 4), (x + 1 + y, 3)}) 4 7
-
 elab "find-proof!" p:term "in" d:expr_dist : term => do
   let dist ← parseExprDist d
   let prop ← elabType p
@@ -65,12 +55,6 @@ def parseExprArray : Syntax → TermElabM (Array Expr)
           return m
   | _ => throwIllFormedSyntax
 
-elab (name:= exprPack) "pack!" s:expr_list : term => do
-    let m : Array (Expr) ←  parseExprArray s
-    pack m.toList
-
--- #check pack! exp![(1, 2), 3, ("Hello", 4), "over here"]
-
 declare_syntax_cat name_dist
 syntax nameWt := "(" ident "," num ")"
 syntax nameWtList := "name!{" nameWt,* "}"
@@ -88,12 +72,6 @@ def parseNameMap : Syntax → TermElabM (Array (Name × Nat))
               )
           return m
   | _ => throwIllFormedSyntax
-
-elab (name:= constpack) "const!" s:name_dist : term  => do
-    let m : Array (Name × Nat) ←  parseNameMap s
-    let c := m.map (fun (n, w) => (mkConst n, w))
-    packWeighted c.toList
-
 
 declare_syntax_cat evolver 
 syntax "app" : evolver
@@ -145,13 +123,12 @@ declare_syntax_cat evolver_list
 syntax "ev![" evolver,* (">>" evolve_transformer)? "]" : evolver_list
 syntax "Σ" evolver_list : evolver
 
-def parseEvolverTrans : Syntax → TermElabM (ExprDist → TermElabM ExprDist)
+def parseEvolverTransformer : Syntax → TermElabM (ExprDist → TermElabM ExprDist)
   | `(evolve_transformer|by-type) => return weightByType 1
   | `(evolve_transformer|by-type $n) => do
         let n ← parseNat n
         return weightByType n
   | stx => throwError m!"Evolver transformer not implemented for {stx}"
-
 
 mutual
   partial def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
@@ -191,7 +168,7 @@ mutual
       do
             let m : Array (RecEvolverM FullData) ←  xs.mapM <| fun s => parseEvolver s
             return (m.foldl (fun acc x => acc ++ x) (RecEvolverM.init FullData)).transformM 
-                      <| ← parseEvolverTrans tr
+                      <| ← parseEvolverTransformer tr
     | _ => throwIllFormedSyntax
 end
 
@@ -228,17 +205,8 @@ match s with
   return ← (ppackWeighted reportDist.toList)
 | _ => throwIllFormedSyntax
 
-def syn: MacroM Syntax :=  `(evolver|app)
--- #check syn.run
 
-def syn2: TermElabM Syntax :=  `(evolver_list|ev![app, name-app])
--- #check syn2.run
-def lstfromsyn:  TermElabM (RecEvolverM FullData)  :=  do
-        let syn ← syn2
-        parseEvolverList syn
-
--- #check lstfromsyn
-
+-- generating expression hashes; created for debugging
 elab "hash!" t:term : term => do
     let expr ← elabTerm t none
     let expr ← whnf expr

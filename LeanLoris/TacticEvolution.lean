@@ -268,13 +268,6 @@ def egFamily := natRecFamily <| mkConst `egProp
 
 -- #eval egFamily
 
-def pp : Prop := 1 = 2
-
--- #eval isProp (mkConst ``pp)
--- #eval isProp (mkConst ``Nat)
--- #eval isType (mkConst ``Nat)
--- #eval isType (mkConst ``pp)
--- #check Expr.isForall
 
 def sumEl : TermElabM Expr := do 
   let mvar1 ← mkFreshExprMVar (some (mkConst ``Nat))
@@ -312,4 +305,3 @@ def factorial : Nat →  Nat := by
     exact ((n + 1) * ih)
 
 -- #eval factorial 5
-example : 1 = 1 := by exact rfl
