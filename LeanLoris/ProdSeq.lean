@@ -6,7 +6,19 @@ open Lean Meta Elab Term Std
 
 open Nat
 
+/- 
+Serializing and deserializing lists of expressions, possibly with weights.
+Given a list of expressions, they are combined using `PProd` (or simply `Prod`) to get a single expression, which can be returned as an elaborator as representing a single term. The empty term is represented by the contant `()`.
+A similar procedure is used to serialize weighted lists of terms.
+
+Conversely, given an expression is it decomposed into a list of expressions, possibly with weights.
+
+The serialization is used to store distributions for intermediate steps during evolution, and also to return proofs with weights (which are succesfully generated) for specified goals.
+-/
 namespace ProdSeq
+/--
+If an expression is a `PProd` (i.e., product of terms that may be proofs), returns the components of the product.
+-/
 def splitPProd? (expr: Expr) : TermElabM (Option (Expr × Expr)) :=
   do
     let u ← mkFreshLevelMVar
@@ -23,6 +35,9 @@ def splitPProd? (expr: Expr) : TermElabM (Option (Expr × Expr)) :=
       else 
         return none
 
+/--
+If an expression is a product of terms (which cannot be proofs), returns the components of the product.
+-/
 def splitProd?(expr: Expr) : TermElabM (Option (Expr × Expr)) :=
   do
     let u ← mkFreshLevelMVar
@@ -39,12 +54,43 @@ def splitProd?(expr: Expr) : TermElabM (Option (Expr × Expr)) :=
       else 
         return none
 
+/--
+If an expression is either a `PProd` (i.e., product of terms that may be proofs) or a product, returns the components.
+-/
 def split? (expr: Expr) : TermElabM (Option (Expr × Expr)) :=
     do
       let h? ← splitPProd? expr 
       let hp? ← splitProd? expr
       return h?.orElse (fun _ => hp?)
 
+/--
+serializes a list of weighted expressions using `PProd` recursively.
+-/
+def ppackWeighted : List (Expr × Nat) →  TermElabM Expr 
+  | [] => return mkConst ``Unit.unit
+  | (x, w) :: ys => 
+    do
+      let t ← ppackWeighted ys
+      let h ← mkAppM `PProd.mk #[x, ToExpr.toExpr w]
+      let expr ← mkAppM `PProd.mk #[h, t]
+      return expr
+
+
+/--
+serializes a list of weighted expressions using products recursively - it is assumed that the expressions do not represent proofs.
+-/
+def packWeighted : List (Expr × Nat) →  TermElabM Expr 
+  | [] => return mkConst ``Unit.unit
+  | (x, w) :: ys => 
+    do
+      let t ← packWeighted ys
+      let h ← mkAppM `Prod.mk #[x, ToExpr.toExpr w]
+      let expr ← mkAppM `Prod.mk #[h, t]
+      return expr
+
+/--
+deserializes a list of weighted expressions.
+-/
 partial def unpackWeighted (expr: Expr) : TermElabM (List (Expr × Nat)) :=
     do
       match (← split? expr) with
@@ -61,24 +107,9 @@ partial def unpackWeighted (expr: Expr) : TermElabM (List (Expr × Nat)) :=
           do throwError m!"{expr} is neither product nor unit" 
         return []
 
-def packWeighted : List (Expr × Nat) →  TermElabM Expr 
-  | [] => return mkConst ``Unit.unit
-  | (x, w) :: ys => 
-    do
-      let t ← packWeighted ys
-      let h ← mkAppM `Prod.mk #[x, ToExpr.toExpr w]
-      let expr ← mkAppM `Prod.mk #[h, t]
-      return expr
-
-def ppackWeighted : List (Expr × Nat) →  TermElabM Expr 
-  | [] => return mkConst ``Unit.unit
-  | (x, w) :: ys => 
-    do
-      let t ← ppackWeighted ys
-      let h ← mkAppM `PProd.mk #[x, ToExpr.toExpr w]
-      let expr ← mkAppM `PProd.mk #[h, t]
-      return expr
-
+/--
+serialize a list of expressions where the later ones may depend on the earlier ones; the λ of the serialization of the tail with respect to the head is appended to the head, using `PProd`.
+-/
 def lambdaPack : List Expr →  TermElabM Expr 
   | [] => return mkConst ``Unit.unit
   | x :: ys => 
@@ -90,6 +121,9 @@ def lambdaPack : List Expr →  TermElabM Expr
       let expr ← reduce expr
       return expr
 
+/--
+deserialize a list of expressions where the later ones may depend on the earlier ones.
+-/
 partial def lambdaUnpack (expr: Expr) : TermElabM (List Expr) :=
     do
       match (← split? expr) with
@@ -104,16 +138,9 @@ partial def lambdaUnpack (expr: Expr) : TermElabM (List Expr) :=
           do throwError m!"{expr} is neither product nor unit" 
         return []
 
-partial def unpack (expr: Expr) : TermElabM (List Expr) :=
-    do
-      match (← split? expr) with
-      | some (h, t) => return h :: (← unpack t) 
-      | none =>
-        do 
-        unless (← isDefEq expr (mkConst `Unit.unit))
-          do throwError m!"{expr} is neither product nor unit" 
-        return []
-
+/--
+serializes a list of expressions using `PProd` recursively.
+-/
 def pack : List Expr →  TermElabM Expr 
   | [] => return mkConst ``Unit.unit
   | x :: ys => 
@@ -122,7 +149,9 @@ def pack : List Expr →  TermElabM Expr
       let expr ← mkAppM `PProd.mk #[x, t]
       return expr
 
-
+/--
+serializes a list of expressions using products recursively - it is assumed that the expressions do not represent proofs.
+-/
 def packTerms : List Expr →  TermElabM Expr 
   | [] => return mkConst ``Unit.unit
   | x :: ys => 
@@ -134,13 +163,28 @@ def packTerms : List Expr →  TermElabM Expr
         let expr ← mkAppM `Prod.mk #[x, t]
         return expr
 
+/--
+deserialize a list of exressions; where the serialization can use `PProd` or products.
+-/
+partial def unpack (expr: Expr) : TermElabM (List Expr) :=
+    do
+      match (← split? expr) with
+      | some (h, t) => return h :: (← unpack t) 
+      | none =>
+        do 
+        unless (← isDefEq expr (mkConst `Unit.unit))
+          do throwError m!"{expr} is neither product nor unit" 
+        return []
+
 infixr:65 ":::" => PProd.mk
 
 end ProdSeq
 
+/- Saving and loading an `ExprDist` -/
 initialize exprDistCache : IO.Ref (HashMap Name (Expr × ExprDist)) 
                           ← IO.mkRef (HashMap.empty)
 
+/-- save an `ExprDist` after serializing at the given name -/
 def ExprDist.save (name: Name)(es: ExprDist) : TermElabM (Unit) := do
   let lctx ← getLCtx
   let fvarIds := 
@@ -159,6 +203,7 @@ def ExprDist.save (name: Name)(es: ExprDist) : TermElabM (Unit) := do
   exprDistCache.set (cache.insert name (varPack, es))
   return ()
 
+/-- load an `ExprDist` from the given name and deserialize -/
 def ExprDist.load (name: Name) : TermElabM ExprDist := do
   try
     let cache ← exprDistCache.get
