@@ -255,3 +255,41 @@ elab "hashv!" t:term : term => do
     logInfo m!"expr: {expr}"
     logInfo m!"hash: {n}"
     return ToExpr.toExpr n
+
+/- Evolution as a tactic -/
+
+open Lean.Elab.Tactic
+
+syntax (name:= evolveTactic) 
+  "evolve" evolver_list (expr_list)? expr_dist (name_dist)? num num (save_target)?  : tactic
+@[tactic evolveTactic] def evolveImpl : Tactic := fun stx =>
+match stx with
+| `(tactic|evolve $evolvers $(goals?)? $initDist $(nameDist?)? $wb $card $(saveTo?)?)  => 
+  withMainContext do
+  let ev ← parseEvolverList evolvers
+  let initDist ← parseExprDist initDist
+  let nameDist? ← nameDist?.mapM  $ fun nameDist => parseNameMap nameDist
+  let nameDist := nameDist?.getD #[]
+  let nameDist := FinDist.fromList (nameDist.toList)
+  let initData : FullData := (nameDist, [], [])
+  let goals? ← goals?.mapM $ fun goals => parseExprArray goals
+  let goals := goals?.getD #[]
+  let ev := ev.fixedPoint.evolve
+  let saveTo? := saveTo?.bind <| fun stx =>
+    match stx with  
+    | `(save_target|=:$x) => some x.getId
+    | _ => none
+  let wb ← parseNat wb
+  let card ← parseNat card
+  let finalDist ← ev wb card initData initDist 
+  match saveTo? with
+  | some name => ExprDist.save name finalDist
+  | none => pure ()
+  match ← finalDist.getProofM? (← getMainTarget) with
+  | some (pf, _) => 
+      assignExprMVar (← getMainGoal) pf
+      replaceMainGoal []
+  | none => 
+      pure () 
+  return ()
+| _ => throwIllFormedSyntax

@@ -17,6 +17,11 @@ def left_right_identities1(α : Type)[Mul α](eₗ eᵣ: α)
         let ⟨⟨thm, _⟩, _⟩ := directProof
         thm 
 
+def left_right_identities0(α : Type)[Mul α](eₗ eᵣ: α)
+      (idₗ : ∀ x : α, eₗ * x = x)(idᵣ : ∀ x: α, x * eᵣ = x) := by
+        let thm! := eₗ = eᵣ 
+        evolve ev![app, eq-closure] expr!{(idₗ, 0), (idᵣ, 0), (eₗ, 0), (eᵣ, 0)} 1 5000
+      
 #check left_right_identities1
 
 /--

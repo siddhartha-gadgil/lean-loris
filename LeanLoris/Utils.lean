@@ -4,8 +4,9 @@ import Std
 import Lean
 open Lean Meta Elab Nat Term
 
--- Auxiliary functions mainly from lean source for finding subexpressions
+/- Meta or Elab utility functions -/
 
+/- from the lean source (with minor modifications) -/
 def isBlackListed  (declName : Name) : MetaM  Bool := do
   let env ← getEnv
   return (declName.isInternal
@@ -27,7 +28,7 @@ def isWhiteListed (declName : Name) : MetaM Bool := do
   let bl ← isBlackListed  declName
   return !bl
 
-
+/-- -/
 partial def exprNat : Expr → TermElabM Nat := fun expr => 
   do
     let mvar ←  mkFreshExprMVar (some (mkConst ``Nat))
