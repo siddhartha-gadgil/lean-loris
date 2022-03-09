@@ -7,7 +7,7 @@ Our main example of mixed reasoning is the result that if `f: Nat → α` is a f
 
 We use two forms of backward reasoning: induction and introduction of variables based on goals (the latter can be replaced by forward reasoning). The forward reasoning we use is mainly function application and closure of equality under symmetry and transitivity. In the latter we implicitly use our key "lemma recognition" principle: proofs of simple statements are treated like simple terms while generating.
 
-Running this is a little too resource intesive for the interpreter (but we have a compiled version that runs in `Main`). In the transition between the second and the third (final) step we cherry-pick the lemmas we want to use. However the transition from the first to the second step is done by saving and reloading the generated distribution on expressions.
+Running this is a resource intesive for the interpreter, but is done in this branch. The transition between steps is done by saving and reloading the generated distribution on expressions.
 -/
 def localConst{α : Type}(f: Nat → α) :=
   let hyp! := ∀ x: Nat, f (x + 1) = f x
@@ -39,7 +39,7 @@ def localConst{α : Type}(f: Nat → α) :=
             step!,
             recFn!] dist1 2 5000 =: dist2
   let seek3 := evolve! ev![Σev![simple-binop] ^ Σev![pi-goals]] expr![thm!] 
-          expr!{(thm!, 0), (base, 0), (recFn, 0), (step, 0)} 2 5000
+          dist2 3 500000
   let ⟨⟨thm, _⟩, _⟩ := seek3
   let pf : thm! := fun h => (recFn h) (base h) (step h)
   thm
