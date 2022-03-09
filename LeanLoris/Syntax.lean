@@ -6,10 +6,23 @@ import LeanLoris.ProdSeq
 import LeanLoris.TacticEvolution
 open Lean Elab Meta Term ProdSeq
 
+/- 
+Syntax categories, definitions, elaborators and parsers. The main role of these is to allow expressions to be extracted and passed as arguments to the evolution functions.
+
+There are also functions, both ordinary and meta, as notation.
+-/
+
+/--
+Parsing a natural number, assuming that the expression obtained by elaboration and taking normal form is built from `Nat.zero` and `Nat.succ`.
+-/
 def parseNat : Syntax → TermElabM Nat := fun s => 
   do
     let expr ← elabTerm s none
     exprNat expr
+
+/- 
+Syntax and elaborators for arrays of expressions with weights; parsed to `ExprDist`. A saved `ExprDist` is specified by its identifier.
+-/
 
 declare_syntax_cat expr_dist 
 
@@ -18,6 +31,7 @@ syntax exprWtList := "expr!{" exprWt,* "}"
 syntax exprWtList : expr_dist
 syntax ident : expr_dist
 
+/-- `ExprDist` from syntax for a list of expressions with weights -/
 def parseExprDist : Syntax → TermElabM ExprDist
   | `(expr_dist|expr!{$[$xs:exprWt],*}) =>
     do
@@ -37,6 +51,7 @@ def parseExprDist : Syntax → TermElabM ExprDist
       ExprDist.load name
   | _ => throwIllFormedSyntax
 
+-- finding a proof in an `ExprDist`
 elab "find-proof!" p:term "in" d:expr_dist : term => do
   let dist ← parseExprDist d
   let prop ← elabType p
@@ -45,9 +60,11 @@ elab "find-proof!" p:term "in" d:expr_dist : term => do
   | some (x, _) => return x
   | none => throwError "No proof found"
 
+/- Lists of expressions from Syntax -/
 declare_syntax_cat expr_list
 syntax "expr![" term,* "]" : expr_list
 
+/-- List of expressions parsed from syntax -/
 def parseExprArray : Syntax → TermElabM (Array Expr)
   | `(expr_list|expr![$[$xs],*]) =>
     do
@@ -60,11 +77,13 @@ def parseExprArray : Syntax → TermElabM (Array Expr)
           return m
   | _ => throwIllFormedSyntax
 
+/- Distributions of names from syntax -/
 declare_syntax_cat name_dist
 syntax nameWt := "(" ident "," num ")"
 syntax nameWtList := "name!{" nameWt,* "}"
 syntax nameWtList : name_dist
 
+/-- Distribution of names parsed from syntax-/
 def parseNameMap : Syntax → TermElabM (Array (Name × Nat))
   | `(name_dist|name!{$[$xs:nameWt],*}) =>
     do
@@ -78,6 +97,7 @@ def parseNameMap : Syntax → TermElabM (Array (Name × Nat))
           return m
   | _ => throwIllFormedSyntax
 
+/- Syntax for an evolver -/
 declare_syntax_cat evolver 
 syntax "app" : evolver
 syntax "name-app": evolver
@@ -102,6 +122,7 @@ syntax evolver "^" evolver : evolver
 declare_syntax_cat evolve_transformer
 syntax "by-type" (num)?: evolve_transformer
 
+/- Shorter names for evolvers, close to the syntax versions -/
 namespace RecEvolverM
 
 abbrev appl := (applyEvolver FullData).tautRec
@@ -124,10 +145,12 @@ abbrev initEv := init FullData
 
 end RecEvolverM
 
+/- Syntax for a list of evolvers, possibly with transformation -/
 declare_syntax_cat evolver_list
 syntax "ev![" evolver,* (">>" evolve_transformer)? "]" : evolver_list
 syntax "Σ" evolver_list : evolver
 
+/-- Evolver transformer parsed from syntax -/
 def parseEvolverTransformer : Syntax → TermElabM (ExprDist → TermElabM ExprDist)
   | `(evolve_transformer|by-type) => return weightByType 1
   | `(evolve_transformer|by-type $n) => do
@@ -136,6 +159,7 @@ def parseEvolverTransformer : Syntax → TermElabM (ExprDist → TermElabM ExprD
   | stx => throwError m!"Evolver transformer not implemented for {stx}"
 
 mutual
+  /-- Evolver parsed from syntax -/
   partial def parseEvolver : Syntax → TermElabM (RecEvolverM FullData)
   | `(evolver|app) => return (applyEvolver FullData).tautRec
   | `(evolver|name-app) => return (nameApplyEvolver FullData).tautRec
@@ -164,6 +188,7 @@ mutual
   | `(evolver|Σ $x) => parseEvolverList x
   | stx => throwError m!"Evolver not implemented for {stx}"
 
+  /-- List of evolvers parsed from syntax and folded. The initial evolver is automatically included. -/
   partial def parseEvolverList : Syntax → TermElabM (RecEvolverM FullData)  
     | `(evolver_list|ev![$[$xs],*]) =>
       do
@@ -177,6 +202,7 @@ mutual
     | _ => throwIllFormedSyntax
 end
 
+/- Syntax and elaboration for evolution determined by evolvers and parameters-/
 syntax save_target := "=:" ident
 
 syntax (name:= evolution) 
