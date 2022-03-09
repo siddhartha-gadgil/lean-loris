@@ -171,7 +171,7 @@ def newElem{α D : Type}[c: NewElem α D](d : D)(a : α)(n : Nat) :
     TermElabM (Bool × Bool) := c.newElem d a n
 
 def constNewElem{α D: Type}: Bool × Bool →  NewElem α D
-  | ans => ⟨fun d a wb => pure ans⟩
+  | ans => ⟨fun d a degBnd => pure ans⟩
 
 -- generating distributions by combining
 

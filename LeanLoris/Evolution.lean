@@ -24,8 +24,8 @@ structure GeneratedDist where
 class DataUpdate (D: Type) where
   update: ExprDist → Nat → Nat → D → D
 
-def dataUpdate{D: Type}[du : DataUpdate D](d: ExprDist)(wb card: Nat) : D → D :=
-  du.update d wb card
+def dataUpdate{D: Type}[du : DataUpdate D](d: ExprDist)(degBnd card: Nat) : D → D :=
+  du.update d degBnd card
 
 def idUpate{D: Type} : DataUpdate D :=
   ⟨fun _ _ _ d => d⟩
@@ -112,19 +112,19 @@ namespace EvolverM
 def init(D: Type) : EvolverM D := fun _ _ _ init  => pure init
 
 def tautRec{D: Type}(ev: EvolverM D) : RecEvolverM D := 
-        fun wb cb init d _ => ev wb cb d init 
+        fun degBnd cb init d _ => ev degBnd cb d init 
 
 def andThenM{D: Type}(ev : EvolverM D) 
               (effect: ExprDist → TermElabM Unit) : EvolverM D := 
-      fun wb cb initDist data  => 
+      fun degBnd cb initDist data  => 
         do
-          let newDist ← ev wb cb initDist data 
+          let newDist ← ev degBnd cb initDist data 
           effect newDist
           pure newDist
 
 def merge{D: Type}(fst snd : EvolverM D) : EvolverM D :=
-  fun wb cb initDist data => do
-    (← fst wb cb initDist data) ++ (← snd wb cb initDist data)
+  fun degBnd cb initDist data => do
+    (← fst degBnd cb initDist data) ++ (← snd degBnd cb initDist data)
 
 def evolveAux{D: Type}[DataUpdate D](ev : EvolverM D)(incWt accumWt cardBound: Nat) : 
                      ExprDist → (initData: D) →  TermElabM ExprDist := 
@@ -137,8 +137,8 @@ def evolveAux{D: Type}[DataUpdate D](ev : EvolverM D)(incWt accumWt cardBound: N
                         evolveAux ev m (accumWt + 1) cardBound newDist newData 
 
 def evolve{D: Type}[DataUpdate D](ev: EvolverM D) : EvolverM D :=
-       fun wb cb initDist data  => 
-        evolveAux ev wb 0 cb data initDist 
+       fun degBnd cb initDist data  => 
+        evolveAux ev degBnd 0 cb data initDist 
 
 end EvolverM
 
@@ -149,13 +149,13 @@ namespace RecEvolverM
 def init(D: Type) := (EvolverM.init D).tautRec
 
 partial def fixedPoint{D: Type}(recEv: RecEvolverM D) : EvolverM D :=
-        fun wb c data init => recEv wb c init data (fixedPoint recEv)
+        fun degBnd c data init => recEv degBnd c init data (fixedPoint recEv)
 
 def evolve{D: Type}[DataUpdate D](recEv: RecEvolverM D) : EvolverM D :=
        recEv.fixedPoint.evolve
 
 def conjApply{D: Type}(recEv: RecEvolverM D)(ev: EvolverM D) : EvolverM D :=
-        fun wb c data init => recEv wb c init data ev
+        fun degBnd c data init => recEv degBnd c init data ev
 
 def iterateAux{D: Type}[DataUpdate D](stepEv : RecEvolverM D)(incWt accumWt cardBound: Nat) : 
                      ExprDist → (initData: D) → (evo: EvolverM D) → TermElabM ExprDist := 
@@ -172,8 +172,8 @@ def iterateAux{D: Type}[DataUpdate D](stepEv : RecEvolverM D)(incWt accumWt card
                         iterateAux stepEv m (accumWt + 1) cardBound newDist newData evo
 
 def iterate{D: Type}[DataUpdate D](stepEv : RecEvolverM D): RecEvolverM D := 
-      fun wb cb initDist data evo => 
-        iterateAux stepEv wb 0 cb initDist data evo
+      fun degBnd cb initDist data evo => 
+        iterateAux stepEv degBnd 0 cb initDist data evo
 
 def levelIterate{D: Type}[DataUpdate D](stepEv : RecEvolverM D)
                     (steps maxDegree cardBound: Nat) : 
@@ -187,24 +187,24 @@ def levelIterate{D: Type}[DataUpdate D](stepEv : RecEvolverM D)
                         levelIterate stepEv m maxDegree cardBound newDist newData evo
 
 def merge{D: Type}(fst: RecEvolverM D)(snd: RecEvolverM D) : RecEvolverM D := 
-      fun wb cb initDist data evo => 
+      fun degBnd cb initDist data evo => 
         do
-          let fstDist ← fst wb cb initDist data evo
-          let sndDist ← snd wb cb initDist data evo
+          let fstDist ← fst degBnd cb initDist data evo
+          let sndDist ← snd degBnd cb initDist data evo
           fstDist ++ sndDist
 
 def transformM{D: Type} (recEv : RecEvolverM D) 
             (f: ExprDist → TermElabM ExprDist) : RecEvolverM D := 
-      fun wb cb initDist data evo => 
+      fun degBnd cb initDist data evo => 
         do
-          let newDist ← recEv wb cb initDist data evo
+          let newDist ← recEv degBnd cb initDist data evo
           f newDist
 
 def andThenM{D: Type}(recEv : RecEvolverM D) 
               (effect: ExprDist → TermElabM Unit) : RecEvolverM D := 
-      fun wb cb initDist data evo => 
+      fun degBnd cb initDist data evo => 
         do
-          let newDist ← recEv wb cb initDist data evo
+          let newDist ← recEv degBnd cb initDist data evo
           effect newDist
           pure newDist
 
@@ -269,23 +269,23 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(degreeBound: Na
 
 -- Some evolution cases; just one step (so update not needed)
 
-def applyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init => 
+def applyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun degBnd c d init => 
   do
-    let res ← prodGenArrM apply? wb c (← init.funcs) init.allTermsArray d 
+    let res ← prodGenArrM apply? degBnd c (← init.funcs) init.allTermsArray d 
     return res
 
 def applyPairEvolver(D: Type)[NewElem Expr D]: EvolverM D := 
-  fun wb c d init =>
+  fun degBnd c d init =>
   do
     let funcs ← init.termsArray.filterM $ fun (e, _) => 
        do return Expr.isForall <| ← inferType e
     let pfFuncs ← init.proofsArray.filterMapM <| fun (l, f, deg) =>
       do if (l.isForall) then return some (f, deg) else return none
-    let res ← tripleProdGenArrM applyPair? wb c 
+    let res ← tripleProdGenArrM applyPair? degBnd c 
           (← init.funcs) init.allTermsArray init.allTermsArray d
     return res
 
-def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init => 
+def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun degBnd c d init => 
   do
     /- for a given type α; functions with domain α and terms with type α  
     -/ 
@@ -319,7 +319,7 @@ def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init 
         for (f, wf) in fns do
           for (x, wx) in ts do
             let deg :=  wf + wx + 1
-            for j in [deg: wb+ 1] do
+            for j in [deg: degBnd+ 1] do
             cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 + 1)
     let mut resTerms: Array (Expr × Nat) := #[]
     for (_, arr) in grouped.toArray do
@@ -327,7 +327,7 @@ def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init 
         for (f, wf) in fns do
           for (x, wx) in ts do
             let deg :=  wf + wx + 1
-            if deg ≤ wb && cumPairCount.findD deg 0 ≤  c then
+            if deg ≤ degBnd && cumPairCount.findD deg 0 ≤  c then
               let y := mkApp f x
               let y ← whnf y
               Term.synthesizeSyntheticMVarsNoPostponing
@@ -336,38 +336,38 @@ def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun wb c d init 
     return res
 
 def simpleApplyPairEvolver(D: Type)[NewElem Expr D]: EvolverM D := 
-  fun wb c d init =>
+  fun degBnd c d init =>
   do
-    let res ← tripleProdGenArrM mkAppPair? wb c 
+    let res ← tripleProdGenArrM mkAppPair? degBnd c 
           (← init.funcs) init.allTermsArray init.allTermsArray d
     return res
 
 def nameApplyEvolver(D: Type)[GetNameDist D][NewElem Expr D]: EvolverM D := 
-  fun wb c d init =>
+  fun degBnd c d init =>
   do
     let names := (nameDist d).toArray
-    let res ← prodGenArrM nameApply? wb c names init.allTermsArray d
+    let res ← prodGenArrM nameApply? degBnd c names init.allTermsArray d
     return res
 
 def nameApplyPairEvolver(D: Type)[GetNameDist D][NewElem Expr D]: 
-        EvolverM D := fun wb c d init  =>
+        EvolverM D := fun degBnd c d init  =>
   do
     let names := (nameDist d).toArray
-    let res ← tripleProdGenArrM nameApplyPair? wb c names init.allTermsArray init.allTermsArray d
+    let res ← tripleProdGenArrM nameApplyPair? degBnd c names init.allTermsArray init.allTermsArray d
     return res
 
 def rewriteEvolver(D: Type)(flip: Bool := true)[NewElem Expr D] : EvolverM D := 
-  fun wb c d init => 
+  fun degBnd c d init => 
   do
-    prodGenArrM (rwPush? flip) wb c init.allTermsArray (← init.forallOfEquality) d
+    prodGenArrM (rwPush? flip) degBnd c init.allTermsArray (← init.forallOfEquality) d
 
 def congrEvolver(D: Type)[NewElem Expr D] : EvolverM D := 
-  fun wb c d init  => 
+  fun degBnd c d init  => 
   do
-    prodGenArrM congrArg? wb c (← init.funcs) (← init.eqls) d
+    prodGenArrM congrArg? degBnd c (← init.funcs) (← init.eqls) d
 
 def eqIsleEvolver(D: Type)[NewElem Expr D][IsleData D] : RecEvolverM D := 
-  fun wb c init d evolve => 
+  fun degBnd c init d evolve => 
   do
     let mut eqTypesArr: Array (Expr × Nat) := Array.empty
     let mut eqs: ExprDist := ExprDist.empty -- equalities, degrees
@@ -379,21 +379,21 @@ def eqIsleEvolver(D: Type)[NewElem Expr D][IsleData D] : RecEvolverM D :=
           eqTypesArr := eqTypesArr.push (α, deg)
           eqs :=  eqs.pushProof l exp deg
           eqTriples := eqTriples.push (exp, α, deg)
-    let eqsCum := degreeAbove eqs.allTermsArray wb
+    let eqsCum := degreeAbove eqs.allTermsArray degBnd
     let mut isleDistMap : HashMap Expr ExprDist := HashMap.empty
     let eqTypesExpr ←  ExprDist.fromArrayM eqTypesArr
     for (type, deg) in eqTypesExpr.termsArray do
-      if wb - deg > 0 then
+      if degBnd - deg > 0 then
         let ic := c / (eqsCum.find! deg) -- should not be missing
-        let isleDist ←   isleM type evolve (wb -deg -1) ic init d false true false true
+        let isleDist ←   isleM type evolve (degBnd -deg -1) ic init d false true false true
         isleDistMap := isleDistMap.insert type isleDist
     let finDistsAux : Array (Task (TermElabM ExprDist)) :=  
-        (eqTriples.filter (fun (_, _, weq) => wb - weq > 0)).map <|
+        (eqTriples.filter (fun (_, _, weq) => degBnd - weq > 0)).map <|
           fun (eq, type, weq) => 
           Task.spawn ( fun _ =>
             let isleDistBase := isleDistMap.findD type ExprDist.empty
             let xc := c / (eqsCum.find! weq) -- should not be missing
-            let isleDist := (isleDistBase.bound (wb -weq -1) xc).termsArray
+            let isleDist := (isleDistBase.bound (degBnd -weq -1) xc).termsArray
             isleDist.foldlM (
                 fun d (f, wf) => do 
                   match ← congrArg? f eq with 
@@ -406,20 +406,20 @@ def eqIsleEvolver(D: Type)[NewElem Expr D][IsleData D] : RecEvolverM D :=
     let res := finDists.foldlM (fun x y => x ++ y) ExprDist.empty
     res
 
-def allIsleEvolver(D: Type)[IsleData D] : RecEvolverM D := fun wb c init d evolve => 
+def allIsleEvolver(D: Type)[IsleData D] : RecEvolverM D := fun degBnd c init d evolve => 
   do
     let typeDist ← init.allSortsArray
-    let typesCum := degreeAbove typeDist wb
+    let typesCum := degreeAbove typeDist degBnd
     let mut finalDist: ExprDist := ExprDist.empty
     for (type, deg) in typeDist do
-      if wb - deg > 0 then
+      if degBnd - deg > 0 then
         let ic := c / (typesCum.find! deg)
-        let isleDist ←   isleM type evolve (wb -deg -1) ic init d   
+        let isleDist ←   isleM type evolve (degBnd -deg -1) ic init d   
         finalDist ←  finalDist ++ isleDist
     return finalDist
 
 def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D 
-  := fun wb card d init => 
+  := fun degBnd card d init => 
   do
     let mut eqs := ExprDist.empty -- new equations only
     let mut allEquationGroups : HashMap (UInt64) ExprDist := HashMap.empty
@@ -495,10 +495,10 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
         let degrees := m.map <| fun (_, _, deg) => deg
         for deg1 in degrees do
           for deg2 in degrees do 
-            for j in [deg1 + deg2:wb + 1] do
+            for j in [deg1 + deg2:degBnd + 1] do
               cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 + 1)
         for deg1 in degrees do 
-          for j in [deg1 + deg1:wb + 1] do
+          for j in [deg1 + deg1:degBnd + 1] do
             cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 - 1)
     for (key, group) in grouped.toArray do
       for (y, withRhs, withLhs) in group do
@@ -506,7 +506,7 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
           for (z, eq2, deg2) in withLhs do
           let deg := deg1 + deg2
               -- if focus then IO.println s!"x: {x}, z: {z}, deg: {deg}" 
-              if deg ≤ wb && (cumPairCount.findD deg 0) ≤ card * 2 then 
+              if deg ≤ degBnd && (cumPairCount.findD deg 0) ≤ card * 2 then 
               unless ← isDefEq x  z do
                 let eq3 ← whnf (←   mkAppM ``Eq.trans #[eq1, eq2]) 
                 let prop ← mkEq x z
@@ -517,7 +517,7 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
     return eqs
 
 
-def funcDomIsleEvolver(D: Type)[IsleData D] : RecEvolverM D := fun wb c init d evolve => 
+def funcDomIsleEvolver(D: Type)[IsleData D] : RecEvolverM D := fun degBnd c init d evolve => 
   do
     let mut typeDist := FinDist.empty
     for (x, deg) in init.allTermsArray do
@@ -526,12 +526,12 @@ def funcDomIsleEvolver(D: Type)[IsleData D] : RecEvolverM D := fun wb c init d e
       | Expr.forallE _ t .. =>
           typeDist := typeDist.update type deg
       | _ => pure ()
-    let typesCum := typeDist.cumulDegreeCount wb
+    let typesCum := typeDist.cumulDegreeCount degBnd
     let mut finalDist: ExprDist := ExprDist.empty
     for (type, deg) in typeDist.toArray do
-      if wb - deg > 0 then
+      if degBnd - deg > 0 then
         let ic := c / (typesCum.findD deg 0)
-        let isleDist ←   isleM type evolve (wb -deg -1) ic init d true false true  
+        let isleDist ←   isleM type evolve (degBnd -deg -1) ic init d true false true  
         finalDist ←  finalDist ++ isleDist
     return finalDist
 
@@ -553,14 +553,14 @@ def piDomains(terms: Array (Expr × Nat)) : TermElabM (Array (Expr × Nat)) := d
 
 -- generating from domains of pi-types
 def piGoalsEvolverM(D: Type)[IsleData D](excludeInit: Bool := true) : RecEvolverM D := 
-  fun wb c init d evolve => 
-  -- if wb = 0 then init else
+  fun degBnd c init d evolve => 
+  -- if degBnd = 0 then init else
   do
     let piDoms ← piDomains (init.termsArray)
-    let cumDegrees := FinDist.cumulDegreeCount  (FinDist.fromArray piDoms) wb
+    let cumDegrees := FinDist.cumulDegreeCount  (FinDist.fromArray piDoms) degBnd
     let mut finalDist: ExprDist := ExprDist.empty
     for (type, deg) in piDoms do
-      if deg ≤ wb && (cumDegrees.find! deg ≤ c) then
+      if deg ≤ degBnd && (cumDegrees.find! deg ≤ c) then
       -- convert pi-types with given domain to lambdas
       let isleTerms ←  init.termsArray.mapM (fun (t, deg) => do 
           match t with
@@ -581,8 +581,8 @@ def piGoalsEvolverM(D: Type)[IsleData D](excludeInit: Bool := true) : RecEvolver
           -- ←  ExprDist.fromArrayM isleTerms  
           ⟨isleTerms, init.proofsArray⟩
       let ic := c / (cumDegrees.find! deg)
-      let isleDist ←   isleM type evolve (wb ) ic isleInit 
-                (isleData d init wb c) true false false excludeInit
+      let isleDist ←   isleM type evolve (degBnd ) ic isleInit 
+                (isleData d init degBnd c) true false false excludeInit
       finalDist ←  finalDist ++ isleDist
     return finalDist
 
