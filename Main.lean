@@ -96,10 +96,10 @@ def main (args: List String) : IO Unit := do
   let mathenv ← 
     importModules [{module := `Mathlib}] {}
   IO.println "Choose one or more of the following:"
-  IO.println "1. Induction: locally constant functions"
-  IO.println "2. Czech-Slovak Olympiad example"
+  IO.println "1. Czech-Slovak Olympiad example"
+  IO.println "2. Induction: locally constant functions"
   IO.println "3. Dependency generation"
-  if args.contains "1" then runLclConst env
-  if args.contains "2" then runCzSl env
+  if args.contains "2" then runLclConst env
+  if args.contains "1" then runCzSl env
   if args.contains "3" then mathDepData mathenv
   return ()

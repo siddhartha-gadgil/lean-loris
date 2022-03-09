@@ -7,7 +7,7 @@ Examples of simple proofs, which can readily run in the intepreter.
 /--
 Our first example is one of the first abstract results one sees in algebra: given a multiplication on a set `α` with a left-identity `eₗ` and a right identity `eᵣ`, we have `eₗ = eᵣ`.
 
-Our first proof is by forward reasoning using funtion application and equality closure under symmetry and transitivty.
+Our first proof is by forward reasoning using function application and equality closure under symmetry and transitivity.
 -/
 def left_right_identities1(α : Type)[Mul α](eₗ eᵣ: α)
       (idₗ : ∀ x : α, eₗ * x = x)(idᵣ : ∀ x: α, x * eᵣ = x) :=
