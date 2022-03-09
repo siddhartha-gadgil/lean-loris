@@ -4,6 +4,7 @@ import LeanLoris.Syntax
 Examples of simple proofs, which can readily run in the intepreter.
 -/
 
+namespace ElabExamples
 /--
 Our first example is one of the first abstract results one sees in algebra: given a multiplication on a set `α` with a left-identity `eₗ` and a right identity `eᵣ`, we have `eₗ = eᵣ`.
 
@@ -85,3 +86,58 @@ def eql_flip_trans(a b c: Nat)(p: a = b)(q: a = c) :=
     thm
 
 #check eql_flip_trans
+
+end ElabExamples
+
+namespace TacticExamples
+
+/--
+Our first example is one of the first abstract results one sees in algebra: given a multiplication on a set `α` with a left-identity `eₗ` and a right identity `eᵣ`, we have `eₗ = eᵣ`.
+
+Our first proof is by forward reasoning using function application and equality closure under symmetry and transitivity.
+-/
+def left_right_identities1(α : Type)[Mul α](eₗ eᵣ: α)
+    (idₗ : ∀ x : α, eₗ * x = x)(idᵣ : ∀ x: α, x * eᵣ = x) : eₗ = eᵣ := 
+      by
+        evolve ev![simple-app, eq-closure]  2 5000
+
+/--
+We give a second proof of the result: given a multiplication on a set `α` with a left-identity `eₗ` and a right identity `eᵣ`, we have `eₗ = eᵣ` to illustrate implicit "lemma choosing". Notice that the cutoff is just `1` for both steps. However the proof is obtained as during equality generation, we look-ahead and generate proofs of statements that are simple.
+
+This example also illustrates saving the result of a step and loading in the next step.
+-/
+def left_right_identities2(α : Type)[Mul α](eₗ eᵣ: α)
+    (idₗ : ∀ x : α, eₗ * x = x)(idᵣ : ∀ x: α, x * eᵣ = x) : eₗ = eᵣ:= by
+        evolve ev![app] 1 1000 =: dist1
+        evolve ev![eq-closure] dist1 1 1000 
+
+/--
+We prove modus-ponens using mixed reasoning, specifically function application and introduction of variables for domains of goals.
+-/
+def modus_ponens(A B: Prop) : A → (A → B)→ B := by
+  evolve ev![pi-goals, simple-app] 1 1000
+
+/-
+The below examples are elementary. 
+-/
+
+-- ∀ (A : Prop), A → A
+def implies_self(A: Prop) : A → A := by
+  evolve ev![pi-goals-all]  1 1000
+
+-- ∀ (A B : Prop), A → (A → B) → B
+def deduction(A B: Prop)(a : A)(f: A → B) : B := by
+  evolve ev![simple-app]  1 10000
+
+-- ∀ (A : Type) (a : A), a = a
+def eql_refl(A: Type) : ∀ a: A, a = a := by
+  evolve ev![pi-goals, rfl]  1 1000
+
+-- ∀ (a b c : Nat), a = b → a = c → b = c
+def eql_flip_trans(a b c: Nat)(p: a = b)(q: a = c) : b = c := by
+    evolve ev![eq-closure]  1 1000
+
+#check eql_flip_trans
+
+
+end TacticExamples
