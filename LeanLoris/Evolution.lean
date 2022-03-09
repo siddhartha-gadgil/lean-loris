@@ -34,8 +34,6 @@ instance : DataUpdate Unit := idUpate
 
 instance : DataUpdate NameDist := idUpate
 
--- Deprecated
-
 instance : NewElem Expr Unit := constNewElem (true, true)
 
 instance {D: Type} : NewElem Name D := constNewElem (false, true)

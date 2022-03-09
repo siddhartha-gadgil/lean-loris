@@ -224,7 +224,7 @@ match s with
     | `(save_target|=:$x) => some x.getId
     | _ => none
   let wb ← parseNat wb
-  let card ← parseNat card
+  let card := (Syntax.isNatLit? card).get!
   let finalDist ← ev wb card initData initDist 
   match saveTo? with
   | some name => ExprDist.save name finalDist
@@ -261,13 +261,28 @@ elab "hashv!" t:term : term => do
 open Lean.Elab.Tactic
 
 syntax (name:= evolveTactic) 
-  "evolve" evolver_list (expr_list)? expr_dist (name_dist)? num num (save_target)?  : tactic
+  "evolve" evolver_list (expr_list)? (expr_dist)? (name_dist)? num num (save_target)?  : tactic
 @[tactic evolveTactic] def evolveImpl : Tactic := fun stx =>
 match stx with
-| `(tactic|evolve $evolvers $(goals?)? $initDist $(nameDist?)? $wb $card $(saveTo?)?)  => 
+| `(tactic|evolve%$tk $evolvers $(goals?)? $(initDist?)? $(nameDist?)? $wb $card $(saveTo?)?)  => 
   withMainContext do
   let ev ← parseEvolverList evolvers
-  let initDist ← parseExprDist initDist
+  let lctx ← getLCtx
+  let fvars := 
+    lctx.decls.toList.filterMap (fun  decl? => 
+    match decl? with
+      | some decl => if !decl.isLet then 
+        some <| mkFVar decl.fvarId 
+        else none
+      | none      => none)
+  let fvars := fvars.tail!
+  let initDist ← match initDist? with
+    | some initDist => parseExprDist initDist
+    | none => 
+        let initTerms := fvars.toArray 
+        let target ← getMainTarget
+        let initTerms:= initTerms.push target
+        ExprDist.fromArrayM (initTerms.map fun fvar => (fvar, 0))
   let nameDist? ← nameDist?.mapM  $ fun nameDist => parseNameMap nameDist
   let nameDist := nameDist?.getD #[]
   let nameDist := FinDist.fromList (nameDist.toList)
@@ -280,11 +295,12 @@ match stx with
     | `(save_target|=:$x) => some x.getId
     | _ => none
   let wb ← parseNat wb
-  let card ← parseNat card
+  let card := (Syntax.isNatLit? card).get!
   let finalDist ← ev wb card initData initDist 
   match saveTo? with
   | some name => ExprDist.save name finalDist
   | none => pure ()
+  logResults (some tk) goals finalDist
   match ← finalDist.getProofM? (← getMainTarget) with
   | some (pf, _) => 
       assignExprMVar (← getMainGoal) pf

@@ -17,10 +17,9 @@ def left_right_identities1(α : Type)[Mul α](eₗ eᵣ: α)
         let ⟨⟨thm, _⟩, _⟩ := directProof
         thm 
 
-def left_right_identities0(α : Type)[Mul α](eₗ eᵣ: α)
-      (idₗ : ∀ x : α, eₗ * x = x)(idᵣ : ∀ x: α, x * eᵣ = x) := by
-        let thm! := eₗ = eᵣ 
-        evolve ev![app, eq-closure] expr!{(idₗ, 0), (idᵣ, 0), (eₗ, 0), (eᵣ, 0)} 1 5000
+def left_right_identities_backward(α : Type)[Mul α](eₗ eᵣ: α)
+      (idₗ : ∀ x : α, eₗ * x = x)(idᵣ : ∀ x: α, x * eᵣ = x) : eₗ = eᵣ := by
+        evolve ev![simple-app, eq-closure]  2 5000
       
 #check left_right_identities1
 
@@ -67,7 +66,7 @@ def implies_self(A: Prop) :=
 
 -- ∀ (A B : Prop), A → (A → B) → B
 def deduction(A B: Prop)(a : A)(f: A → B) :=
-  let ⟨⟨thm, _⟩, _⟩ := evolve! ev![app] expr![B] expr!{(f, 0), (a, 0)} 1 1000
+  let ⟨⟨thm, _⟩, _⟩ := evolve! ev![simple-app] expr![B] expr!{(f, 0), (a, 0)} 1 10000
   thm
 
 #check deduction
