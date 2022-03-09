@@ -53,7 +53,7 @@ partial def exprHash : Expr → TermElabM UInt64
 
 
 /-- 
-Finding whether an expression is contained in another; to be used in (not yet implemented) transformations that reduce weights for sub-expressions of goals.
+Finding whether an expression is contained in another; to be used in (not yet implemented) transformations that reduce degrees for sub-expressions of goals.
 -/
 partial def subExpr?(withDoms: Bool)(parent: Expr): Expr → TermElabM Bool := 
     fun e => do
@@ -76,9 +76,9 @@ partial def subExpr?(withDoms: Bool)(parent: Expr): Expr → TermElabM Bool :=
         | _ => return false
 
 /--
-Computing optional weight based on whether an expression is contained in another.
+Computing optional degree based on whether an expression is contained in another.
 -/
-def subExprWeight(cost: Nat)(withDoms: Bool)(parent: Expr): Expr → TermElabM (Option Nat) :=
+def subExprDegree(cost: Nat)(withDoms: Bool)(parent: Expr): Expr → TermElabM (Option Nat) :=
     fun e => do
         if (← subExpr? withDoms parent e) then return (some cost) else return none
 

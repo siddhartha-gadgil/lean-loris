@@ -178,34 +178,34 @@ def constNewElem{α D: Type}: Bool × Bool →  NewElem α D
 
 def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α][ToMessageData β]
     (compose: α → β → TermElabM (Option Expr))
-    (maxWeight card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
+    (maxDegree card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
     (data: D) : TermElabM ExprDist := do 
-    if maxWeight > 0 then
+    if maxDegree > 0 then
       let mut fstTagGrouped: HashMap Nat (Array (α × Bool × Bool)) := HashMap.empty
       let mut sndTagGrouped: HashMap Nat (Array (β × Bool × Bool)) := HashMap.empty
-      for (a, w1) in fst do
-        let prev := fstTagGrouped.findD w1 #[]
-        fstTagGrouped := fstTagGrouped.insert w1 <| prev.push (a, ← newElem data a w1)
-      for (b, w2) in snd do
-        let prev := sndTagGrouped.findD w2 #[]
-        sndTagGrouped := sndTagGrouped.insert w2 <| prev.push (b, ← newElem data b w2)
-      let fstAbove := weightAbove fst maxWeight
-      let sndAbove := weightAbove snd maxWeight
-      let mut wtdPairs : Array (α × β  × Nat) := #[]
-      for w1 in [0:maxWeight] do
-        for w2 in [0:maxWeight-w1] do
-          if (fstAbove.findD w1 0) * (sndAbove.findD w2 0) ≤ card
+      for (a, deg1) in fst do
+        let prev := fstTagGrouped.findD deg1 #[]
+        fstTagGrouped := fstTagGrouped.insert deg1 <| prev.push (a, ← newElem data a deg1)
+      for (b, deg2) in snd do
+        let prev := sndTagGrouped.findD deg2 #[]
+        sndTagGrouped := sndTagGrouped.insert deg2 <| prev.push (b, ← newElem data b deg2)
+      let fstAbove := degreeAbove fst maxDegree
+      let sndAbove := degreeAbove snd maxDegree
+      let mut withDegPairs : Array (α × β  × Nat) := #[]
+      for deg1 in [0:maxDegree] do
+        for deg2 in [0:maxDegree-deg1] do
+          if (fstAbove.findD deg1 0) * (sndAbove.findD deg2 0) ≤ card
           then 
-            for (e1, b1, be1) in fstTagGrouped.findD w1 #[] do 
-              for (e2, b2, be2) in sndTagGrouped.findD w2 #[] do 
+            for (e1, b1, be1) in fstTagGrouped.findD deg1 #[] do 
+              for (e2, b2, be2) in sndTagGrouped.findD deg2 #[] do 
                   if (((b1 || b2))
-                    || ((be1 || be2) && w1 + w2  + 1 = maxWeight)) 
+                    || ((be1 || be2) && deg1 + deg2  + 1 = maxDegree)) 
                   then
-                    wtdPairs := wtdPairs.push (e1, e2, w1 + w2  + 1)
+                    withDegPairs := withDegPairs.push (e1, e2, deg1 + deg2  + 1)
       let arr1 : Array (TermElabM (Option (Expr × Nat))) := 
-          wtdPairs.map <| fun (e1, e2, w) => 
+          withDegPairs.map <| fun (e1, e2, deg) => 
                 (compose e1 e2).map (fun oe => 
-                      oe.map (fun e4 => (e4, w) ))
+                      oe.map (fun e4 => (e4, deg) ))
       let arr2 ←  arr1.filterMapM <| fun t => t
       let res ← ExprDist.fromArrayM arr2 
       return res
@@ -213,37 +213,37 @@ def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α
 
 def prodPolyGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α][ToMessageData β]
     (compose: α → β → TermElabM (Option (Array Expr)))
-    (maxWeight card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
+    (maxDegree card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
     (data: D) : TermElabM ExprDist := do 
-    if maxWeight > 0 then
+    if maxDegree > 0 then
       let mut fstTagGrouped: HashMap Nat (Array (α × Bool × Bool)) := HashMap.empty
       let mut sndTagGrouped: HashMap Nat (Array (β × Bool × Bool)) := HashMap.empty
-      for (a, w1) in fst do
-        let prev := fstTagGrouped.findD w1 #[]
-        fstTagGrouped := fstTagGrouped.insert w1 <| prev.push (a, ← newElem data a w1)
-      for (b, w2) in snd do
-        let prev := sndTagGrouped.findD w2 #[]
-        sndTagGrouped := sndTagGrouped.insert w2 <| prev.push (b, ← newElem data b w2)
-      let fstAbove := weightAbove fst maxWeight
-      let sndAbove := weightAbove snd maxWeight
-      let mut wtdPairs : Array (α × β  × Nat) := #[]
-      for w1 in [0:maxWeight] do
-        for w2 in [0:maxWeight-w1] do
-          if (fstAbove.findD w1 0) * (sndAbove.findD w2 0) ≤ card
+      for (a, deg1) in fst do
+        let prev := fstTagGrouped.findD deg1 #[]
+        fstTagGrouped := fstTagGrouped.insert deg1 <| prev.push (a, ← newElem data a deg1)
+      for (b, deg2) in snd do
+        let prev := sndTagGrouped.findD deg2 #[]
+        sndTagGrouped := sndTagGrouped.insert deg2 <| prev.push (b, ← newElem data b deg2)
+      let fstAbove := degreeAbove fst maxDegree
+      let sndAbove := degreeAbove snd maxDegree
+      let mut withDegPairs : Array (α × β  × Nat) := #[]
+      for deg1 in [0:maxDegree] do
+        for deg2 in [0:maxDegree-deg1] do
+          if (fstAbove.findD deg1 0) * (sndAbove.findD deg2 0) ≤ card
           then 
-            for (e1, b1, be1) in fstTagGrouped.findD w1 #[] do 
-              for (e2, b2, be2) in sndTagGrouped.findD w2 #[] do 
+            for (e1, b1, be1) in fstTagGrouped.findD deg1 #[] do 
+              for (e2, b2, be2) in sndTagGrouped.findD deg2 #[] do 
                   if (((b1 || b2))
-                    || ((be1 || be2) && w1 + w2  + 1 = maxWeight)) 
+                    || ((be1 || be2) && deg1 + deg2  + 1 = maxDegree)) 
                   then
-                    wtdPairs := wtdPairs.push (e1, e2, w1 + w2  + 1)
+                    withDegPairs := withDegPairs.push (e1, e2, deg1 + deg2  + 1)
       let mut arr1 : Array (Option (Expr × Nat)) := #[]
-      for (e1, e2, w) in wtdPairs do 
+      for (e1, e2, deg) in withDegPairs do 
         match ← compose e1 e2 with
         | none => pure ()
         | some a => 
           for e3 in a do 
-            arr1 := arr1.push (some (e3, w))        
+            arr1 := arr1.push (some (e3, deg))        
       let arr2 :=  arr1.filterMap <| fun t => t
       let res ← ExprDist.fromArrayM arr2 
       return res
@@ -251,41 +251,41 @@ def prodPolyGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageDat
 
 def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ D]
     (compose: α → β → γ → TermElabM (Option Expr))
-    (maxWeight card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
+    (maxDegree card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
     (third : Array (γ × Nat))(data: D) : TermElabM ExprDist := do 
-    if maxWeight > 0 then
+    if maxDegree > 0 then
       let mut fstTagGrouped: HashMap Nat (Array (α × Bool × Bool)) := HashMap.empty
       let mut sndTagGrouped: HashMap Nat (Array (β × Bool × Bool)) := HashMap.empty
       let mut thirdTagGrouped: HashMap Nat (Array (γ × Bool × Bool)) := HashMap.empty
-      for (a, w1) in fst do
-        let prev := fstTagGrouped.findD w1 #[]
-        fstTagGrouped := fstTagGrouped.insert w1 <| prev.push (a, ← newElem data a w1)
-      for (b, w2) in snd do
-        let prev := sndTagGrouped.findD w2 #[]
-        sndTagGrouped := sndTagGrouped.insert w2 <| prev.push (b, ← newElem data b w2)
+      for (a, deg1) in fst do
+        let prev := fstTagGrouped.findD deg1 #[]
+        fstTagGrouped := fstTagGrouped.insert deg1 <| prev.push (a, ← newElem data a deg1)
+      for (b, deg2) in snd do
+        let prev := sndTagGrouped.findD deg2 #[]
+        sndTagGrouped := sndTagGrouped.insert deg2 <| prev.push (b, ← newElem data b deg2)
       for (c, w3) in third do
         let prev := thirdTagGrouped.findD w3 #[]
         thirdTagGrouped := thirdTagGrouped.insert w3 <| prev.push (c, ← newElem data c w3) 
-      let fstAbove := weightAbove fst maxWeight
-      let sndAbove := weightAbove snd maxWeight
-      let thirdAbove := weightAbove third maxWeight    
-      let mut wtdTriples : Array (α × β × γ  × Nat) := #[]
-      for w1 in [0:maxWeight] do
-        for w2 in [0:maxWeight-w1] do
-          for w3 in [0:maxWeight-w1-w2] do
-          if (fstAbove.findD w1 0) * (sndAbove.findD w2 0) * (thirdAbove.findD w3 0) ≤ card
+      let fstAbove := degreeAbove fst maxDegree
+      let sndAbove := degreeAbove snd maxDegree
+      let thirdAbove := degreeAbove third maxDegree    
+      let mut withDegTriples : Array (α × β × γ  × Nat) := #[]
+      for deg1 in [0:maxDegree] do
+        for deg2 in [0:maxDegree-deg1] do
+          for w3 in [0:maxDegree-deg1-deg2] do
+          if (fstAbove.findD deg1 0) * (sndAbove.findD deg2 0) * (thirdAbove.findD w3 0) ≤ card
           then 
-            for (e1, b1, be1) in fstTagGrouped.findD w1 #[] do 
-              for (e2, b2, be2) in sndTagGrouped.findD w2 #[] do 
+            for (e1, b1, be1) in fstTagGrouped.findD deg1 #[] do 
+              for (e2, b2, be2) in sndTagGrouped.findD deg2 #[] do 
                 for (e3, b3, be3) in thirdTagGrouped.findD w3 #[] do 
                   if (((b1 || b2 || b3))
-                    || ((be1 || be2 || be3) && w1 + w2 + w3 + 1 = maxWeight)) 
+                    || ((be1 || be2 || be3) && deg1 + deg2 + w3 + 1 = maxDegree)) 
                   then
-                    wtdTriples := wtdTriples.push (e1, e2, e3, w1 + w2 + w3 + 1)
+                    withDegTriples := withDegTriples.push (e1, e2, e3, deg1 + deg2 + w3 + 1)
       let arr1 : Array (TermElabM (Option (Expr × Nat))) := 
-          wtdTriples.map <| fun (e1, e2, e3, w) => 
+          withDegTriples.map <| fun (e1, e2, e3, deg) => 
                 (compose e1 e2 e3).map (fun oe => 
-                      oe.map (fun e4 => (e4, w) ))
+                      oe.map (fun e4 => (e4, deg) ))
       let arr2 ←  arr1.filterMapM <| fun t => t
       let res ← ExprDist.fromArrayM arr2
       return res

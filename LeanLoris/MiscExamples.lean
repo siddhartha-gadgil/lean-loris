@@ -21,26 +21,26 @@ def egEvolverFull : EvolverM FullData :=
 
 elab "gen1!" t:term : term => do 
       let x ← elabTerm t none
-      let l ← unpackWeighted x
+      let l ← unpackWithDegree x
       let arr := l.toArray
       let m := FinDist.fromList l
-      for (x, w) in arr do
-        logInfo m!"{x} : {w}" 
+      for (x, deg) in arr do
+        logInfo m!"{x} : {deg}" 
       let m1 ← prodGenArrM  apply? 4 100 arr arr ()
-      for (x, w) in m1.allTermsArray do
-        logInfo m!"{x} : {w}" 
+      for (x, deg) in m1.allTermsArray do
+        logInfo m!"{x} : {deg}" 
       let m2 ← egEvolver  4 100 () (← (ExprDist.fromArrayM arr)) 
-      for (x, w) in m2.allTermsArray do
-        logInfo m!"{x} : {w}" 
+      for (x, deg) in m2.allTermsArray do
+        logInfo m!"{x} : {deg}" 
       logInfo "Evolved state"
       let m3 ← (egEvolver).evolve 12 100 () (← (ExprDist.fromArrayM arr))
-      for (x, w) in m3.allTermsArray do
-        logInfo m!"{x} : {w}" 
+      for (x, deg) in m3.allTermsArray do
+        logInfo m!"{x} : {deg}" 
       logInfo "Full Evolved state"
       let m4 ← (egEvolverFull).evolve 12 100 (HashMap.empty, [], []) (← (ExprDist.fromArrayM arr)) 
                                           
-      for (x, w) in m4.allTermsArray do
-        logInfo m!"{x} : {w}" 
+      for (x, deg) in m4.allTermsArray do
+        logInfo m!"{x} : {deg}" 
       return x
 
 #check gen1! ((2, 1), (5, 2), (Nat.succ, 1), ())
@@ -49,17 +49,17 @@ elab "gen1!" t:term : term => do
 
 def egMap := FinDist.fromList [(1, 2), (2, 3), (3, 4), (7, 1), (9, 1), (10, 3)]
 
-#eval (egMap.weightCount).toArray
-#eval (egMap.cumulWeightCount 6).toArray
+#eval (egMap.degreeCount).toArray
+#eval (egMap.cumulDegreeCount 6).toArray
 #eval (egMap.filter (fun n => n % 2 = 1)).toArray
 #eval (egMap.bound 2 10).toArray
 #eval (egMap.bound 3 10).toArray
 #eval (egMap.bound 3 4).toArray
 #eval egMap.exists 6 6
-#eval egMap.exists 10 2 -- not in dist because of the weight
+#eval egMap.exists 10 2 -- not in dist because of the degree
 #eval egMap.exists 10 3
 #eval (FinDist.zeroLevel #[3, 4, 7]).toArray
-#eval (FinDist.update egMap 10 4).getOp 10 -- not updated because of the weight
+#eval (FinDist.update egMap 10 4).getOp 10 -- not updated because of the degree
 #eval (FinDist.update egMap 10 2).getOp 10
 #eval (FinDist.update egMap 6 2).getOp 6
 
@@ -96,7 +96,7 @@ def lstfromsyn:  TermElabM (RecEvolverM FullData)  :=  do
 
 elab (name:= exprDistPack) "packdist!" s:expr_dist : term => do
   let m : Array (Expr × Nat)  := (←  parseExprDist s).allTermsArray
-  packWeighted m.toList
+  packWithDegree m.toList
 
 #eval packdist! expr!{(1, 2), ("Hello", 4)}
 #check packdist! expr!{(1, 2), ("Hello", 4)}
@@ -111,8 +111,8 @@ elab (name:= exprPack) "pack!" s:expr_list : term => do
 
 elab (name:= constpack) "const!" s:name_dist : term  => do
     let m : Array (Name × Nat) ←  parseNameMap s
-    let c := m.map (fun (n, w) => (mkConst n, w))
-    packWeighted c.toList
+    let c := m.map (fun (n, deg) => (mkConst n, deg))
+    packWithDegree c.toList
 
 elab (name := prodHead) "prodHead!" t:term : term => 
     do
@@ -151,16 +151,16 @@ elab (name:= justterms) "terms!" t:term : term =>
       let e ← packTerms l
       return e
 
-elab (name:= roundtripWtd) "roundtrip-weighted!" t:term : term =>
+elab (name:= roundtripWtd) "roundtrip-(with degree)!" t:term : term =>
     do
       let expr ← elabTerm t none
-      let l ← unpackWeighted expr
-      let e ← ppackWeighted l
-      let ll ← unpackWeighted e
-      let ee ← packWeighted ll
+      let l ← unpackWithDegree expr
+      let e ← ppackWithDegree l
+      let ll ← unpackWithDegree e
+      let ee ← packWithDegree ll
       return ee
 
-#eval roundtrip-weighted! (((), 9), (2, 7), ("Hello", 12), ())
+#eval roundtrip-(with degree)! (((), 9), (2, 7), ("Hello", 12), ())
 
 /- "Tactic" evolution : recursion, meta to lambda etc -/
 

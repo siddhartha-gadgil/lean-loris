@@ -74,41 +74,41 @@ def mapM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
 /--
 number of keys with given value
 -/
-def weightCount{α : Type}[Hashable α][BEq α] 
+def degreeCount{α : Type}[Hashable α][BEq α] 
     (m: FinDist α) : HashMap Nat Nat := 
-      m.toArray.foldl (fun w (key, val) =>
-        match w.find? val with
+      m.toArray.foldl (fun deg (key, val) =>
+        match deg.find? val with
         | some v =>
-          w.insert val (v + 1)
+          deg.insert val (v + 1)
         | none => 
-          w.insert val 1
+          deg.insert val 1
       ) HashMap.empty
 
 /--
 number of keys with value greater than or equal to given value, up to the maximum value
 -/
-def cumulWeightCount{α : Type}[Hashable α][BEq α] 
-    (m: FinDist α) (maxWeight : Nat) : HashMap Nat Nat := Id.run do
-      let base := weightCount m
-      let mut w := HashMap.empty
+def cumulDegreeCount{α : Type}[Hashable α][BEq α] 
+    (m: FinDist α) (maxDegree : Nat) : HashMap Nat Nat := Id.run do
+      let base := degreeCount m
+      let mut deg := HashMap.empty
       for (key, val) in base.toArray do
-        for j in [key: (maxWeight + 1)] do
-          match w.find? j with
+        for j in [key: (maxDegree + 1)] do
+          match deg.find? j with
           | some v =>
-            w := w.insert j (v + val)
+            deg := deg.insert j (v + val)
           | none => 
-            w := w.insert j val
-      return w
+            deg := deg.insert j val
+      return deg
 
 /--
 filter the distribution.
 -/
 def filter{α : Type}[Hashable α][BEq α] 
     (m: FinDist α) (p: α → Bool) : FinDist α := 
-  m.toArray.foldl (fun w (key, val) => 
+  m.toArray.foldl (fun deg (key, val) => 
     if p key then
-      w.insert key val
-    else w
+      deg.insert key val
+    else deg
   ) FinDist.empty
 
 /--
@@ -116,35 +116,35 @@ monadic filter for the distribution.
 -/
 def filterM{α : Type}[Hashable α][BEq α]
     (m: FinDist α ) (p: α  → TermElabM Bool) : TermElabM <| FinDist α := do
-  m.toArray.foldlM (fun w (key, val) => do 
+  m.toArray.foldlM (fun deg (key, val) => do 
     if ← p key then
-      return w.insert key val
-    else return w
+      return deg.insert key val
+    else return deg
   ) FinDist.empty
 
 /--
-cutoff the distribution given maximum weight and cardinality
+cutoff the distribution given maximum degree and cardinality
 -/
 def bound{α : Type}[Hashable α][BEq α] 
-    (m: FinDist α) (maxWeight card: Nat)  : FinDist α := Id.run do
-  let mut w := FinDist.empty
-  let cumul := cumulWeightCount m
-  let top := ((cumul maxWeight).toList.map (fun (k, v) => v)).maximum?.getD 1 
+    (m: FinDist α) (maxDegree card: Nat)  : FinDist α := Id.run do
+  let mut deg := FinDist.empty
+  let cumul := cumulDegreeCount m
+  let top := ((cumul maxDegree).toList.map (fun (k, v) => v)).maximum?.getD 1 
   for (key, val) in m.toArray do
-    if val ≤ maxWeight && ((cumul maxWeight).findD val top ≤ card) then
-      w := w.insert key val
-  return w
+    if val ≤ maxDegree && ((cumul maxDegree).findD val top ≤ card) then
+      deg := deg.insert key val
+  return deg
 
 /--
-return distribution with all weights zero 
+return distribution with all degrees zero 
 -/
 def zeroLevel{α : Type}[Hashable α][BEq α] 
     (arr: Array α) : FinDist α := Id.run do
-  arr.foldl (fun w x => w.insert x 0) FinDist.empty
+  arr.foldl (fun deg x => deg.insert x 0) FinDist.empty
 
 /--
 update the distribution, adding a key only if it is not already present
-or has a lower weight.
+or has a lower degree.
 -/
 def update{α : Type}[Hashable α][BEq α] 
     (m: FinDist α) (x: α) (d: Nat) : FinDist α := 
@@ -153,16 +153,16 @@ def update{α : Type}[Hashable α][BEq α]
   | none => m.insert x d
 
 /--
-distribution from list of weighted elements.
+distribution from list of (with degree) elements.
 -/
 def fromList{α : Type}[Hashable α][BEq α] (l : List (α  × Nat)) : FinDist α :=
   l.foldl (fun m (a, n) => m.update a n) HashMap.empty
 
 /--
-distribution from array of weighted elements.
+distribution from array of (with degree) elements.
 -/
 def fromArray{α : Type}[Hashable α][BEq α] (arr: Array (α × Nat)) : FinDist α :=
-  arr.foldl (fun m (x, w) => m.update x w) HashMap.empty
+  arr.foldl (fun m (x, deg) => m.update x deg) HashMap.empty
 
 /--
 the keys
@@ -171,7 +171,7 @@ def keys{α : Type}[Hashable α][BEq α]
     (m: FinDist α) := m.toList.map (fun (k, v) => k)
 
 /--
-(monadic) find optional weight of given element.
+(monadic) find optional degree of given element.
 -/
 def findM?{α : Type}[Hashable α][BEq α] 
     (m: FinDist α)(p: α → TermElabM Bool) : TermElabM (Option (α × Nat)) := 
@@ -188,39 +188,39 @@ def findM?{α : Type}[Hashable α][BEq α]
 end FinDist
 
 /--
-check if element exists with weight at most the bound.
+check if element exists with degree at most the bound.
 -/
 def FinDist.exists{α : Type}[Hashable α][BEq α] 
-    (m: FinDist α) (elem: α)(weight: Nat) : Bool :=
+    (m: FinDist α) (elem: α)(degree: Nat) : Bool :=
     match m.find? elem with
-    | some v => v ≤ weight
+    | some v => v ≤ degree
     | none => false
 
 /--
-given an array of elements with weights, return a map of the number of
-elements with weight at least a given number, up to the maximum weight.
+given an array of elements with degrees, return a map of the number of
+elements with degree at least a given number, up to the maximum degree.
 -/
-def weightAbove{α : Type}(wtd : Array (α × Nat))(maxWeight: Nat): 
+def degreeAbove{α : Type}(withDeg : Array (α × Nat))(maxDegree: Nat): 
     HashMap Nat Nat := Id.run do
-      let mut w := HashMap.empty
-      for (_, n) in wtd do
-        for j in [n: (maxWeight + 1)] do
-          match w.find? j with
+      let mut deg := HashMap.empty
+      for (_, n) in withDeg do
+        for j in [n: (maxDegree + 1)] do
+          match deg.find? j with
           | some v =>
-            w := w.insert j (v + 1)
+            deg := deg.insert j (v + 1)
           | none => 
-            w := w.insert j 1
-      return w
+            deg := deg.insert j 1
+      return deg
 
 /--
-return map of number of elements with a given weight in an array of pairs.
+return map of number of elements with a given degree in an array of pairs.
 -/
-def arrWeightCount{α : Type}[Hashable α][BEq α] 
+def arrDegreeCount{α : Type}[Hashable α][BEq α] 
     (m: Array (α× Nat)) : HashMap Nat Nat := 
-      m.foldl (fun w (key, val) =>
-        match w.find? val with
+      m.foldl (fun deg (key, val) =>
+        match deg.find? val with
         | some v =>
-          w.insert val (v + 1)
+          deg.insert val (v + 1)
         | none => 
-          w.insert val 1
+          deg.insert val 1
       ) HashMap.empty

@@ -7,13 +7,13 @@ open Lean Meta Elab Term Std
 open Nat
 
 /- 
-Serializing and deserializing lists of expressions, possibly with weights.
+Serializing and deserializing lists of expressions, possibly with degrees.
 Given a list of expressions, they are combined using `PProd` (or simply `Prod`) to get a single expression, which can be returned as an elaborator as representing a single term. The empty term is represented by the contant `()`.
-A similar procedure is used to serialize weighted lists of terms.
+A similar procedure is used to serialize (with degree) lists of terms.
 
-Conversely, given an expression is it decomposed into a list of expressions, possibly with weights.
+Conversely, given an expression is it decomposed into a list of expressions, possibly with degrees.
 
-The serialization is used to store distributions for intermediate steps during evolution, and also to return proofs with weights (which are succesfully generated) for specified goals.
+The serialization is used to store distributions for intermediate steps during evolution, and also to return proofs with degrees (which are succesfully generated) for specified goals.
 -/
 namespace ProdSeq
 /--
@@ -64,43 +64,43 @@ def split? (expr: Expr) : TermElabM (Option (Expr × Expr)) :=
       return h?.orElse (fun _ => hp?)
 
 /--
-serializes a list of weighted expressions using `PProd` recursively.
+serializes a list of (with degree) expressions using `PProd` recursively.
 -/
-def ppackWeighted : List (Expr × Nat) →  TermElabM Expr 
+def ppackWithDegree : List (Expr × Nat) →  TermElabM Expr 
   | [] => return mkConst ``Unit.unit
-  | (x, w) :: ys => 
+  | (x, deg) :: ys => 
     do
-      let t ← ppackWeighted ys
-      let h ← mkAppM `PProd.mk #[x, ToExpr.toExpr w]
+      let t ← ppackWithDegree ys
+      let h ← mkAppM `PProd.mk #[x, ToExpr.toExpr deg]
       let expr ← mkAppM `PProd.mk #[h, t]
       return expr
 
 
 /--
-serializes a list of weighted expressions using products recursively - it is assumed that the expressions do not represent proofs.
+serializes a list of (with degree) expressions using products recursively - it is assumed that the expressions do not represent proofs.
 -/
-def packWeighted : List (Expr × Nat) →  TermElabM Expr 
+def packWithDegree : List (Expr × Nat) →  TermElabM Expr 
   | [] => return mkConst ``Unit.unit
-  | (x, w) :: ys => 
+  | (x, deg) :: ys => 
     do
-      let t ← packWeighted ys
-      let h ← mkAppM `Prod.mk #[x, ToExpr.toExpr w]
+      let t ← packWithDegree ys
+      let h ← mkAppM `Prod.mk #[x, ToExpr.toExpr deg]
       let expr ← mkAppM `Prod.mk #[h, t]
       return expr
 
 /--
-deserializes a list of weighted expressions.
+deserializes a list of (with degree) expressions.
 -/
-partial def unpackWeighted (expr: Expr) : TermElabM (List (Expr × Nat)) :=
+partial def unpackWithDegree (expr: Expr) : TermElabM (List (Expr × Nat)) :=
     do
       match (← split? expr) with
       | some (h, t) => 
         match (← split? h) with
         | some (x, wexp) =>
-            let w ←  exprNat (← whnf wexp)
-            let h := (← whnf x, w)
-            return h :: (← unpackWeighted t)
-        | none => throwError m!"{h} is not a product (supposed to be weighted)" 
+            let deg ←  exprNat (← whnf wexp)
+            let h := (← whnf x, deg)
+            return h :: (← unpackWithDegree t)
+        | none => throwError m!"{h} is not a product (supposed to be (with degree))" 
       | none =>
         do 
         unless (← isDefEq expr (mkConst `Unit.unit))

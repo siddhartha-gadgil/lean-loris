@@ -113,26 +113,26 @@ def typeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
             fun wb cb data dist => do
             let typeArray ← types wb cb data dist
             let mut terms : Array (Expr × Nat) := Array.empty
-            for (type, w) in typeArray do
+            for (type, deg) in typeArray do
               match ← tacList type with
               | none =>
                 pure ()
               | some ys =>
-                for y in ys do terms := terms.push (y, w + 1)
+                for y in ys do terms := terms.push (y, deg + 1)
             ExprDist.fromArrayM terms
 
-def weightedTypeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist → 
+def withDegTypeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist → 
   TermElabM (Array (Expr × Nat)))
           (tacList : Expr → TermElabM (Option (Array (Expr × Nat)))) : EvolverM D := 
             fun wb cb data dist => do
             let typeArray ← types wb cb data dist
             let mut terms : Array (Expr × Nat) := Array.empty
-            for (type, w) in typeArray do
+            for (type, deg) in typeArray do
               match ← tacList type with
               | none =>
                 pure ()
               | some ys =>
-                for (y, w0) in ys do terms := terms.push (y, w + w0)
+                for (y, w0) in ys do terms := terms.push (y, deg + w0)
             ExprDist.fromArrayM terms
 
 def typeOptEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
@@ -141,11 +141,11 @@ def typeOptEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
             fun wb cb data dist => do
             let typeArray ← types wb cb data dist
             let mut terms : Array (Expr × Nat) := Array.empty
-            for (type, w) in typeArray do
+            for (type, deg) in typeArray do
               match ← tac? type with
               | none => pure ()
               | some y =>
-                terms := terms.push (y, w)
+                terms := terms.push (y, deg)
             ExprDist.fromArrayM terms
 
 def tacticTypeEvolverM{D: Type}(tactic : MVarId → TermElabM (List MVarId))(indepGoals: Bool) :
@@ -187,22 +187,22 @@ def applyTacticEvolver(D: Type)[NewElem Expr D] : EvolverM D :=
 
 
 def forallIsleM {D: Type}[IsleData D](type: Expr)(typedEvolve : Expr → EvolverM D)
-    (weightBound: Nat)(cardBound: Nat)
+    (degreeBound: Nat)(cardBound: Nat)
       (init : ExprDist)(initData: D): TermElabM ExprDist := 
       forallTelescope type <| fun xs y => do
       let isleInit ← xs.foldlM (fun d x => d.updateExprM x 0) init
-      let isleFinal ← typedEvolve y weightBound cardBound 
-            (isleData initData init weightBound cardBound) isleInit
+      let isleFinal ← typedEvolve y degreeBound cardBound 
+            (isleData initData init degreeBound cardBound) isleInit
       isleFinal.mapM <| fun e => mkLambdaFVars xs e
 
 def forallBoundedIsleM {D: Type}[IsleData D](bound: Nat)(type: Expr)
     (typedEvolve : Expr → EvolverM D)
-    (weightBound: Nat)(cardBound: Nat)
+    (degreeBound: Nat)(cardBound: Nat)
       (init : ExprDist)(initData: D): TermElabM ExprDist := 
       forallBoundedTelescope type (some bound) <| fun xs y => do
       let isleInit ← xs.foldlM (fun d x => d.updateExprM x 0) init
-      let isleFinal ← typedEvolve y weightBound cardBound 
-          (isleData initData init weightBound cardBound) isleInit
+      let isleFinal ← typedEvolve y degreeBound cardBound 
+          (isleData initData init degreeBound cardBound) isleInit
       isleFinal.mapM <| fun e => mkLambdaFVars xs e
 
 def decideGet (goalType: Expr) : 
@@ -260,5 +260,5 @@ def natRecEvolverM(D: Type) : EvolverM D :=
         return #[(← mkAppM ``natRec #[fmly], 0), 
         (← whnf <| mkApp fmly (mkConst ``Nat.zero), 1), 
         (← whnf <| ← mkAppM ``natRecStep #[fmly], 1)] 
-  weightedTypeSumEvolverM (fun wb cb data dist => (dist.bound wb cb).goalsArr) tactic
+  withDegTypeSumEvolverM (fun wb cb data dist => (dist.bound wb cb).goalsArr) tactic
 

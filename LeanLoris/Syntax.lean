@@ -21,7 +21,7 @@ def parseNat : Syntax → TermElabM Nat := fun s =>
     exprNat expr
 
 /- 
-Syntax and elaborators for arrays of expressions with weights; parsed to `ExprDist`. A saved `ExprDist` is specified by its identifier.
+Syntax and elaborators for arrays of expressions with degrees; parsed to `ExprDist`. A saved `ExprDist` is specified by its identifier.
 -/
 
 declare_syntax_cat expr_dist 
@@ -31,7 +31,7 @@ syntax exprWtList := "expr!{" exprWt,* "}"
 syntax exprWtList : expr_dist
 syntax ident : expr_dist
 
-/-- `ExprDist` from syntax for a list of expressions with weights -/
+/-- `ExprDist` from syntax for a list of expressions with degrees -/
 def parseExprDist : Syntax → TermElabM ExprDist
   | `(expr_dist|expr!{$[$xs:exprWt],*}) =>
     do
@@ -152,10 +152,10 @@ syntax "Σ" evolver_list : evolver
 
 /-- Evolver transformer parsed from syntax -/
 def parseEvolverTransformer : Syntax → TermElabM (ExprDist → TermElabM ExprDist)
-  | `(evolve_transformer|by-type) => return weightByType 1
+  | `(evolve_transformer|by-type) => return degreeByType 1
   | `(evolve_transformer|by-type $n) => do
         let n ← parseNat n
-        return weightByType n
+        return degreeByType n
   | stx => throwError m!"Evolver transformer not implemented for {stx}"
 
 mutual
@@ -233,7 +233,7 @@ match s with
   let reportDist ← goals.mapM $ fun g => do
     let pf? ←  (finalDist.getProofM? g)
     return pf?.getD (mkConst ``Unit, 0)
-  return ← (ppackWeighted reportDist.toList)
+  return ← (ppackWithDegree reportDist.toList)
 | _ => throwIllFormedSyntax
 
 
