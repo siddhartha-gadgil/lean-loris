@@ -118,6 +118,7 @@ syntax "intro-all": evolver
 syntax "rfl": evolver
 syntax "nat-rec": evolver
 syntax evolver "^" evolver : evolver
+syntax evolver "^" "+" evolver : evolver
 
 declare_syntax_cat evolve_transformer
 syntax "by-type" (num)?: evolve_transformer
@@ -183,6 +184,11 @@ mutual
   | `(evolver|nat-rec) => return (natRecEvolverM FullData).tautRec
   | `(evolver|$x:evolver ^ $y:evolver) => do
       let x ←  parseEvolver x
+      let y ← parseEvolver y
+      return (y.conjApply (x.fixedPoint)).tautRec
+  | `(evolver|$x:evolver ^+ $y:evolver) => do
+      let x ←  parseEvolver x
+      let x := (RecEvolverM.init FullData) ++ x
       let y ← parseEvolver y
       return (y.conjApply (x.fixedPoint)).tautRec
   | `(evolver|Σ $x) => parseEvolverList x
