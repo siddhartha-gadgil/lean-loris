@@ -1,5 +1,6 @@
 import LeanLoris.FinDist
 import LeanLoris.ExprPieces
+import LeanLoris.Utils
 import Lean.Meta
 import Lean.Elab
 import Std
@@ -358,11 +359,6 @@ def allSortsArray(dist: ExprDist) : TermElabM (Array (Expr × Nat)) := do
           return (← inferType e).isSort
   let props := dist.proofsArray.map <| fun (l, _, deg) => (l, deg)
   return types ++ props
-
-def leqOpt(x: Nat)(bd: Option Nat) : Bool :=
-  match bd with
-  | none => true
-  | some b => x ≤ b
 
 /--
 Cutoff a distribution at a given degree with given bound on cardinality.

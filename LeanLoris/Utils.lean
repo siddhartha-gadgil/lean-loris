@@ -4,9 +4,16 @@ import Std
 import Lean
 open Lean Meta Elab Nat Term
 
-/- Meta or Elab utility functions -/
+/- Mostly Meta level (including Elab level) utility functions -/
+
+/-- ≤  an optional bound -/
+def leqOpt(x: Nat)(bd: Option Nat) : Bool :=
+  match bd with
+  | none => true
+  | some b => x ≤ b
 
 /- from the lean source (with minor modifications) -/
+
 def isBlackListed  (declName : Name) : MetaM  Bool := do
   let env ← getEnv
   return (declName.isInternal
@@ -28,7 +35,7 @@ def isWhiteListed (declName : Name) : MetaM Bool := do
   let bl ← isBlackListed  declName
   return !bl
 
-/-- -/
+/-- natural number from expression built from `Nat.zero` and `Nat.succ` -/
 partial def exprNat : Expr → TermElabM Nat := fun expr => 
   do
     let mvar ←  mkFreshExprMVar (some (mkConst ``Nat))
@@ -43,19 +50,20 @@ partial def exprNat : Expr → TermElabM Nat := fun expr =>
     else
       throwError m!"{expr} not a Nat expression"
 
+/-- formatted view of an expression -/
 def view(expr: Expr): MetaM String := do
   let stx ← PrettyPrinter.delab (← getCurrNamespace) (← getOpenDecls) expr
   let fmt ← PrettyPrinter.ppTerm stx
   return fmt.pretty
 
+/-- optionally infer type of expression -/
 def inferType?(e: Expr) : MetaM (Option Expr) := do
   try
     let type ← inferType e
-    -- let type ← whnf e
     return some type
   catch _ => return none
 
--- matching some patterns 
+/- Matching some patterns of expressions; using this to negate -/
 
 def existsTypeExpr? (eType: Expr) : MetaM (Option (Expr × Expr)) :=
   do 
@@ -75,6 +83,7 @@ def existsTypeExpr? (eType: Expr) : MetaM (Option (Expr × Expr)) :=
 @[inline] def or? (p : Expr) : Option (Expr × Expr) :=
   p.app2? ``Or
 
+/-- negate an expression -/
 def negate (p: Expr) : MetaM Expr := do
   let p ← whnf p
   match p.not? with

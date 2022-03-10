@@ -11,9 +11,11 @@ open Std
 open Std.HashMap
 open Nat
 
--- Basic functions for generation
+/- Basic functions for generation: at the level of expressions and arrays of expressions with degrees -/
 
--- (optional) function application with unification
+/- Expression level combinations -/
+
+/-- (optional) function application with unification -/
 def apply? (f x : Expr) : TermElabM (Option Expr) :=
   do
     try
@@ -26,6 +28,7 @@ def apply? (f x : Expr) : TermElabM (Option Expr) :=
     catch e =>
       return none
 
+/-- (optional) application of function with unification to two arguments; for binary operations and relations -/
 def applyPair? (f x y : Expr) : TermElabM (Option Expr) :=
   do
     try
@@ -39,6 +42,7 @@ def applyPair? (f x y : Expr) : TermElabM (Option Expr) :=
     catch e =>
       return none
 
+/-- (optional) function application without unification -/
 def mkApp? (f x : Expr) : TermElabM (Option Expr) :=
   do
     try
@@ -52,6 +56,7 @@ def mkApp? (f x : Expr) : TermElabM (Option Expr) :=
     catch e =>
       return none
 
+/-- (optional) application of function without unification to two arguments; for binary operations and relations-/
 def mkAppPair? (f x y : Expr) : TermElabM (Option Expr) :=
   do
     try
@@ -64,7 +69,7 @@ def mkAppPair? (f x y : Expr) : TermElabM (Option Expr) :=
     catch e =>
       return none
 
--- (optional) function application with unification given name of function
+/-- (optional) function application with unification given name of function -/
 def nameApply? (f: Name) (x : Expr) : TermElabM (Option Expr) :=
   do
     try
@@ -82,7 +87,7 @@ def nameApply? (f: Name) (x : Expr) : TermElabM (Option Expr) :=
         --     {f} at {x} with type {← inferType x}"
       return none
 
--- (optional) function application with unification given name of function and a pair of arguments
+/-- (optional) function application with unification given name of function and a pair of arguments; for binary operations/relations -/
 def nameApplyPair? (f: Name) (x y: Expr) : TermElabM (Option Expr) :=
   do
     try
@@ -101,8 +106,8 @@ def nameApplyPair? (f: Name) (x y: Expr) : TermElabM (Option Expr) :=
       return none
 
 
--- copied from lean4 source code and modified; optionally returns proof that
--- a rewritten expression is equal to the original one.
+/-- copied from lean4 source code and modified; optionally returns proof that
+ a rewritten expression is equal to the original one. -/
 def rewriteProof (e: Expr) (heq : Expr) (symm : Bool := false) : MetaM (Option Expr) :=
   do
     let heqType ← instantiateMVars (← inferType heq)
@@ -130,7 +135,7 @@ def rewriteProof (e: Expr) (heq : Expr) (symm : Bool := false) : MetaM (Option E
     let eqPrf ← mkEqNDRec motive eqRefl heq
     return some eqPrf
 
--- transports a term using equlity if its type can be rewritten
+/-- transports a term using equlity if its type can be rewritten -/
 def rwPush?(symm : Bool)(e : Expr) (heq : Expr) : TermElabM (Option Expr) :=
   do
     let t ← inferType e
@@ -149,7 +154,7 @@ def rwPush?(symm : Bool)(e : Expr) (heq : Expr) : TermElabM (Option Expr) :=
       catch _ => 
         return none
 
--- (optional) congrArg for an equality
+/-- (optional) congrArg for an equality -/
 def congrArg? (f: Expr)(eq : Expr) : TermElabM (Option Expr) :=
   do
     try
@@ -163,24 +168,21 @@ def congrArg? (f: Expr)(eq : Expr) : TermElabM (Option Expr) :=
     catch e => 
       return none 
 
--- return Boolean pair (is-new, not-external)
+/-- return Boolean pair (is-new, not-external), i.e., whether the element was encountered earlier, and, for "islands", whether the element was present "outside"  -/
 class NewElem (α D: Type) where
   newElem: D → α → Nat → TermElabM (Bool × Bool)
 
+/-- (optional) application of function with unification to two arguments; for binary operations and relations -/
 def newElem{α D : Type}[c: NewElem α D](d : D)(a : α)(n : Nat) : 
     TermElabM (Bool × Bool) := c.newElem d a n
 
+/-- set the new element functions as constants -/
 def constNewElem{α D: Type}: Bool × Bool →  NewElem α D
   | ans => ⟨fun d a degBnd => pure ans⟩
 
--- generating distributions by combining
+/- Generating distributions, concretely arrays of expressions with degrees, by combining -/
 
-
-def leqOpt(x: Nat)(bd: Option Nat) : Bool :=
-  match bd with
-  | none => true
-  | some b => x ≤ b
-
+/-- returns combinations of expressions with respect to an optional composition of pairs -/
 def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α][ToMessageData β]
     (compose: α → β → TermElabM (Option Expr))
     (maxDegree : Nat)(card? : Option Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
@@ -216,7 +218,7 @@ def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α
       return res
     else return ExprDist.empty
 
-
+/-- returns combinations of expressions with respect to an optional composition of pairs that may return an array of expressions -/
 def prodPolyGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α][ToMessageData β]
     (compose: α → β → TermElabM (Option (Array Expr)))
     (maxDegree : Nat)(card? : Option Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
@@ -255,6 +257,7 @@ def prodPolyGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageDat
       return res
     else return ExprDist.empty
 
+/-- returns combinations of expressions with respect to an optional composition of triples -/
 def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ D]
     (compose: α → β → γ → TermElabM (Option Expr))
     (maxDegree : Nat)(card? : Option Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))

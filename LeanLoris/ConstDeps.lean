@@ -10,6 +10,12 @@ import Lean.Data.Json.Basic
 import Lean.Data.Json.FromToJson
 open Lean Meta Std
 
+/- 
+Generating data of expressions in the definition and the types of global constants in the environment, with the goal of using for machine learning. System level definitions are excluded, based on the prefix of their names.
+
+As this is experimental, various forms of data are generated.
+-/
+
 initialize exprRecCache : IO.Ref (HashMap Expr (Array Name)) ← IO.mkRef (HashMap.empty)
 
 def getCached? (e : Expr) : IO (Option (Array Name)) := do
@@ -21,7 +27,7 @@ def cache (e: Expr) (offs : Array Name) : IO Unit := do
   exprRecCache.set (cache.insert  e offs)
   return ()
 
-
+/-- names of global constants -/
 def constantNames  : MetaM (Array Name) := do
   let env ← getEnv
   let decls := env.constants.map₁.toArray
@@ -29,6 +35,7 @@ def constantNames  : MetaM (Array Name) := do
   let names ← allNames.filterM (isWhiteListed)
   return names
 
+/-- names with types of global constants -/
 def constantNameTypes  : MetaM (Array (Name ×  Expr)) := do
   let env ← getEnv
   let decls := env.constants.map₁.toArray
@@ -36,6 +43,7 @@ def constantNameTypes  : MetaM (Array (Name ×  Expr)) := do
   let names ← allNames.filterM (fun (name, _) => isWhiteListed name)
   return names
 
+/-- recursively find (whitelisted) names of constants in an expression; -/
 partial def recExprNames: Expr → MetaM (Array Name) :=
   fun e =>
   do 
@@ -69,13 +77,13 @@ partial def recExprNames: Expr → MetaM (Array Name) :=
             return ← recExprNames b 
       | Expr.forallE _ _ b _ => do
           return  ← recExprNames b 
-      | Expr.letE _ _ _ b _ => 
-            return ← recExprNames b
+      | Expr.letE _ _ v b _ => 
+            return (← recExprNames b) ++ (← recExprNames v)
       | _ => pure #[]
     cache e res
     return res
 
-
+/-- names that are offspring of the constant with a given name -/
 def offSpring? (name: Name) : MetaM (Option (Array Name)) := do
   let expr ← nameExpr?  name
   match expr with
@@ -83,6 +91,7 @@ def offSpring? (name: Name) : MetaM (Option (Array Name)) := do
     return  some <| (← recExprNames e)
   | none => return none
 
+/-- names that are descendant of the constant with a given name -/
 partial def descendants (name: Name) : MetaM (Array Name) := do
   let off? ← offSpring? name
   match off? with 
@@ -91,11 +100,15 @@ partial def descendants (name: Name) : MetaM (Array Name) := do
       return recDesc.foldl (fun acc n => acc.append n) #[name]
   | none => return #[name]
 
+/-- names that are descendants of a given expression -/
 def exprDescendants (expr: Expr) : MetaM (Array Name) := do
   let offs ← recExprNames expr
   let groups ← offs.mapM (fun n => descendants n)
   return groups.foldl (fun acc n => acc.append n) #[]
 
+/-- 
+Array of constants, names in their definition, and names in their type. 
+-/
 def offSpringTriple(excludePrefixes: List Name := [])
               : MetaM (Array (Name × (Array Name) × (Array Name) )) :=
   do
@@ -114,24 +127,29 @@ def offSpringTriple(excludePrefixes: List Name := [])
           return (n, l, tl)
   return kv
 
+/--
+In core monad : array of constants, names in their definition, and names in their type. 
+-/
 def offSpringTripleCore: 
     CoreM (Array (Name × (Array Name) × (Array Name) )) := 
           (offSpringTriple [`Lean, `Std, `IO, 
           `Char, `String, `ST, `StateT, `Repr, `ReaderT, `EIO, `BaseIO]).run' 
 
+/-- binomial pmf -/
 def binom (n k: Nat)(p: Float) : Float := Id.run do
   let mut acc := ((1 - p)^ (n - k).toFloat)
   for i in [0:k] do 
       acc :=  acc * (n - i).toFloat * p / (k - i).toFloat
   return acc
 
+/-- complement (wrt 1) of binomial cdf -/
 def binomAbove (n k: Nat)(p: Float) : Float := Id.run do
   let mut acc := 0
   for j in [0: k] do
     acc :=  acc + (binom n j p)
   return 1.0 - acc 
 
-
+/-- various frequencies of names in definitions and types -/
 structure FrequencyData where
   size : Nat
   termFreqs: HashMap Name Nat
@@ -141,6 +159,7 @@ structure FrequencyData where
   allObjects : HashSet Name
 
 namespace FrequencyData
+/-- from off-spring triple obtain frequency data; not counting multiple occurences -/
 def get (triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyData := do
   let size := triples.size
   let mut termFreqs := HashMap.empty
@@ -164,6 +183,7 @@ def get (triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyDa
         typeTermMap := typeTermMap.insert y trms 
   pure ⟨size, termFreqs, typeFreqs, typeTermFreqs, typeTermMap, allObjects⟩
 
+/-- from off-spring triple obtain frequency data; counting multiple occurences -/
 def withMultiplicity(triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyData := do
   let size := triples.size
   let mut termFreqs := HashMap.empty
@@ -187,17 +207,21 @@ def withMultiplicity(triples: Array (Name × (Array Name) × (Array Name))) : IO
         typeTermMap := typeTermMap.insert y trms 
   pure ⟨size, termFreqs, typeFreqs, typeTermFreqs, typeTermMap, allObjects⟩
 
+/-- frequency of occurence of names in definitions -/
 def termFreqData (data: FrequencyData) : IO (Array (Name × Nat)) := do
   let freqs := data.termFreqs.toArray
   let freqs := freqs.qsort (fun  (k, v) (k', v') => v > v')
   return freqs
 
+/-- frequency of occurence of names in types of definitions -/
 def typeFreqData (data: FrequencyData) : IO (Array (Name × Nat)) := do
   let freqs := data.typeFreqs.toArray
   let freqs := freqs.qsort (fun  (k, v) (k', v') => v > v')
   return freqs
-
--- (type, term, p-value, conditional probability of term, probability of term) 
+/--
+data for predicting the likelihood of a name in a definition given types in the definition; in the form:
+ `(type, term, p-value, conditional probability of term, probability of term) `
+-/
 def termPickData (data: FrequencyData) : (Array (Name × Name × Float × Float × Float)) :=  
   let baseTasks :=  data.typeTermFreqs.toArray.map $ fun ((type, term), k) =>
     Task.spawn fun _ =>
@@ -207,11 +231,17 @@ def termPickData (data: FrequencyData) : (Array (Name × Name × Float × Float 
   let base := baseTasks.map $ fun t => t.get
   base.qsort (fun (_, _, x, _, _) (_, _, y, _, _) => x < y)
 
+/-- 
+array of names, frequencies of their occurence in types of definitions and the frequency of occurence of names in definitions where the given type occurs.
+-/
 def typeTermArray (data: FrequencyData) : Array (Name × Nat × (Array (Name × Nat))) := 
   let base := data.typeTermMap.toArray.map <| fun (type, terms) => 
       (type, data.typeFreqs.find! type, terms.toArray.qsort (fun (k, v) (k', v') => v > v'))
   base.qsort (fun (_, y, _) (_, y', _) => y > y')
 
+/-- 
+Crudely formatted: array of names, frequencies of their occurence in types of definitions and the frequency of occurence of names in definitions where the given type occurs.
+-/
 def typeTermView(data: FrequencyData) : String := 
   let arr : Array (Name × Nat × String)  := data.typeTermArray.map <| fun (type, freq, terms) => 
       (type, freq, (terms.toList.drop 1).foldl (fun acc (x, freq) => 
@@ -224,6 +254,7 @@ def typeTermView(data: FrequencyData) : String :=
 
 end FrequencyData
 
+/-- array names of definitions; frequency matrices of occurence of names in definitions and in types of definitions -/
 def matrixData(triples: Array (Name × (Array Name) × (Array Name))) : 
       (Array Name) × (Array (Array Nat)) × (Array (Array Nat)) := Id.run do
         let mut allObjects : HashSet Name := HashSet.empty
@@ -248,6 +279,7 @@ def matrixData(triples: Array (Name × (Array Name) × (Array Name))) :
           countVec (objs: Array Name) (m: HashMap Name Nat) :=
             objs.map $ fun x => m.findD x 0
 
+/-- Json data: array names of definitions; frequency matrices of occurence of names in definitions and in types of definitions -/
 def matrixJson(triples: Array (Name × (Array Name) × (Array Name))) : Json :=
   let (objects, termsArray, typesArr) := matrixData triples
   let namesJs := toJson objects
@@ -255,5 +287,6 @@ def matrixJson(triples: Array (Name × (Array Name) × (Array Name))) : Json :=
   let typesJs := toJson typesArr
   Json.mkObj [("names", namesJs), ("terms", termsJs), ("types", typesJs)]
 
+/-- String of Json data: array names of definitions; frequency matrices of occurence of names in definitions and in types of definitions -/
 def matrixView(triples: Array (Name × (Array Name) × (Array Name))) : String :=
   (matrixJson triples).pretty
