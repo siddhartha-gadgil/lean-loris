@@ -48,7 +48,7 @@ We prove modus-ponens using mixed reasoning, specifically function application a
 def modus_ponens(A B: Prop) :=
   let mp := A → (A → B)→ B
   let ⟨⟨thm, _⟩, _⟩ := 
-      evolve! ev![pi-goals, simple-app] expr![mp] expr!{(mp, 0)} 1 1000
+      evolve! ev![intro, simple-app] expr![mp] expr!{(mp, 0)} 1 1000
   thm
 
 #check modus_ponens
@@ -60,7 +60,7 @@ The below examples are elementary.
 -- ∀ (A : Prop), A → A
 def implies_self(A: Prop) :=
   let idA := ∀ a : A, A
-  let ⟨⟨thm, _⟩, _⟩ := evolve! ev![pi-goals-all] expr![idA] expr!{(idA, 0)} 1 1000
+  let ⟨⟨thm, _⟩, _⟩ := evolve! ev![intro-all] expr![idA] expr!{(idA, 0)} 1 1000
   thm
 
 #check implies_self
@@ -75,7 +75,7 @@ def deduction(A B: Prop)(a : A)(f: A → B) :=
 -- ∀ (A : Type) (a : A), a = a
 def eql_refl(A: Type) :=
   let p := ∀ a: A, a = a
-  let ⟨⟨thm, _⟩, _⟩ := evolve! ev![pi-goals, rfl] expr![p] expr!{(p, 0)} 1 1000
+  let ⟨⟨thm, _⟩, _⟩ := evolve! ev![intro, rfl] expr![p] expr!{(p, 0)} 1 1000
   thm
 
 #check eql_refl
@@ -115,7 +115,7 @@ def left_right_identities2(α : Type)[Mul α](eₗ eᵣ: α)
 We prove modus-ponens using mixed reasoning, specifically function application and introduction of variables for domains of goals.
 -/
 def modus_ponens(A B: Prop) : A → (A → B)→ B := by
-  evolve ev![pi-goals, simple-app] 1 1000
+  evolve ev![intro, simple-app] 1 1000
 
 /-
 The below examples are elementary. 
@@ -123,7 +123,7 @@ The below examples are elementary.
 
 -- ∀ (A : Prop), A → A
 def implies_self(A: Prop) : A → A := by
-  evolve ev![pi-goals-all]  1 1000
+  evolve ev![intro-all]  1 1000
 
 -- ∀ (A B : Prop), A → (A → B) → B
 def deduction(A B: Prop)(a : A)(f: A → B) : B := by
@@ -131,7 +131,7 @@ def deduction(A B: Prop)(a : A)(f: A → B) : B := by
 
 -- ∀ (A : Type) (a : A), a = a
 def eql_refl(A: Type) : ∀ a: A, a = a := by
-  evolve ev![pi-goals, rfl]  1 1000
+  evolve ev![intro, rfl]  1 1000
 
 -- ∀ (a b c : Nat), a = b → a = c → b = c
 def eql_flip_trans(a b c: Nat)(p: a = b)(q: a = c) : b = c := by

@@ -552,7 +552,7 @@ def piDomains(terms: Array (Expr × Nat)) : TermElabM (Array (Expr × Nat)) := d
   return domains
 
 -- generating from domains of pi-types
-def piGoalsEvolverM(D: Type)[IsleData D](excludeInit: Bool := true) : RecEvolverM D := 
+def introEvolverM(D: Type)[IsleData D](excludeInit: Bool := true) : RecEvolverM D := 
   fun degBnd c init d evolve => 
   -- if degBnd = 0 then init else
   do

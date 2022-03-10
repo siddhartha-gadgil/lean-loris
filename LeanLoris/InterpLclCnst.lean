@@ -24,7 +24,7 @@ def localConst{α : Type}(f: Nat → α) :=
   let recFn! := hyp! → baseclaim! → stepclaim! → claim!
   let recFn : recFn! := fun _ : hyp! => natRec (fun n => f n = f 0)
   let thm! := (∀ x: Nat, f (x + 1) = f x) → (∀ x: Nat, f x = f 0)
-  let seek := evolve! ev![pi-goals, rfl, eq-closure, nat-rec, app, binop] 
+  let seek := evolve! ev![intro, rfl, eq-closure, nat-rec, app, binop] 
             expr![
             base!, 
             semistep!,
@@ -32,13 +32,13 @@ def localConst{α : Type}(f: Nat → α) :=
   let ⟨⟨base1, _⟩, ⟨semistep1, _⟩, ⟨recFn1, _⟩⟩ := seek
   let _ : semistep = semistep1 := by rfl
   let _ : base = base1 := by rfl
-  let seek2 := evolve! ev![pi-goals, rfl, eq-closure, nat-rec, app, binop] 
+  let seek2 := evolve! ev![intro, rfl, eq-closure, nat-rec, app, binop] 
             expr![ 
             base!, 
             semistep!,
             step!,
             recFn!] dist1 2 5000 =: dist2
-  let seek3 := evolve! ev![Σev![simple-binop] ^ Σev![pi-goals]] expr![thm!] 
+  let seek3 := evolve! ev![Σev![simple-binop] ^ Σev![intro]] expr![thm!] 
           expr!{(thm!, 0), (base, 0), (recFn, 0), (step, 0)} 2 5000
   let ⟨⟨thm, _⟩, _⟩ := seek3
   let pf : thm! := fun h => (recFn h) (base h) (step h)

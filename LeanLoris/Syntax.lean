@@ -113,8 +113,8 @@ syntax "all-isles": evolver
 syntax "func-dom-isles": evolver
 syntax "eq-closure": evolver
 syntax "eq-closure" (expr_list)?: evolver
-syntax "pi-goals": evolver
-syntax "pi-goals-all": evolver
+syntax "intro": evolver
+syntax "intro-all": evolver
 syntax "rfl": evolver
 syntax "nat-rec": evolver
 syntax evolver "^" evolver : evolver
@@ -138,7 +138,7 @@ abbrev eqIsles := eqIsleEvolver FullData
 abbrev allIsles := allIsleEvolver FullData
 abbrev funcDomIsles := funcDomIsleEvolver FullData
 abbrev eqClosure := (eqSymmTransEvolver FullData).tautRec
-abbrev piGoals := piGoalsEvolverM FullData 
+abbrev piGoals := introEvolverM FullData 
 abbrev rflEv := (rflEvolverM FullData).tautRec
 abbrev natRecEv := (natRecEvolverM FullData).tautRec
 abbrev initEv := init FullData
@@ -177,8 +177,8 @@ mutual
   | `(evolver|eq-closure $goals) => do
           let goals ← parseExprArray goals
           return (eqSymmTransEvolver FullData goals).tautRec
-  | `(evolver|pi-goals) => return piGoalsEvolverM FullData
-  | `(evolver|pi-goals-all) => return piGoalsEvolverM FullData false
+  | `(evolver|intro) => return introEvolverM FullData
+  | `(evolver|intro-all) => return introEvolverM FullData false
   | `(evolver|rfl) => return (rflEvolverM FullData).tautRec
   | `(evolver|nat-rec) => return (natRecEvolverM FullData).tautRec
   | `(evolver|$x:evolver ^ $y:evolver) => do

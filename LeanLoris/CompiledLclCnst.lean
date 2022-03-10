@@ -73,7 +73,7 @@ def evolve2 : TermElabM EvolutionM := do
 def evolve0 : TermElabM EvolutionM := do
       let step := initEv ++ simpleApp
       let evBase := step.iterate.fixedPoint
-      let ev := (evBase ^ (piGoalsEvolverM FullData false)) ++ evBase
+      let ev := (evBase ^ (introEvolverM FullData false)) ++ evBase
       let ev := ev.andThenM (logResults none <| ←  goals)
       return ev 3 500000 initData
 
