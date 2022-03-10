@@ -63,19 +63,19 @@ def init1 : TermElabM ExprDist := do
 def evolve1 : TermElabM EvolutionM := do
       let step := initEv ++ piGoals ++ rflEv ++ eqClosure ++ natRecEv ++ appl
       let ev := step.evolve.andThenM (logResults none <| ←  goals)
-      return ev 2 5000 initData
+      return ev 2 (some 5000) initData
 
 def evolve2 : TermElabM EvolutionM := do
       let step := initEv ++ piGoals ++ eqClosure
       let ev := step.evolve.andThenM (logResults none <| ←  goals)
-      return ev 2 5000 initData
+      return ev 2 (some 5000) initData
 
 def evolve0 : TermElabM EvolutionM := do
       let step := initEv ++ simpleApp
       let evBase := step.iterate.fixedPoint
       let ev := (evBase ^ (introEvolverM FullData false)) ++ evBase
       let ev := ev.andThenM (logResults none <| ←  goals)
-      return ev 3 500000 initData
+      return ev 3 (some 500000) initData
 
 def dist2 : TermElabM ExprDist := do
                   (← evolve1) * (← evolve2) <| (← init1)  

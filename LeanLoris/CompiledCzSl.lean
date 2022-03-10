@@ -96,12 +96,12 @@ def goals : TermElabM (Array Expr) := do
 def evolve1: TermElabM EvolutionM := do
             let step := initEv ++ nameAppl ++ nameBinOp ++ eqIsles
             let ev  := step.evolve.andThenM (logResults none <| ←  goals)
-            return ev 3 6000 initData
+            return ev 3 (some 6000) initData
 
 def evolve2: TermElabM EvolutionM := do
             let step := initEv ++ eqClosure
             let ev  := step.evolve.andThenM (logResults none <| ←  goals)
-            return ev 1 6000 initData
+            return ev 1 (some 6000) initData
 
 def evolve : TermElabM EvolutionM := do
       return (← evolve1) * (← evolve2) * (← evolve1) * (← evolve2)

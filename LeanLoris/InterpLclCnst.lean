@@ -38,7 +38,7 @@ def localConst{α : Type}(f: Nat → α) :=
             semistep!,
             step!,
             recFn!] dist1 2 5000 =: dist2
-  let seek3 := evolve! ev![Σev![simple-binop] ^ Σev![intro]] expr![thm!] 
+  let seek3 := evolve! ev![Σev![simple-binop] ^ +intro] expr![thm!] 
           expr!{(thm!, 0), (base, 0), (recFn, 0), (step, 0)} 2 5000
   let ⟨⟨thm, _⟩, _⟩ := seek3
   let pf : thm! := fun h => (recFn h) (base h) (step h)
