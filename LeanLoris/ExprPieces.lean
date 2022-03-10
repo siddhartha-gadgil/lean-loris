@@ -5,6 +5,8 @@ import Std
 open Std
 open Lean Meta Elab Term
 
+/- Computing subexpressions : for hashing, tactics, data -/
+
 initialize expNamesCache : IO.Ref (HashMap Bool (HashMap Expr (List Name))) ← IO.mkRef (HashMap.empty)
 
 def getCachedNames? (withDoms: Bool)(e : Expr) : IO (Option (List Name)) := do
@@ -17,11 +19,16 @@ def cacheName (withDoms: Bool)(e: Expr) (offs : List Name) : IO Unit := do
   expNamesCache.set (cache.insert withDoms $ prev.insert e offs)
   return ()
 
+/-- given name, optional expression of definition for the corresponding constant -/
 def nameExpr? : Name → MetaM ( Option Expr) := 
   fun name => do
       let info := ((← getEnv).find? name)
       return Option.bind info ConstantInfo.value?
 
+/-- 
+A heuristic hash for expressions; for expressions we generate, post processed with `whnf` and `Term.synthesizeSyntheticMVarsNoPostponing`,
+it appears that definitionally equal expressions hash to the same value.
+-/
 partial def exprHash : Expr → TermElabM UInt64 
   | e =>
     match e with
@@ -84,7 +91,7 @@ def subExprDegree(cost: Nat)(withDoms: Bool)(parent: Expr): Expr → TermElabM (
 
 -- None of the code below is currently used; it remains from other approaches (and is kept for possible changes in approach)
 
--- does not look within types for lambda's and pi's
+/-- list of names in an expression, parameter determines whether types of variables are considered  -/
 partial def exprNames (withDoms : Bool): Expr → MetaM (List Name) :=
   fun e =>
   do 
@@ -147,6 +154,10 @@ partial def exprNames (withDoms : Bool): Expr → MetaM (List Name) :=
     cacheName withDoms e res
     return res
 
+/-- 
+partial list of names in an expression, omitting functions and explicit args;
+was used for hashing earlier in place of `exprHash` but was too weak, i.e., coincided too frequently for expressions that were not definitionally equal.
+-/
 partial def argList : Expr → TermElabM (List Name) :=
   fun e => do
     let res ← match e with

@@ -7,6 +7,13 @@ import LeanLoris.ConstDeps
 import Mathlib
 open CzSl ExprDist Lean
 
+/-
+Running computationally expensive code. Specifically, depending on the command line arguments, three things can be run.
+1. A Czech-Slovak Olympiad problem: purely forward reasoning.
+2. Mixed reasoning: functions satisfying `∀ n: Nat, f(n + 1) = f(n)` are constants.
+3. Generation of dependency data for machine learning.
+-/
+
 set_option maxHeartbeats 10000000
 set_option maxRecDepth 1000
 set_option compiler.extract_closed false

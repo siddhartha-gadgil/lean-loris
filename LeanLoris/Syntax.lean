@@ -108,7 +108,7 @@ syntax "simple-binop": evolver
 syntax "rewrite": evolver
 syntax "rewrite-flip": evolver
 syntax "congr": evolver
-syntax "eq-isles": evolver
+syntax "congr-rec": evolver
 syntax "all-isles": evolver
 syntax "func-dom-isles": evolver
 syntax "eq-closure": evolver
@@ -135,7 +135,7 @@ abbrev simpleBinOp := (simpleApplyPairEvolver FullData).tautRec
 abbrev rewriteEv := (rewriteEvolver FullData false).tautRec
 abbrev rewriteFlip := (rewriteEvolver FullData true).tautRec
 abbrev congrEv := (congrEvolver FullData).tautRec
-abbrev eqIsles := eqIsleEvolver FullData
+abbrev eqIsles := congrIsleEvolver FullData
 abbrev allIsles := allIsleEvolver FullData
 abbrev funcDomIsles := funcDomIsleEvolver FullData
 abbrev eqClosure := (eqSymmTransEvolver FullData).tautRec
@@ -171,7 +171,7 @@ mutual
   | `(evolver|rewrite) => return (rewriteEvolver FullData true).tautRec
   | `(evolver|rewrite-flip) => return (rewriteEvolver FullData false).tautRec
   | `(evolver|congr) => return (congrEvolver FullData).tautRec
-  | `(evolver|eq-isles) => return eqIsleEvolver FullData
+  | `(evolver|congr-rec) => return congrIsleEvolver FullData
   | `(evolver|all-isles) => return allIsleEvolver FullData
   | `(evolver|func-dom-isles) => return funcDomIsleEvolver FullData
   | `(evolver|eq-closure) => return (eqSymmTransEvolver FullData).tautRec
