@@ -107,7 +107,7 @@ def tacticExprArray(tactic : MVarId → TermElabM (List MVarId))(indepGoals: Boo
         let mvars ← if indepGoals then indepGoalTypes mvars else relGoalTypes mvars
         return (l :: mvars).toArray
 
-def typeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist → 
+def typeSumEvolverM{D: Type}(types : Nat → Option Nat → D → ExprDist → 
   TermElabM (Array (Expr × Nat)))
           (tacList : Expr → TermElabM (Option (Array Expr))) : EvolverM D := 
             fun degBnd cb data dist => do
@@ -121,7 +121,7 @@ def typeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
                 for y in ys do terms := terms.push (y, deg + 1)
             ExprDist.fromArrayM terms
 
-def withDegTypeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist → 
+def withDegTypeSumEvolverM{D: Type}(types : Nat → Option Nat → D → ExprDist → 
   TermElabM (Array (Expr × Nat)))
           (tacList : Expr → TermElabM (Option (Array (Expr × Nat)))) : EvolverM D := 
             fun degBnd cb data dist => do
@@ -135,7 +135,7 @@ def withDegTypeSumEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
                 for (y, w0) in ys do terms := terms.push (y, deg + w0)
             ExprDist.fromArrayM terms
 
-def typeOptEvolverM{D: Type}(types : Nat → Nat → D → ExprDist →
+def typeOptEvolverM{D: Type}(types : Nat → Option Nat → D → ExprDist →
          TermElabM (Array (Expr × Nat)))
           (tac? : Expr → TermElabM (Option Expr)) : EvolverM D := 
             fun degBnd cb data dist => do

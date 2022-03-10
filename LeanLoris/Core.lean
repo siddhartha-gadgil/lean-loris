@@ -176,9 +176,14 @@ def constNewElem{α D: Type}: Bool × Bool →  NewElem α D
 -- generating distributions by combining
 
 
+def leqOpt(x: Nat)(bd: Option Nat) : Bool :=
+  match bd with
+  | none => true
+  | some b => x ≤ b
+
 def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α][ToMessageData β]
     (compose: α → β → TermElabM (Option Expr))
-    (maxDegree card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
+    (maxDegree : Nat)(card? : Option Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
     (data: D) : TermElabM ExprDist := do 
     if maxDegree > 0 then
       let mut fstTagGrouped: HashMap Nat (Array (α × Bool × Bool)) := HashMap.empty
@@ -194,7 +199,7 @@ def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α
       let mut withDegPairs : Array (α × β  × Nat) := #[]
       for deg1 in [0:maxDegree] do
         for deg2 in [0:maxDegree-deg1] do
-          if (fstAbove.findD deg1 0) * (sndAbove.findD deg2 0) ≤ card
+          if leqOpt ((fstAbove.findD deg1 0) * (sndAbove.findD deg2 0)) card?
           then 
             for (e1, b1, be1) in fstTagGrouped.findD deg1 #[] do 
               for (e2, b2, be2) in sndTagGrouped.findD deg2 #[] do 
@@ -211,9 +216,10 @@ def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α
       return res
     else return ExprDist.empty
 
+
 def prodPolyGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α][ToMessageData β]
     (compose: α → β → TermElabM (Option (Array Expr)))
-    (maxDegree card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
+    (maxDegree : Nat)(card? : Option Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
     (data: D) : TermElabM ExprDist := do 
     if maxDegree > 0 then
       let mut fstTagGrouped: HashMap Nat (Array (α × Bool × Bool)) := HashMap.empty
@@ -229,7 +235,7 @@ def prodPolyGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageDat
       let mut withDegPairs : Array (α × β  × Nat) := #[]
       for deg1 in [0:maxDegree] do
         for deg2 in [0:maxDegree-deg1] do
-          if (fstAbove.findD deg1 0) * (sndAbove.findD deg2 0) ≤ card
+          if leqOpt ((fstAbove.findD deg1 0) * (sndAbove.findD deg2 0)) card?
           then 
             for (e1, b1, be1) in fstTagGrouped.findD deg1 #[] do 
               for (e2, b2, be2) in sndTagGrouped.findD deg2 #[] do 
@@ -251,7 +257,7 @@ def prodPolyGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageDat
 
 def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ D]
     (compose: α → β → γ → TermElabM (Option Expr))
-    (maxDegree card: Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
+    (maxDegree : Nat)(card? : Option Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
     (third : Array (γ × Nat))(data: D) : TermElabM ExprDist := do 
     if maxDegree > 0 then
       let mut fstTagGrouped: HashMap Nat (Array (α × Bool × Bool)) := HashMap.empty
@@ -273,7 +279,7 @@ def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ 
       for deg1 in [0:maxDegree] do
         for deg2 in [0:maxDegree-deg1] do
           for w3 in [0:maxDegree-deg1-deg2] do
-          if (fstAbove.findD deg1 0) * (sndAbove.findD deg2 0) * (thirdAbove.findD w3 0) ≤ card
+          if leqOpt ((fstAbove.findD deg1 0) * (sndAbove.findD deg2 0) * (thirdAbove.findD w3 0)) card?
           then 
             for (e1, b1, be1) in fstTagGrouped.findD deg1 #[] do 
               for (e2, b2, be2) in sndTagGrouped.findD deg2 #[] do 

@@ -212,10 +212,10 @@ end
 syntax save_target := "=:" ident
 
 syntax (name:= evolution) 
-  "evolve!" evolver_list (expr_list)? expr_dist (name_dist)? num num (save_target)?  : term
+  "evolve!" evolver_list (expr_list)? expr_dist (name_dist)? num (num)? (save_target)?  : term
 @[termElab evolution] def evolutionImpl : TermElab := fun s _ =>
 match s with
-| `(evolve!%$tk $evolvers $(goals?)? $initDist $(nameDist?)? $degBnd $card $(saveTo?)?)  => do
+| `(evolve!%$tk $evolvers $(goals?)? $initDist $(nameDist?)? $degBnd $(card?)? $(saveTo?)?)  => do
   let ev ← parseEvolverList evolvers
   let initDist ← parseExprDist initDist
   let nameDist? ← nameDist?.mapM  $ fun nameDist => parseNameMap nameDist
@@ -230,7 +230,7 @@ match s with
     | `(save_target|=:$x) => some x.getId
     | _ => none
   let degBnd ← parseNat degBnd
-  let card := (Syntax.isNatLit? card).get!
+  let card := card?.map <| fun card => (Syntax.isNatLit? card).get!
   let finalDist ← ev degBnd card initData initDist 
   match saveTo? with
   | some name => ExprDist.save name finalDist
@@ -267,10 +267,10 @@ elab "hashv!" t:term : term => do
 open Lean.Elab.Tactic
 
 syntax (name:= evolveTactic) 
-  "evolve" evolver_list (expr_list)? (expr_dist)? (name_dist)? num num (save_target)?  : tactic
+  "evolve" evolver_list (expr_list)? (expr_dist)? (name_dist)? num (num)? (save_target)?  : tactic
 @[tactic evolveTactic] def evolveImpl : Tactic := fun stx =>
 match stx with
-| `(tactic|evolve%$tk $evolvers $(goals?)? $(initDist?)? $(nameDist?)? $degBnd $card $(saveTo?)?)  => 
+| `(tactic|evolve%$tk $evolvers $(goals?)? $(initDist?)? $(nameDist?)? $degBnd $(card?)? $(saveTo?)?)  => 
   withMainContext do
   let ev ← parseEvolverList evolvers
   let lctx ← getLCtx
@@ -301,7 +301,7 @@ match stx with
     | `(save_target|=:$x) => some x.getId
     | _ => none
   let degBnd ← parseNat degBnd
-  let card := (Syntax.isNatLit? card).get!
+  let card := card?.map <| fun card => (Syntax.isNatLit? card).get!
   let finalDist ← ev degBnd card initData initDist 
   match saveTo? with
   | some name => ExprDist.save name finalDist
