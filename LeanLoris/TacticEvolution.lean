@@ -3,6 +3,11 @@ import Lean.Meta
 import Lean.Elab
 open Lean Meta Elab Tactic Term
 
+/- 
+Evolovers based on tactics, with propositions (or all types) in an `ExprDist` viewed as goals.
+-/
+
+/-- λ-expression with respect to meta variables of an expression -/
 def metaToLambda(mvars: List Expr)(value: Expr) : TermElabM Expr := do
   match mvars with
   | [] => pure value
@@ -17,6 +22,7 @@ def metaToLambda(mvars: List Expr)(value: Expr) : TermElabM Expr := do
         Term.synthesizeSyntheticMVarsNoPostponing
         return res
 
+/-- λ-expression with respect to meta variables of a meta variable -/
 def mvarToLambda(mvars: List MVarId)(value: Expr) : TermElabM Expr := do
   match mvars with
   | [] => pure value
@@ -32,6 +38,7 @@ def mvarToLambda(mvars: List MVarId)(value: Expr) : TermElabM Expr := do
         Term.synthesizeSyntheticMVarsNoPostponing
         return res
 
+/-- given a `tactic` at the `Elab` level, returns a λ-expression corresponding to applying the tactic if successful -/
 def tacticLambda(tactic : MVarId → TermElabM (List MVarId))(goalType: Expr) : 
       TermElabM <| Option Expr := do
       let goal ← mkFreshExprMVar (some goalType)
@@ -41,7 +48,7 @@ def tacticLambda(tactic : MVarId → TermElabM (List MVarId))(goalType: Expr) :
         return some <| ←  mvarToLambda mvars goal
       catch _ => pure none
 
--- for finishing tactics
+/-- given a finishing `tactic` at the `Elab` level, returns a solution if successful -/
 def tacticGet(tactic : MVarId → TermElabM (List MVarId))(goalType: Expr) : 
       TermElabM <| Option Expr := do
       let goal ← mkFreshExprMVar (some goalType)
@@ -56,6 +63,7 @@ def tacticGet(tactic : MVarId → TermElabM (List MVarId))(goalType: Expr) :
           return none
       catch _ => return none
 
+/-- given a `tactic` at the `Elab` level, returns a λ-expression corresponding to applying the tactic if successful -/
 def tacticLambdaMVars(tactic : MVarId → TermElabM (List MVarId))(goalType: Expr) : 
       TermElabM <| Option (Expr × (List Expr)) := do
       let goal ← mkFreshExprMVar (some goalType)
@@ -75,7 +83,7 @@ def tacticLambdaMVars(tactic : MVarId → TermElabM (List MVarId))(goalType: Exp
       catch exc =>
         return none
 
-
+/-- given mvars (representing goals) form expressions for their types with later types as λ-expressions in earlier types -/
 def relGoalTypes(mvars: List Expr) : TermElabM (List Expr) := do
   match mvars with
   | [] => pure []
@@ -89,6 +97,7 @@ def relGoalTypes(mvars: List Expr) : TermElabM (List Expr) := do
         let prev ← prevBase.mapM <| fun type => mkForallFVars #[x] type
         return (headType :: prev)
 
+/-- given mvars (representing goals) form expressions for their types assuming goals are independent (no λs formed) -/
 def indepGoalTypes(mvars: List Expr) : TermElabM (List Expr) := do
   match mvars with
   | [] => pure []
@@ -99,6 +108,7 @@ def indepGoalTypes(mvars: List Expr) : TermElabM (List Expr) := do
     let prev ← indepGoalTypes tail
     return (headType :: prev)
 
+/-- given tactic at the `Elab` level and an expression for a goal, returns a collection of expressions giving derived goals and an expression giving the original goal in terms of the new ones, if the tactic is successful -/
 def tacticExprArray(tactic : MVarId → TermElabM (List MVarId))(indepGoals: Bool)
   (goalType: Expr) : 
       TermElabM <| Option (Array Expr) := do
@@ -107,6 +117,7 @@ def tacticExprArray(tactic : MVarId → TermElabM (List MVarId))(indepGoals: Boo
         let mvars ← if indepGoals then indepGoalTypes mvars else relGoalTypes mvars
         return (l :: mvars).toArray
 
+/-- sum over types and tactics of derived goals -/
 def typeSumEvolverM{D: Type}(types : Nat → Option Nat → D → ExprDist → 
   TermElabM (Array (Expr × Nat)))
           (tacList : Expr → TermElabM (Option (Array Expr))) : EvolverM D := 
@@ -121,6 +132,7 @@ def typeSumEvolverM{D: Type}(types : Nat → Option Nat → D → ExprDist →
                 for y in ys do terms := terms.push (y, deg + 1)
             ExprDist.fromArrayM terms
 
+/-- sum over given types with degrees and tactics of derived goals -/
 def withDegTypeSumEvolverM{D: Type}(types : Nat → Option Nat → D → ExprDist → 
   TermElabM (Array (Expr × Nat)))
           (tacList : Expr → TermElabM (Option (Array (Expr × Nat)))) : EvolverM D := 
@@ -135,6 +147,7 @@ def withDegTypeSumEvolverM{D: Type}(types : Nat → Option Nat → D → ExprDis
                 for (y, w0) in ys do terms := terms.push (y, deg + w0)
             ExprDist.fromArrayM terms
 
+/-- sum over given types with degrees and optional tactics of derived goals -/
 def typeOptEvolverM{D: Type}(types : Nat → Option Nat → D → ExprDist →
          TermElabM (Array (Expr × Nat)))
           (tac? : Expr → TermElabM (Option Expr)) : EvolverM D := 
@@ -148,26 +161,31 @@ def typeOptEvolverM{D: Type}(types : Nat → Option Nat → D → ExprDist →
                 terms := terms.push (y, deg)
             ExprDist.fromArrayM terms
 
+/-- sum over all types derived goals from a tactic -/
 def tacticTypeEvolverM{D: Type}(tactic : MVarId → TermElabM (List MVarId))(indepGoals: Bool) :
     EvolverM D := 
       typeSumEvolverM (fun degBnd cb data dist => (dist.bound degBnd cb).typesArr) 
         (tacticExprArray tactic indepGoals)
 
+/-- sum over all propositions derived goals from a tactic -/
 def tacticPropEvolverM{D: Type}(tactic : MVarId → TermElabM (List MVarId))(indepGoals: Bool) :
     EvolverM D := 
       typeSumEvolverM (fun degBnd cb data dist => (dist.bound degBnd cb).propsArr) 
         (tacticExprArray tactic indepGoals)
 
+/-- sum over all types derived goals from an optional tactic -/
 def optProofTypeEvolverM{D: Type}(tac? : Expr → TermElabM (Option Expr)) : 
     EvolverM D := 
       typeOptEvolverM (fun degBnd cb data dist => (dist.bound degBnd cb).typesArr) 
         tac?
 
+/-- sum over all propositions derived goals from an optional tactic -/
 def optProofPropEvolverM{D: Type}(tac? : Expr → TermElabM (Option Expr)) : 
     EvolverM D := 
       typeOptEvolverM (fun degBnd cb data dist => (dist.bound degBnd cb).propsArr) 
         tac?
 
+/-- auxiliary function for apply-based evolver-/
 def applyPairing(type func: Expr) : TermElabM (Option (Array Expr)) := do
   let goal ← mkFreshExprMVar (some type)
   let goalId := goal.mvarId!
@@ -179,13 +197,13 @@ def applyPairing(type func: Expr) : TermElabM (Option (Array Expr)) := do
     return some (goalLambda :: newGoals).toArray
   catch _ => return none
 
+/-- lifting `apply` tactic to an evolver -/
 def applyTacticEvolver(D: Type)[NewElem Expr D] : EvolverM D := 
   fun degBnd c d init => 
   do
     prodPolyGenArrM applyPairing degBnd c (← init.typesArr) (← init.funcs) d
 
-
-
+/-- generated with evolvers depending on a type within forall-/
 def forallIsleM {D: Type}[IsleData D](type: Expr)(typedEvolve : Expr → EvolverM D)
     (degreeBound: Nat)(cardBound: Nat)
       (init : ExprDist)(initData: D): TermElabM ExprDist := 
@@ -195,6 +213,7 @@ def forallIsleM {D: Type}[IsleData D](type: Expr)(typedEvolve : Expr → Evolver
             (isleData initData init degreeBound cardBound) isleInit
       isleFinal.mapM <| fun e => mkLambdaFVars xs e
 
+/-- generated with evolvers depending on a type within bounded forall-/
 def forallBoundedIsleM {D: Type}[IsleData D](bound: Nat)(type: Expr)
     (typedEvolve : Expr → EvolverM D)
     (degreeBound: Nat)(cardBound: Nat)
@@ -205,6 +224,7 @@ def forallBoundedIsleM {D: Type}[IsleData D](bound: Nat)(type: Expr)
           (isleData initData init degreeBound cardBound) isleInit
       isleFinal.mapM <| fun e => mkLambdaFVars xs e
 
+/-- get from decide tactic -/
 def decideGet (goalType: Expr) : 
       TermElabM <| Option Expr := do
       try
@@ -212,6 +232,7 @@ def decideGet (goalType: Expr) :
         return some <| pf
       catch _ => return none
 
+/-- get by reflexivity -/
 def rflGet(goalType: Expr) : 
       TermElabM <| Option Expr := do
       match goalType.eq? with
@@ -222,6 +243,7 @@ def rflGet(goalType: Expr) :
           return none
       | _  => return none
 
+/-- reflexivity evolver -/
 def rflEvolverM(D: Type) : EvolverM D :=
   optProofPropEvolverM rflGet
 
@@ -229,6 +251,7 @@ open Nat
 
 universe u
 
+/-- recursion function for natural numbers (to bypass no code generation) -/
 def natRec (Q : Nat → Sort u) :
     (Q 0) → ((n: Nat) → (Q n → Q (n + 1))) → (n: Nat) →  (Q n) := 
     fun z step n => 
@@ -236,6 +259,7 @@ def natRec (Q : Nat → Sort u) :
       | zero => z
       | succ k => step k (natRec Q z step k)
 
+-- auxiliary function for natRec matching
 def natRecFamily(type: Expr) : TermElabM (Option Expr) := do 
   let u ← mkFreshLevelMVar
   let family ←  mkArrow (mkConst ``Nat) (mkSort u)
@@ -249,8 +273,10 @@ def natRecFamily(type: Expr) : TermElabM (Option Expr) := do
   else
     return none
 
+-- auxiliary function for natRec matching
 def natRecStep(fmly: Nat → Sort u) := ∀n: Nat, fmly n → fmly (n + 1) 
 
+/-- Evolver for recursion with natural numbers -/
 def natRecEvolverM(D: Type) : EvolverM D := 
   let tactic : Expr → TermElabM (Option (Array (Expr× Nat))) := 
     fun type => 

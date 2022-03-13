@@ -45,7 +45,7 @@ def mathDepData(mathenv: Environment) : IO Unit := do
   return ()
 
 def lclConstDocs: String :=
-"Our main example of mixed reasoning is the result that if `f: Nat → α` is a function from natural numbers to a type `α` such that `∀ n : Nat, f (n + 1) = f n`, then `∀n : Nat, f n = f 0`, i.e. `f` is a constant function if it is locally constant.\n"
+"Our main example of mixed reasoning is the result that if f: Nat → α is a function from natural numbers to a type α such that ∀ n : Nat, f (n + 1) = f n, then ∀n : Nat, f n = f 0, i.e. f is a constant function if it is locally constant.\n"
 
 def runLclConst(env: Environment) : IO Unit := do
   IO.println s!"\n# Induction: locally constant functions\n\n{lclConstDocs}"
@@ -64,22 +64,22 @@ def runLclConst(env: Environment) : IO Unit := do
 def czslDocs : String := 
 "Our main model problem for forward reasoning is the following from a Czech-Slovak Olympiad:
 
-Let `M` be a set with a product. Given the axioms:
-* `∀ a b : M, (a * b) * b = a`
-* `∀ a b : M, a * (a * b) = b`
-then, for arbitrary elements `m` and `n` in `M`, we have `m * n = n * m`.
+Let M be a set with a product. Given the axioms:
+* ∀ a b : M, (a * b) * b = a
+* ∀ a b : M, a * (a * b) = b
+then, for arbitrary elements m and n in M, we have m * n = n * m.
 
-We fix `m` and `n` and reason forward starting with `m`, `n`, the axioms, and multiplication. Our forward reasoning is tuned for this problem, and also mildly help by including `m *n` in the initial state. But we do not use the statement of the problem, any of the lemmas or the proof.
+We fix m and n and reason forward starting with m, n, the axioms, and multiplication. Our forward reasoning is tuned for this problem, and also mildly help by including m *n in the initial state. But we do not use the statement of the problem, any of the lemmas or the proof.
 
 To understand the (automated) reasoning steps (and for use during tuning and debugging), some lemmas and the theorem were defined. While running progress in proving these is logged.
 
-* `def lem1! := (m * n) * n = m` 
-* `def lem2! := (m * n) * ((m * n) * n) = n`
-* `def lem3! := ((m * n) * m) * m = m * n`
-* `def lem4! := (m * n) * ((m * n) * n) = (m * n) * m`
-* `def lem5! := (m * n) * m = n`
-* `def lem6! := ((m * n) * m) * m = n * m`
-* `def thm! := m * n = n * m`
+* def lem1! := (m * n) * n = m 
+* def lem2! := (m * n) * ((m * n) * n) = n
+* def lem3! := ((m * n) * m) * m = m * n
+* def lem4! := (m * n) * ((m * n) * n) = (m * n) * m
+* def lem5! := (m * n) * m = n
+* def lem6! := ((m * n) * m) * m = n * m
+* def thm! := m * n = n * m
 
 The progress in proving the lemmas is output at each intermediate step, and finally the proof obtained for the theorem. Running takes a couple of minutes (more on a slower machine).\n"
 
