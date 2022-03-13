@@ -117,6 +117,10 @@ We prove modus-ponens using mixed reasoning, specifically function application a
 def modus_ponens(A B: Prop) : A → (A → B)→ B := by
   evolve ev![intro, simple-app] 1 
 
+def modus_ponens2(A B: Prop) : A → (A → B)→ B := by
+  intros
+  evolve ev![simple-app] 1
+
 /-
 The below examples are elementary. 
 -/
