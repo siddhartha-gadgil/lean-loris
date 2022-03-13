@@ -61,12 +61,12 @@ def init1 : TermElabM ExprDist := do
                   parseExprDist (← `(expr_dist|expr!{(thm!, 0)}))
 
 def evolve1 : TermElabM EvolutionM := do
-      let step := initEv ++ piGoals ++ rflEv ++ eqClosure ++ natRecEv ++ appl
+      let step := initEv ++ introEv ++ rflEv ++ eqClosure ++ natRecEv ++ appl
       let ev := step.evolve.andThenM (logResults none <| ←  goals)
       return ev 2 (some 5000) initData
 
 def evolve2 : TermElabM EvolutionM := do
-      let step := initEv ++ piGoals ++ eqClosure
+      let step := initEv ++ introEv ++ eqClosure
       let ev := step.evolve.andThenM (logResults none <| ←  goals)
       return ev 2 (some 5000) initData
 

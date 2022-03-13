@@ -26,18 +26,18 @@ elab "gen1!" t:term : term => do
       let m := FinDist.fromList l
       for (x, deg) in arr do
         logInfo m!"{x} : {deg}" 
-      let m1 ← prodGenArrM  apply? 4 100 arr arr ()
+      let m1 ← prodGenArrM  apply? 4 (some 100) arr arr ()
       for (x, deg) in m1.allTermsArray do
         logInfo m!"{x} : {deg}" 
-      let m2 ← egEvolver  4 100 () (← (ExprDist.fromArrayM arr)) 
+      let m2 ← egEvolver  4 (some 100) () (← (ExprDist.fromArrayM arr)) 
       for (x, deg) in m2.allTermsArray do
         logInfo m!"{x} : {deg}" 
       logInfo "Evolved state"
-      let m3 ← (egEvolver).evolve 12 100 () (← (ExprDist.fromArrayM arr))
+      let m3 ← (egEvolver).evolve 12 none () (← (ExprDist.fromArrayM arr))
       for (x, deg) in m3.allTermsArray do
         logInfo m!"{x} : {deg}" 
       logInfo "Full Evolved state"
-      let m4 ← (egEvolverFull).evolve 12 100 (HashMap.empty, [], []) (← (ExprDist.fromArrayM arr)) 
+      let m4 ← (egEvolverFull).evolve 12 none (HashMap.empty, [], []) (← (ExprDist.fromArrayM arr)) 
                                           
       for (x, deg) in m4.allTermsArray do
         logInfo m!"{x} : {deg}" 
