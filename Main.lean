@@ -97,7 +97,7 @@ def runCzSl(env: Environment) : IO Unit := do
           IO.println msg
 
 def main (args: List String) : IO Unit := do
-  initSearchPath (← Lean.findSysroot?) ["build/lib", "lean_packages/mathlib/build/lib/"]
+  initSearchPath (← Lean.findSysroot) ["build/lib", "lean_packages/mathlib/build/lib/"]
   let env ← 
     importModules [{module := `LeanLoris.CompiledCzSl}, {module := `LeanLoris.CompiledLclCnst}] {}
   let mathenv ← 
