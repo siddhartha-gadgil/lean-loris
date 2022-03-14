@@ -1,6 +1,11 @@
 import LeanLoris.Evolution
 import LeanLoris.Syntax
 
+
+namespace CzSlInterp
+
+universe u
+variable {M: Type u}[Mul M]
 /-
 Our main model problem for forward reasoning is the following from a Czech-Slovak Olympiad:
 
@@ -23,11 +28,6 @@ To understand the (automated) reasoning steps (and for use during tuning and deb
 
 Running this is too resource intesive for the interpreter (but we have a compiled version that runs in `Main`). So here we cherry-pick the lemmas we want to use from the outputs of steps and use them as inputs for later steps.
 -/
-namespace CzSlInterp
-
-universe u
-variable {M: Type u}[Mul M]
-
 theorem CzSlOly : (∀ a b : M, (a * b) * b = a) → (∀ a b : M, a * (a * b) = b) →
             (m n: M) → m * n = n * m := by
               intros ax1 ax2 m n

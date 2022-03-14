@@ -17,6 +17,21 @@ open Nat
 open ProdSeq
 open RecEvolverM
 
+namespace CzSl
+constant M : Type
+
+instance : Inhabited (M → M → M) := ⟨fun x _ => x⟩
+
+constant mul : M → M → M
+
+
+noncomputable instance : Mul M := ⟨mul⟩
+
+axiom ax1 : (∀ a b : M, (a * b) * b = a)
+axiom ax2 : (∀ a b : M, a * (a * b) = b)
+axiom m : M
+axiom n : M
+
 /-
 Our main model problem for forward reasoning is the following from a Czech-Slovak Olympiad:
 
@@ -41,22 +56,6 @@ The `view4` function below is run in the `Main` module and its result is output 
 
 The forward reasoning we use is mainly function application and closure of equality under symmetry and transitivity. In the latter we implicitly use our key "lemma recognition" principle: proofs of simple statements are treated like simple terms while generating.
 -/
-namespace CzSl
-constant M : Type
-
-instance : Inhabited (M → M → M) := ⟨fun x _ => x⟩
-
-constant mul : M → M → M
-
-
-noncomputable instance : Mul M := ⟨mul⟩
-
-axiom ax1 : (∀ a b : M, (a * b) * b = a)
-axiom ax2 : (∀ a b : M, a * (a * b) = b)
-axiom m : M
-axiom n : M
-
-
 theorem CzSlOly : m * n = n * m := by
               have lem1 : (m * n) * n = m := ax1 m n
               have lem2 : (m * n) * ((m * n) * n) = n := ax2 (m * n) n
