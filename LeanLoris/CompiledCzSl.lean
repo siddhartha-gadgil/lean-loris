@@ -32,7 +32,7 @@ axiom ax2 : (∀ a b : M, a * (a * b) = b)
 axiom m : M
 axiom n : M
 
-/-
+/--
 Our main model problem for forward reasoning is the following from a Czech-Slovak Olympiad:
 
 Let `M` be a set with a product. Given the axioms:

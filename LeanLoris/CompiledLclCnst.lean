@@ -12,12 +12,6 @@ open Meta
 open Elab
 open Lean.Elab.Term
 open RecEvolverM
-
-/-
-Our main example of mixed reasoning is the result that if `f: Nat → α` is a function from natural numbers to a type `α` such that `∀ n : Nat, f (n + 1) = f n`, then `∀n : Nat, f n = f 0`, i.e. `f` is a constant function if it is locally constant.
-
-We use two forms of backward reasoning: induction and introduction of variables based on goals (the latter can be replaced by forward reasoning). The forward reasoning we use is mainly function application and closure of equality under symmetry and transitivity. In the latter we implicitly use our key "lemma recognition" principle: proofs of simple statements are treated like simple terms while generating.
--/
 namespace LclConst
 
 constant α : Type
@@ -28,6 +22,13 @@ constant f : Nat → Nat
 -- the claims and proofs
 def hyp! := ∀ n: Nat, f (n + 1) = f n
 def claim! := ∀ n: Nat, f n = f 0
+
+/--
+Our main example of mixed reasoning is the result that if `f: Nat → α` is a function from natural numbers to a type `α` such that `∀ n : Nat, f (n + 1) = f n`, then `∀n : Nat, f n = f 0`, i.e. `f` is a constant function if it is locally constant.
+
+We use two forms of backward reasoning: induction and introduction of variables based on goals (the latter can be replaced by forward reasoning). The forward reasoning we use is mainly function application and closure of equality under symmetry and transitivity. In the latter we implicitly use our key "lemma recognition" principle: proofs of simple statements are treated like simple terms while generating.
+-/
+def thm! := hyp! → claim!
 def baseclaim! := f 0 = f 0
 def stepclaim! := ∀ n: Nat, f n = f 0 →  f (n + 1) = f 0
 def base! := hyp! → baseclaim!
@@ -38,7 +39,7 @@ def step : step! := fun h n ih => Eq.trans (h n) ih
 def base : base! := fun _ => Eq.refl (f 0)
 def recFn : recFn! := fun _  => natRec (fun n => f n = f 0)
 def pf : hyp! → claim! := fun h => (recFn h) (base h) (step h)
-def thm! := hyp! → claim!
+
 
 -- running evolvers
 
