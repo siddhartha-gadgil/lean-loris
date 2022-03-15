@@ -149,6 +149,25 @@ def binomAbove (n k: Nat)(p: Float) : Float := Id.run do
     acc :=  acc + (binom n j p)
   return 1.0 - acc 
 
+def Array.countMap {α : Type}[BEq α][Hashable α] (arr: Array (α × Nat)) :
+     HashMap α Nat :=
+        HashMap.ofListWith (arr.toList) (Nat.add)
+
+def Array.probMap {α : Type}[BEq α][Hashable α] (arr: Array (α × Nat)) :
+     HashMap α Float :=
+        let cnt := arr.countMap
+        let total := arr.foldl (fun acc (a, n) => acc + n) 0
+        if total = 0 then HashMap.empty else
+          HashMap.ofList (
+              cnt.toList.map $ fun (a, n) => (a, n.toFloat / total.toFloat))
+
+def probOverlap {α : Type}[BEq α][Hashable α]
+      (d d' : HashMap α Float) : Float :=
+      let pq : Array Float := 
+        d.toArray.filterMap (fun (a, p) => 
+            (d'.find? a).map (fun x => min x p))
+      pq.foldl (fun acc x => acc + x) 0.0 
+
 /-- various frequencies of names in definitions and types -/
 structure FrequencyData where
   size : Nat
