@@ -187,7 +187,7 @@ example (x y w: Nat)(f g: Nat → Nat): x * f y = g w * f z := by
 #check fun mvar => Meta.apply mvar (mkConst ``congr)
 
 -- try reflexivity and subsingleton resolution to close first; not an error if this fails
-def congrStep? (mvar: MVarId) : MetaM (Option (List MVarId)) := do
+def congrStep? (closeOnly : Bool)(mvar: MVarId) : MetaM (Option (List MVarId)) := do
   let u ← mkFreshLevelMVar
   let v ← mkFreshLevelMVar
   try 
@@ -198,42 +198,52 @@ def congrStep? (mvar: MVarId) : MetaM (Option (List MVarId)) := do
     let res ←  Meta.apply mvar (mkConst ``Subsingleton.intro [u])
     if res.isEmpty then return some [] else pure none
   catch _ => 
-  try
-    let res ←  Meta.apply mvar (mkConst ``congr [u, v])
-    return some res
-  catch e => 
+  if !closeOnly then 
+    try
+      let res ←  Meta.apply mvar (mkConst ``congr [u, v])
+      return some res
+    catch e => 
+      pure none
+  else 
     pure none
 
-partial def recCongr(mvar: MVarId) : MetaM (List MVarId) := do
-  let res ← congrStep? mvar
+partial def recCongr(maxDepth? : Option Nat)(mvar: MVarId) : MetaM (List MVarId) := do
+  let closeOnly : Bool := (maxDepth?.map (fun n => decide (n ≤  1))).getD false
+  let res ← congrStep? closeOnly mvar
   match res with
   | some [] => return []
   | some xs => do
-    let groups ← xs.mapM recCongr
+    let depth? := maxDepth?.map (fun n => n - 1)
+    let groups ← xs.mapM (recCongr depth?)
     return groups.bind fun x => x
   | none => return [mvar]
 
-def Meta.congr(mvar : MVarId) : MetaM (List MVarId) := do
+def Meta.congr(maxDepth? : Option Nat)(mvar : MVarId) : MetaM (List MVarId) := do
   try 
     let u ← mkFreshLevelMVar
     let v ← mkFreshLevelMVar
     let xs ← Meta.apply mvar (mkConst ``congr [u, v])
-    let groups ← xs.mapM recCongr
+    let groups ← xs.mapM (recCongr maxDepth?)
     return groups.bind fun x => x
   catch e =>
     throwTacticEx `congr mvar m!"congr tactic failed"
 
 open Lean.Elab.Tactic
 
-syntax (name := congrTactic) "congr" : tactic
+syntax (name := congrTactic) "congr" (ppSpace (colGt num))? : tactic
 @[tactic congrTactic] def congrTacticImpl : Tactic := fun stx => 
+match stx with
+| `(tactic|congr $(x?)?) =>
   withMainContext do
-    liftMetaTactic Meta.congr
+    let x? := x?.map <| fun card => (Syntax.isNatLit? card).get!
+    liftMetaTactic (Meta.congr x?)
+| _ => throwIllFormedSyntax
 
 example (x y w: Nat)(f g: Nat → Nat): x * f y = g w * f z := by
-  congr
+  congr 
   repeat (exact sorry)
 
 example (x y : Nat)(f g: Nat → Nat): f (g (x + y)) = f (g (y + x)) := by
-  congr
+  congr 2
+  skip
   repeat (exact sorry)
