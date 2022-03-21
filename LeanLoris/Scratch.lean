@@ -171,3 +171,69 @@ def r : Range := [0:3]
 def arr : Array Nat := mkArray r
 
 #check Range
+
+open Nat
+
+example (x y w: Nat)(f g: Nat → Nat): x * f y = g w * f z := by
+  apply congr
+  focus
+    exact sorry
+  focus
+    apply congr
+    focus
+      apply Eq.refl
+    exact sorry
+
+#check fun mvar => Meta.apply mvar (mkConst ``congr)
+
+-- try reflexivity and subsingleton resolution to close first; not an error if this fails
+def congrStep? (mvar: MVarId) : MetaM (Option (List MVarId)) := do
+  let u ← mkFreshLevelMVar
+  let v ← mkFreshLevelMVar
+  try 
+    let res ←  Meta.apply mvar (mkConst ``Eq.refl [u])
+    if res.isEmpty then return some [] else pure none
+  catch _ => 
+  try 
+    let res ←  Meta.apply mvar (mkConst ``Subsingleton.intro [u])
+    if res.isEmpty then return some [] else pure none
+  catch _ => 
+  try
+    let res ←  Meta.apply mvar (mkConst ``congr [u, v])
+    return some res
+  catch e => 
+    pure none
+
+partial def recCongr(mvar: MVarId) : MetaM (List MVarId) := do
+  let res ← congrStep? mvar
+  match res with
+  | some [] => return []
+  | some xs => do
+    let groups ← xs.mapM recCongr
+    return groups.bind fun x => x
+  | none => return [mvar]
+
+def Meta.congr(mvar : MVarId) : MetaM (List MVarId) := do
+  try 
+    let u ← mkFreshLevelMVar
+    let v ← mkFreshLevelMVar
+    let xs ← Meta.apply mvar (mkConst ``congr [u, v])
+    let groups ← xs.mapM recCongr
+    return groups.bind fun x => x
+  catch e =>
+    throwTacticEx `congr mvar m!"congr tactic failed"
+
+open Lean.Elab.Tactic
+
+syntax (name := congrTactic) "congr" : tactic
+@[tactic congrTactic] def congrTacticImpl : Tactic := fun stx => 
+  withMainContext do
+    liftMetaTactic Meta.congr
+
+example (x y w: Nat)(f g: Nat → Nat): x * f y = g w * f z := by
+  congr
+  repeat (exact sorry)
+
+example (x y : Nat)(f g: Nat → Nat): f (g (x + y)) = f (g (y + x)) := by
+  congr
+  repeat (exact sorry)
