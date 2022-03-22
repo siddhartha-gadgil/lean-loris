@@ -186,19 +186,27 @@ example (x y w: Nat)(f g: Nat → Nat): x * f y = g w * f z := by
 
 #check fun mvar => Meta.apply mvar (mkConst ``congr)
 
--- try reflexivity and subsingleton resolution to close first; not an error if this fails
-def congrStep? (closeOnly : Bool)(mvar: MVarId) : MetaM (Option (List MVarId)) := do
+def tryCloseGoal (mvar: MVarId) : MetaM Bool := do
   let u ← mkFreshLevelMVar
-  let v ← mkFreshLevelMVar
   try 
     let res ←  Meta.apply mvar (mkConst ``Eq.refl [u])
-    if res.isEmpty then return some [] else pure none
+    unless res.isEmpty do
+      throwError "failed to close goal"
+    pure true
   catch _ => 
   try 
     let res ←  Meta.apply mvar (mkConst ``Subsingleton.intro [u])
-    if res.isEmpty then return some [] else pure none
-  catch _ => 
-  if !closeOnly then 
+    unless res.isEmpty do
+      throwError "failed to close goal"
+    pure true
+  catch _ =>
+    pure false
+
+def congrStep? (mvar: MVarId) : MetaM (Option (List MVarId)) := do
+  let u ← mkFreshLevelMVar
+  let v ← mkFreshLevelMVar
+  let closed  ← tryCloseGoal mvar
+  if !closed then 
     try
       let res ←  Meta.apply mvar (mkConst ``congr [u, v])
       return some res
@@ -209,13 +217,16 @@ def congrStep? (closeOnly : Bool)(mvar: MVarId) : MetaM (Option (List MVarId)) :
 
 partial def recCongr(maxDepth? : Option Nat)(mvar: MVarId) : MetaM (List MVarId) := do
   let closeOnly : Bool := (maxDepth?.map (fun n => decide (n ≤  1))).getD false
-  let res ← congrStep? closeOnly mvar
+  if closeOnly then
+    let  chk ← tryCloseGoal mvar
+    if chk then return [] else return [mvar]
+  let res ← congrStep? mvar
   match res with
   | some [] => return []
   | some xs => do
     let depth? := maxDepth?.map (fun n => n - 1)
     let groups ← xs.mapM (recCongr depth?)
-    return groups.bind fun x => x
+    return groups.bind id
   | none => return [mvar]
 
 def Meta.congr(maxDepth? : Option Nat)(mvar : MVarId) : MetaM (List MVarId) := do
@@ -224,9 +235,9 @@ def Meta.congr(maxDepth? : Option Nat)(mvar : MVarId) : MetaM (List MVarId) := d
     let v ← mkFreshLevelMVar
     let xs ← Meta.apply mvar (mkConst ``congr [u, v])
     let groups ← xs.mapM (recCongr maxDepth?)
-    return groups.bind fun x => x
+    return groups.bind id
   catch e =>
-    throwTacticEx `congr mvar m!"congr tactic failed"
+    throwTacticEx `congr mvar e.toMessageData
 
 open Lean.Elab.Tactic
 
@@ -241,9 +252,12 @@ match stx with
 
 example (x y w: Nat)(f g: Nat → Nat): x * f y = g w * f z := by
   congr 
-  repeat (exact sorry)
+  have : x = g w := sorry
+  assumption
+  have : y = z := sorry
+  assumption
 
 example (x y : Nat)(f g: Nat → Nat): f (g (x + y)) = f (g (y + x)) := by
   congr 2
-  skip
-  repeat (exact sorry)
+  have : x + y = y + x := sorry
+  assumption
