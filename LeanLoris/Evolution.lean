@@ -281,7 +281,7 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(degreeBound: Na
                 return res
               | _ => pure true
           )
-          let dist ←  ExprDist.build purgedTerms dist.proofsArray
+          let dist ←  ExprDist.buildM purgedTerms dist.proofsArray
 
           let eva ← evolve degreeBound cardBound  
                   (isleData initData dist degreeBound cardBound) dist
@@ -302,7 +302,7 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(degreeBound: Na
             Term.synthesizeSyntheticMVarsNoPostponing
             return (← inferType expPf , expPf , deg))
           let mut evl : ExprDist := ExprDist.empty
-          let res ← ExprDist.build 
+          let res ← ExprDist.buildM 
             (if includePi then 
                 if excludeLambda then piTypes else lambdaTerms ++ piTypes  
               else  lambdaTerms) (if excludeProofs then #[] else proofs)
@@ -655,7 +655,7 @@ def introEvolverM(D: Type)[IsleData D](excludeInit: Bool := true) : RecEvolverM 
             else
               pure (t, deg)
           | _ => pure (t, deg))
-      let isleInit ← ExprDist.build isleTerms init.proofsArray
+      let isleInit ← ExprDist.buildM isleTerms init.proofsArray
       let ic := c.map <| fun x => x / (cumDegrees.find! deg)
       let isleDist ←   isleM type evolve (degBnd ) ic isleInit 
                 (isleData d init degBnd c) true false false excludeInit

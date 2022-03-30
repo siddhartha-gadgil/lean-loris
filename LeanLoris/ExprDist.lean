@@ -36,7 +36,7 @@ The empty expression distribution.
 -/
 def empty : ExprDist := ⟨Array.empty, Array.empty, DiscrTree.empty, DiscrTree.empty⟩
 
-def build(termsArray : Array (Expr × Nat))
+def buildM(termsArray : Array (Expr × Nat))
           (proofsArray: Array (Expr × Expr × Nat)) : TermElabM ExprDist := do
           let mut termsTree := DiscrTree.empty
           let mut proofsTree := DiscrTree.empty
@@ -46,16 +46,34 @@ def build(termsArray : Array (Expr × Nat))
             proofsTree ← proofsTree.insert (← prop.simplify) (proof, d)
           return ⟨termsArray, proofsArray, termsTree, proofsTree⟩
 
-def termDegree?(d: ExprDist)(x: Expr) : TermElabM (Option Nat) := do
+def termDegreeM?(d: ExprDist)(x: Expr) : TermElabM (Option Nat) := do
   let arr ← d.termsTree.getMatch (← x.simplify)
   if arr.isEmpty then return none
   else  return some <| arr.foldl (fun x y => Nat.min x y) arr[0]
+
+def propDegreeM?(d: ExprDist)(prop: Expr) : TermElabM (Option Nat) := do
+  let arr ← d.proofsTree.getMatch (← prop.simplify)
+  let arr := arr.map (fun (_, d) => d)
+  if arr.isEmpty then return none
+  else  return some <| arr.foldl (fun x y => Nat.min x y) arr[0]
+
+def existsM(d: ExprDist)(x: Expr)(deg : Nat) : TermElabM Bool := do
+  match ← termDegreeM? d x with
+  | none => return false
+  | some deg' => return deg' ≤ deg
+
+def existsPropM(d: ExprDist)(prop: Expr)(deg : Nat) : TermElabM Bool := do
+  match ← propDegreeM? d prop with
+  | none => return false
+  | some deg' => return deg' ≤ deg
 
 /--
 Adding a proof to an expression distribution. If the proposition is already present the proof is added only if the degree is lower than the existing one.
 -/
 def updateProofM(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM ExprDist := do
-  match ← (m.proofsArray.findIdxM? <| fun (l, _, deg) =>  isDefEq l prop)  with
+  let indexOpt := if !(← m.existsPropM prop d)  then none 
+          else ← (m.proofsArray.findIdxM? <| fun (l, _, deg) =>  isDefEq l prop)
+  match indexOpt  with
       | some j => 
           let (l, p, deg) := m.proofsArray.get! j
           if deg ≤ d then return m 
@@ -73,7 +91,9 @@ Adding a term to an expression distribution. If the term is already present the 
 -/
 def updateTermM(m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist := 
   do
-    match ← (m.termsArray.findIdxM? <| fun (t, deg) => isDefEq t x) with
+    let indexOpt := if !(← m.existsM x d)  then none 
+          else ← (m.termsArray.findIdxM? <| fun (t, deg) => isDefEq t x)
+    match indexOpt with
       | some j =>
         let (t, deg) := m.termsArray.get! j 
         if deg ≤ d then return m
@@ -117,7 +137,9 @@ def pushProofM(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM ExprDist := do
 Adds a proof if appropriate, and returns `some dist` if the distribution has been modified.
 -/
 def updatedProofM?(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM (Option ExprDist) := do
-  match ← (m.proofsArray.findIdxM? <| fun (l, _, deg) =>  isDefEq l prop)  with
+  let indexOpt := if !(← m.existsPropM prop d)  then none 
+          else ← (m.proofsArray.findIdxM? <| fun (l, _, deg) =>  isDefEq l prop)
+  match indexOpt  with
       | some j => 
           let (l, p, deg) := m.proofsArray.get! j
           if deg ≤ d then return none
@@ -132,7 +154,9 @@ Adds a term if appropriate, and returns `some dist` if the distribution has been
 -/
 def updatedTermM?(m: ExprDist) (x: Expr) (d: Nat) : TermElabM (Option ExprDist) := 
   do
-    match ← (m.termsArray.findIdxM? <| fun (t, deg) => isDefEq t x) with
+    let indexOpt := if !(← m.existsM x d)  then none 
+          else ← (m.termsArray.findIdxM? <| fun (t, deg) => isDefEq t x)
+    match indexOpt with
       | some j =>
         let (t, deg) := m.termsArray.get! j 
         if deg ≤ j then return none
@@ -199,7 +223,7 @@ Given grouped distributions by hash merge to a single one; it is assumed that th
 def flattenDists(m: HashMap (UInt64) ExprDist) : TermElabM ExprDist := do
   let termArray := (m.toArray.map (fun (_, d) => d.termsArray)).foldl (fun a b => a.append b) Array.empty
   let pfArray := (m.toArray.map (fun (_, d) => d.proofsArray)).foldl (fun a b => a.append b) Array.empty
-  build termArray pfArray
+  buildM termArray pfArray
 
 /--
 Merge distributions by first grouping by hash.
@@ -241,7 +265,7 @@ def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
         gpdDists :=  
           gpdDists.insert key (← (gpdDists.findD key ExprDist.empty).pushProofM l pf deg)
     let fstDist ←  flattenDists gpdDists
-    let res ← build (fstDist.termsArray ++ sndTerms) (fstDist.proofsArray ++ sndProofs)
+    let res ← buildM (fstDist.termsArray ++ sndTerms) (fstDist.proofsArray ++ sndProofs)
     return res
 
 /--
@@ -260,7 +284,7 @@ def diffM(fst snd: ExprDist) : TermElabM ExprDist := do
           let key ←  exprHash x
           let found ← (gpPfs.findD key #[]).anyM (fun (y, _, deg') => (isDefEq x y) <&&> (return deg' ≤ deg))
           return !found)
-    build filteredTerms filteredProofs
+    buildM filteredTerms filteredProofs
 
 /--
 Merge without using hashes; not used currently but as the hashing is hacky this is not deleted.
@@ -290,7 +314,7 @@ def mergeSimpleM(fst snd: ExprDist) : TermElabM ExprDist := do
            sndTerms := sndTerms.push (x, d)
       | none => 
           sndTerms := sndTerms.push (x, d)
-    let res ←  build (fstTerms ++ sndTerms) (fstProofs ++ sndProofs)
+    let res ←  buildM (fstTerms ++ sndTerms) (fstProofs ++ sndProofs)
     return res
 
 instance : HAppend ExprDist ExprDist (TermElabM ExprDist) := 
@@ -340,10 +364,10 @@ def mergeArrayM(fst: ExprDist)(arr: Array (Expr× Nat)): TermElabM ExprDist := d
     let mut gpFstPfs ←  groupProofsByHash fstProofs
   let mut gpdDists : HashMap (UInt64) ExprDist := HashMap.empty
   for (key, termarr) in gpFstTerms.toArray do
-    let d ← build termarr #[]
+    let d ← buildM termarr #[]
     gpdDists := gpdDists.insert key d
   for (key, pfsArr) in gpFstPfs.toArray do
-    let d ← build (
+    let d ← buildM (
         (gpdDists.findD key ExprDist.empty).termsArray) pfsArr
     gpdDists := gpdDists.insert key d
   for (key, termarr) in gpTerms.toArray do
@@ -359,7 +383,7 @@ def mergeArrayM(fst: ExprDist)(arr: Array (Expr× Nat)): TermElabM ExprDist := d
 /--
 Check if a term is present in a distribution, and with degree at most the specified degree.
 -/
-def existsM(dist: ExprDist)(elem: Expr)(degree: Nat) : TermElabM Bool :=
+def existsOldM(dist: ExprDist)(elem: Expr)(degree: Nat) : TermElabM Bool :=
   do
     if ← isProof elem then
       let prop ← inferType elem
@@ -372,7 +396,7 @@ def existsM(dist: ExprDist)(elem: Expr)(degree: Nat) : TermElabM Bool :=
 /--
 Check if a proposition is present in a distribution, and with degree at least the specified degree.
 -/
-def existsPropM(dist: ExprDist)(prop: Expr)(degree: Nat) : TermElabM Bool :=
+def existsPropOldM(dist: ExprDist)(prop: Expr)(degree: Nat) : TermElabM Bool :=
     dist.proofsArray.anyM <| fun (l, _, deg) => 
               do 
               let res ←  pure (decide <| deg ≤ degree) <&&> isDefEq l prop
@@ -408,7 +432,7 @@ def boundM(dist: ExprDist)(degBnd: Nat)(cb: Option Nat) : TermElabM ExprDist := 
   for (_, _, deg) in dist.proofsArray do
       for j in [deg:degBnd + 1] do
         cumCount := cumCount.insert j (cumCount.findD j 0 + 1)
-  build (dist.termsArray.filter fun (_, deg) => 
+  buildM (dist.termsArray.filter fun (_, deg) => 
       deg ≤ degBnd && (leqOpt (cumCount.find! deg) cb)) (
     dist.proofsArray.filter fun (_, _, deg) => deg ≤ degBnd && 
           (leqOpt (cumCount.find! deg) cb))
@@ -525,10 +549,10 @@ def coreView(l : TermElabM String) : CoreM  String := do
 Find degree of term if present or return default.
 -/
 def findD(dist: ExprDist)(elem: Expr)(default: Nat) : TermElabM Nat := do
-  return (← termDegree? dist elem).getD default
+  return (← termDegreeM? dist elem).getD default
   -- match ← getTermM? dist elem with
   -- | some (t, deg) =>
-  --   let deg' ← dist.termDegree? elem
+  --   let deg' ← dist.termDegreeM? elem
   --   unless (deg' = some deg) do
   --     IO.println s!"Warning: term degree changed from {deg} to {deg'}"
   --   pure deg
