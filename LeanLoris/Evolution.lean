@@ -2,6 +2,7 @@ import LeanLoris.FinDist
 import LeanLoris.ExprDist
 import LeanLoris.Core
 import LeanLoris.ProdSeq
+import LeanLoris.Utils
 import Lean
 import Lean.Meta
 import Lean.Elab
@@ -330,51 +331,46 @@ def applyPairEvolver(D: Type)[NewElem Expr D]: EvolverM D :=
 /-- evolver by application without unification; efficient as function domains are matched with argument types.-/
 def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun degBnd c d init => 
   do
-    /- for a given type α; functions with domain α and terms with type α  
-    -/ 
-    let mut grouped : HashMap UInt64 (Array (Expr × (Array (Expr  × Nat)) × (Array (Expr × Nat)))) 
-        := HashMap.empty
+    let mut doms : Array Expr := #[]
+    let mut funcsWithDom : DiscrTree (Expr× Nat) := DiscrTree.empty
+    let mut termsWithTypes : DiscrTree (Expr× Nat) := DiscrTree.empty
+
     for (x, deg) in init.allTermsArray do
       let type ← whnf <| ← inferType x
       match type with
-      | Expr.forallE _ dom b _ =>
-          let key ← exprHash dom
-          let arr := grouped.findD key #[] 
-          match ← arr.findIdxM? <| fun (y, _, _) => isDefEq y dom with
-          | some j =>
-              let (y, fns, ts) := arr.get! j
-              grouped := grouped.insert key (arr.set! j (y, fns.push (x, deg), ts))
-          | none => 
-              grouped := grouped.insert key (arr.push (dom, #[(x, deg)], #[]))
-      |  _ => pure ()
-      let key ← exprHash type
-      let arr := grouped.findD key #[] 
-      let dg := if (← isProof x) then 0 else deg
-      match ← arr.findIdxM? <| fun (y, _, _) => isDefEq y type with
-      | some j =>
-              let (y, fns, ts) := arr.get! j
-              grouped := grouped.insert key (arr.set! j (y, fns, ts.push (x, dg)))
-      | none => 
-              grouped := grouped.insert key (arr.push (type, #[], #[(x, dg)]))
+        | Expr.forallE _ dom b _ =>
+            let key ← dom.simplify
+            if (← funcsWithDom.getMatch key).isEmpty && (← termsWithTypes.getMatch key).isEmpty then
+              doms := doms.push dom
+            funcsWithDom ← funcsWithDom.insert key (x, deg)
+        |  _ => pure  ()
+    for (x, deg) in init.allTermsArray do
+      let type ← whnf <| ← inferType x
+      let key ← type.simplify            
+      termsWithTypes ← termsWithTypes.insert key (x, deg)
     let mut cumPairCount : HashMap Nat Nat := HashMap.empty
-    for (_, arr) in grouped.toArray do
-      for (dom, fns, ts) in arr do
-        for (f, wf) in fns do
-          for (x, wx) in ts do
-            let deg :=  wf + wx + 1
-            for j in [deg: degBnd+ 1] do
-            cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 + 1)
+    for dom in doms do
+      let key ← dom.simplify
+      let fns ← funcsWithDom.getMatch key
+      let ts ← termsWithTypes.getMatch key
+      for (f, wf) in fns do
+        for (x, wx) in ts do
+          let deg :=  wf + wx + 1
+          for j in [deg: degBnd+ 1] do
+          cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 + 1)
     let mut resTerms: Array (Expr × Nat) := #[]
-    for (_, arr) in grouped.toArray do
-      for (dom, fns, ts) in arr do
-        for (f, wf) in fns do
-          for (x, wx) in ts do
-            let deg :=  wf + wx + 1
-            if deg ≤ degBnd && (leqOpt (cumPairCount.findD deg 0)  c) then
-              let y := mkApp f x
-              let y ← whnf y
-              Term.synthesizeSyntheticMVarsNoPostponing
-              resTerms := resTerms.push (y, deg)
+    for dom in doms do
+      let key ← dom.simplify
+      let fns ← funcsWithDom.getMatch key
+      let ts ← termsWithTypes.getMatch key
+      for (f, wf) in fns do
+        for (x, wx) in ts do
+          let deg :=  wf + wx + 1
+          if deg ≤ degBnd && (leqOpt (cumPairCount.findD deg 0)  c) then
+                    let y := mkApp f x
+                    let y ← whnf y
+                    Term.synthesizeSyntheticMVarsNoPostponing
+                    resTerms := resTerms.push (y, deg)
     let res ←  ExprDist.fromArrayM resTerms
     return res
 
