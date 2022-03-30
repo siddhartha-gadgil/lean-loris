@@ -420,9 +420,11 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
   do
     let mut eqs := ExprDist.empty -- new equations only
     let mut allEquationGroups : HashMap (UInt64) ExprDist := HashMap.empty
+
+    let mut newEquations : Array (Expr × Expr × Nat) := #[]
     let mut sideKeys : Array Expr := #[]
-    let mut withLHS : DiscrTree (Expr × Nat) := DiscrTree.empty
-    let mut withRHS : DiscrTree (Expr × Nat) := DiscrTree.empty
+    let mut withLHS : DiscrTree (Expr × Expr × Nat) := DiscrTree.empty
+    let mut withRHS : DiscrTree (Expr × Expr × Nat) := DiscrTree.empty
     -- initial equations
     IO.println "Equations symmetry and transitivity closure"
     let start ← IO.monoMsNow
@@ -437,12 +439,29 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
           if (← withLHS.getMatch rhsKey).isEmpty && 
               (← withRHS.getMatch rhsKey).isEmpty then
             sideKeys := sideKeys.push rhsKey
-          -- let degree := Nat.min deg (← init.findD rhs deg)
-          withLHS ←  withLHS.insert lhsKey (l, deg)
-          -- let degree := Nat.min deg (← init.findD lhs deg)
-          withRHS ←  withRHS.insert rhsKey (l, deg)
+          let degree := Nat.min deg (← init.findD rhs deg)
+          withLHS ←  withLHS.insert lhsKey (rhs, pf, degree)
+          let degree := Nat.min deg (← init.findD lhs deg)
+          withRHS ←  withRHS.insert rhsKey (lhs, pf, degree)
         | none => pure ()
     IO.println s!"Built DiscrTrees: {(← IO.monoMsNow) - start} ms"
+    let mut counter := 0
+    for (l, pf, deg) in init.proofsArray do
+      match l.eq? with
+        | some (_, lhs, rhs) => if !(← isDefEq lhs rhs) then
+          let flipProp ← mkEq rhs lhs
+          unless ← init.existsPropM flipProp deg do
+            counter := counter + 1 
+            let flip ← whnf (← mkAppM ``Eq.symm #[pf])
+            let rhsKey ← lhs.simplify
+            let lhsKey ← rhs.simplify
+            newEquations := 
+              newEquations.push (flipProp, flip, deg)
+            withLHS ←  withLHS.insert lhsKey (lhs, flip, deg)
+            withRHS ←  withRHS.insert rhsKey (rhs, flip, deg)
+        | none => pure ()
+    IO.println s!"Steps to symmetrize ({counter}): {(← IO.monoMsNow) - start} ms"
+
     for (l, pf, deg) in init.proofsArray do
       match l.eq? with
         | some (_, lhs, rhs) => if !(← isDefEq lhs rhs) then
