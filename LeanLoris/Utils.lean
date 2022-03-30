@@ -2,7 +2,7 @@ import Lean.Meta
 import Lean.Elab
 import Std
 import Lean
-open Lean Meta Elab Nat Term
+open Lean Meta Elab Nat Term Std
 
 /- Mostly Meta level (including Elab level) utility functions -/
 
@@ -12,9 +12,27 @@ def leqOpt(x: Nat)(bd: Option Nat) : Bool :=
   | none => true
   | some b => x ≤ b
 
+initialize contextCache : IO.Ref (Option (Simp.Context)) ← IO.mkRef none
+
+def getContext : MetaM Simp.Context := do
+  let cache ← contextCache.get
+  match cache with
+  | none =>
+    let ctx ← Simp.Context.mkDefault
+    contextCache.set (some ctx)
+    pure ctx
+  | some c => pure c
+
+initialize simplifyCache : IO.Ref (HashMap Expr Expr) ← IO.mkRef HashMap.empty
+
 def Lean.Expr.simplify(e: Expr) : MetaM Expr := do 
-  let r ← simp e (← Simp.Context.mkDefault)
-  return r.expr
+  let cache ← simplifyCache.get
+  match cache.find? e with
+  | none => 
+    let r ← simp e (← Simp.Context.mkDefault)
+    simplifyCache.set (cache.insert e r.expr)
+    return r.expr
+  | some expr => return expr
 
 /- from the lean source (with minor modifications) -/
 

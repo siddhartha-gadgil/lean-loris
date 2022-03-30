@@ -334,20 +334,20 @@ def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun degBnd c d i
     let mut doms : Array Expr := #[]
     let mut funcsWithDom : DiscrTree (Expr× Nat) := DiscrTree.empty
     let mut termsWithTypes : DiscrTree (Expr× Nat) := DiscrTree.empty
-
     for (x, deg) in init.allTermsArray do
       let type ← whnf <| ← inferType x
       match type with
         | Expr.forallE _ dom b _ =>
             let key ← dom.simplify
-            if (← funcsWithDom.getMatch key).isEmpty && (← termsWithTypes.getMatch key).isEmpty then
+            if (← funcsWithDom.getMatch key).isEmpty then
               doms := doms.push dom
             funcsWithDom ← funcsWithDom.insert key (x, deg)
         |  _ => pure  ()
     for (x, deg) in init.allTermsArray do
       let type ← whnf <| ← inferType x
-      let key ← type.simplify            
-      termsWithTypes ← termsWithTypes.insert key (x, deg)
+      let key ← type.simplify
+      unless (← funcsWithDom.getMatch key).isEmpty do           
+        termsWithTypes ← termsWithTypes.insert key (x, deg)
     let mut cumPairCount : HashMap Nat Nat := HashMap.empty
     for dom in doms do
       let key ← dom.simplify
