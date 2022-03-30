@@ -46,6 +46,11 @@ def build(termsArray : Array (Expr × Nat))
             proofsTree ← proofsTree.insert (← prop.simplify) (proof, d)
           return ⟨termsArray, proofsArray, termsTree, proofsTree⟩
 
+def termDegree?(d: ExprDist)(x: Expr) : TermElabM (Option Nat) := do
+  let arr ← d.termsTree.getMatch (← x.simplify)
+  if arr.isEmpty then return none
+  else  return some <| arr.foldl (fun x y => Nat.min x y) arr[0]
+
 /--
 Adding a proof to an expression distribution. If the proposition is already present the proof is added only if the degree is lower than the existing one.
 -/
@@ -520,9 +525,14 @@ def coreView(l : TermElabM String) : CoreM  String := do
 Find degree of term if present or return default.
 -/
 def findD(dist: ExprDist)(elem: Expr)(default: Nat) : TermElabM Nat := do
-  match ← getTermM? dist elem with
-  | some (t, deg) => pure deg
-  | none => pure default
+  return (← termDegree? dist elem).getD default
+  -- match ← getTermM? dist elem with
+  -- | some (t, deg) =>
+  --   let deg' ← dist.termDegree? elem
+  --   unless (deg' = some deg) do
+  --     IO.println s!"Warning: term degree changed from {deg} to {deg'}"
+  --   pure deg
+  -- | none => pure default
 
 def mapM(dist: ExprDist)(f: Expr → TermElabM Expr) : TermElabM ExprDist := do
   let termsArrayBase ← dist.allTermsArray.mapM <| fun (e, n) => do
