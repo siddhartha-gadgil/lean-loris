@@ -12,7 +12,7 @@ def leqOpt(x: Nat)(bd: Option Nat) : Bool :=
   | none => true
   | some b => x ≤ b
 
-def Expr.simplify(e: Expr) : MetaM Expr := do 
+def Lean.Expr.simplify(e: Expr) : MetaM Expr := do 
   let r ← simp e (← Simp.Context.mkDefault)
   return r.expr
 
