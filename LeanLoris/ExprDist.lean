@@ -28,11 +28,23 @@ All the operations use `exprHash`, which is a hacky hash associated to expressio
 structure ExprDist where
   termsArray : Array (Expr × Nat)
   proofsArray: Array (Expr × Expr × Nat)  
+  termsTree : DiscrTree Nat
+  proofsTree: DiscrTree (Expr × Nat)
 namespace ExprDist
 /--
 The empty expression distribution.
 -/
-def empty : ExprDist := ⟨Array.empty, Array.empty⟩
+def empty : ExprDist := ⟨Array.empty, Array.empty, DiscrTree.empty, DiscrTree.empty⟩
+
+def build(termsArray : Array (Expr × Nat))
+          (proofsArray: Array (Expr × Expr × Nat)) : TermElabM ExprDist := do
+          let mut termsTree := DiscrTree.empty
+          let mut proofsTree := DiscrTree.empty
+          for (x, d) in termsArray do
+            termsTree ← termsTree.insert (← x.simplify) d
+          for (prop, proof, d) in proofsArray do
+            proofsTree ← proofsTree.insert (← prop.simplify) (proof, d)
+          return ⟨termsArray, proofsArray, termsTree, proofsTree⟩
 
 /--
 Adding a proof to an expression distribution. If the proposition is already present the proof is added only if the degree is lower than the existing one.
@@ -42,9 +54,14 @@ def updateProofM(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM ExprDist := do
       | some j => 
           let (l, p, deg) := m.proofsArray.get! j
           if deg ≤ d then return m 
-          else return ⟨m.termsArray, m.proofsArray.set! j (prop, x, d)⟩
+          else
+            let newProofTree ← m.proofsTree.insert (← prop.simplify) (x, d)
+            return ⟨m.termsArray, m.proofsArray.set! j (prop, x, d), 
+                    m.termsTree, newProofTree⟩
       | none => 
-        return ⟨m.termsArray, m.proofsArray.push (prop, x, d)⟩
+          let newProofTree ← m.proofsTree.insert (← prop.simplify) (x, d)
+          return ⟨m.termsArray, m.proofsArray.push (prop, x, d), 
+                    m.termsTree, newProofTree⟩
 
 /--
 Adding a term to an expression distribution. If the term is already present the degree is added only if the degree is lower than the existing one.
@@ -55,9 +72,14 @@ def updateTermM(m: ExprDist) (x: Expr) (d: Nat) : TermElabM ExprDist :=
       | some j =>
         let (t, deg) := m.termsArray.get! j 
         if deg ≤ d then return m
-        else return ⟨m.termsArray.set! j (x, d), m.proofsArray⟩
+        else
+          let newTermsTree ← m.termsTree.insert (← x.simplify) d 
+          return ⟨m.termsArray.set! j (x, d), m.proofsArray, 
+                    newTermsTree, m.proofsTree⟩
       | none => 
-          return ⟨m.termsArray.push (x, d), m.proofsArray⟩
+          let newTermsTree ← m.termsTree.insert (← x.simplify) d 
+          return ⟨m.termsArray.push (x, d), m.proofsArray, 
+                    newTermsTree, m.proofsTree⟩
 
 /--
 Adding a term or proof to a distribution, checking that the term or proposition is not already present or has higher degree.
@@ -75,14 +97,16 @@ def updateExprM
 /--
 Add a term with no checks; to be used only if it is known that the term is not already present or has higher degree.
 -/
-def pushTerm(m: ExprDist)(x: Expr)(d: Nat) : ExprDist :=
-  ⟨m.termsArray.push (x, d), m.proofsArray⟩
+def pushTermM(m: ExprDist)(x: Expr)(d: Nat) : TermElabM ExprDist := do
+  let newTermsTree ← m.termsTree.insert (← x.simplify) d 
+  return ⟨m.termsArray.push (x, d), m.proofsArray, newTermsTree, m.proofsTree⟩
 
 /--
 Add a proof with no checks; to be used only if it is known that the proposition is not already present or has higher degree.
 -/
-def pushProof(m: ExprDist)(prop x: Expr)(d: Nat) : ExprDist :=
-  ⟨m.termsArray, m.proofsArray.push (prop, x, d)⟩
+def pushProofM(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM ExprDist := do
+  let newProofTree ← m.proofsTree.insert (← prop.simplify) (x, d)
+  return ⟨m.termsArray, m.proofsArray.push (prop, x, d), m.termsTree, newProofTree⟩
 
 /--
 Adds a proof if appropriate, and returns `some dist` if the distribution has been modified.
@@ -92,9 +116,11 @@ def updatedProofM?(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM (Option ExprDi
       | some j => 
           let (l, p, deg) := m.proofsArray.get! j
           if deg ≤ d then return none
-          else return some ⟨m.termsArray, m.proofsArray.set! j (prop, x, d)⟩
+          else let newProofTree ← m.proofsTree.insert (← prop.simplify) (x, d)
+               return some  ⟨m.termsArray, m.proofsArray.push (prop, x, d), m.termsTree, newProofTree⟩
       | none => 
-        return some ⟨m.termsArray, m.proofsArray.push (prop, x, d)⟩
+        let newProofTree ← m.proofsTree.insert (← prop.simplify) (x, d)
+        return some  ⟨m.termsArray, m.proofsArray.push (prop, x, d), m.termsTree, newProofTree⟩
 
 /--
 Adds a term if appropriate, and returns `some dist` if the distribution has been modified.
@@ -105,10 +131,14 @@ def updatedTermM?(m: ExprDist) (x: Expr) (d: Nat) : TermElabM (Option ExprDist) 
       | some j =>
         let (t, deg) := m.termsArray.get! j 
         if deg ≤ j then return none
-        else return some ⟨m.termsArray.set! j (x, d), m.proofsArray⟩
+        else 
+          let newTermsTree ← m.termsTree.insert (← x.simplify) d 
+          return some ⟨m.termsArray.set! j (x, d), m.proofsArray, 
+                    newTermsTree, m.proofsTree⟩
       | none => 
-          return some ⟨m.termsArray.push (x, d), m.proofsArray⟩
-
+          let newTermsTree ← m.termsTree.insert (← x.simplify) d 
+          return some ⟨m.termsArray.push (x, d), m.proofsArray, 
+                    newTermsTree, m.proofsTree⟩
 /--
 Adds a term or proof if appropriate, and returns `some dist` if the distribution has been modified.
 -/
@@ -152,10 +182,10 @@ def groupDistByHash(arr: Array (Expr × Nat)) : TermElabM (HashMap (UInt64) Expr
       if ← isProof e then
         let l ← inferType e
         let key ← exprHash l
-        return m.insert key ((m.findD key ExprDist.empty).pushProof l e deg)
+        return m.insert key (← (m.findD key ExprDist.empty).pushProofM l e deg)
         else 
         let key ← exprHash e
-        return m.insert key ((m.findD key ExprDist.empty).pushTerm e deg)
+        return m.insert key (← (m.findD key ExprDist.empty).pushTermM e deg)
       ) HashMap.empty
 
 /--
@@ -164,16 +194,16 @@ Given grouped distributions by hash merge to a single one; it is assumed that th
 def flattenDists(m: HashMap (UInt64) ExprDist) : TermElabM ExprDist := do
   let termArray := (m.toArray.map (fun (_, d) => d.termsArray)).foldl (fun a b => a.append b) Array.empty
   let pfArray := (m.toArray.map (fun (_, d) => d.proofsArray)).foldl (fun a b => a.append b) Array.empty
-  return ⟨termArray, pfArray⟩
+  build termArray pfArray
 
 /--
 Merge distributions by first grouping by hash.
 -/
 def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
-    let ⟨fstTerms, fstProofs⟩ := fst
+    let ⟨fstTerms, fstProofs, _, _⟩ := fst
     let mut gpFstTerms ←  groupTermsByHash fstTerms
     let mut gpFstPfs ←  groupProofsByHash fstProofs
-    let mut ⟨sndTerms, sndProofs⟩ := ExprDist.empty
+    let mut ⟨sndTerms, sndProofs, _, _⟩ := ExprDist.empty
     for (prop, x, d) in snd.proofsArray do
       let key ← exprHash prop
       match ← ((gpFstPfs.findD key #[]).findIdxM? <| fun (l, _, deg) =>  isDefEq l prop)  with
@@ -200,20 +230,20 @@ def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
     for (key, termarr) in gpFstTerms.toArray do
       for (x, deg) in termarr do
         gpdDists :=  
-          gpdDists.insert key ((gpdDists.findD key ExprDist.empty).pushTerm x deg)
+          gpdDists.insert key (← (gpdDists.findD key ExprDist.empty).pushTermM x deg)
     for (key, pfarr) in gpFstPfs.toArray do
       for (l, pf, deg) in pfarr do
         gpdDists :=  
-          gpdDists.insert key ((gpdDists.findD key ExprDist.empty).pushProof l pf deg)
+          gpdDists.insert key (← (gpdDists.findD key ExprDist.empty).pushProofM l pf deg)
     let fstDist ←  flattenDists gpdDists
-    let res := ⟨fstDist.termsArray ++ sndTerms, fstDist.proofsArray ++ sndProofs⟩
+    let res ← build (fstDist.termsArray ++ sndTerms) (fstDist.proofsArray ++ sndProofs)
     return res
 
 /--
 Compute the set difference of two distributions using hashes.
 -/
 def diffM(fst snd: ExprDist) : TermElabM ExprDist := do
-    let ⟨sndTerms, sndProofs⟩ := snd
+    let ⟨sndTerms, sndProofs, _, _⟩ := snd
     let gpTerms ←  groupTermsByHash sndTerms
     let gpPfs ←  groupProofsByHash sndProofs
     let filteredTerms ←  fst.termsArray.filterM (fun (x, deg) => do
@@ -225,14 +255,14 @@ def diffM(fst snd: ExprDist) : TermElabM ExprDist := do
           let key ←  exprHash x
           let found ← (gpPfs.findD key #[]).anyM (fun (y, _, deg') => (isDefEq x y) <&&> (return deg' ≤ deg))
           return !found)
-    return ⟨filteredTerms, filteredProofs⟩
+    build filteredTerms filteredProofs
 
 /--
 Merge without using hashes; not used currently but as the hashing is hacky this is not deleted.
 -/
 def mergeSimpleM(fst snd: ExprDist) : TermElabM ExprDist := do
-    let mut ⟨fstTerms, fstProofs⟩ := fst
-    let mut ⟨sndTerms, sndProofs⟩ := ExprDist.empty
+    let mut ⟨fstTerms, fstProofs, _, _⟩ := fst
+    let mut ⟨sndTerms, sndProofs, _, _⟩ := ExprDist.empty
     for (prop, x, d) in snd.proofsArray do
       let key ← exprHash prop
       match ← (fstProofs.findIdxM? <| fun (l, _, deg) =>  isDefEq l prop)  with
@@ -255,7 +285,7 @@ def mergeSimpleM(fst snd: ExprDist) : TermElabM ExprDist := do
            sndTerms := sndTerms.push (x, d)
       | none => 
           sndTerms := sndTerms.push (x, d)
-    let res := ⟨fstTerms ++ sndTerms, fstProofs ++ sndProofs⟩
+    let res ←  build (fstTerms ++ sndTerms) (fstProofs ++ sndProofs)
     return res
 
 instance : HAppend ExprDist ExprDist (TermElabM ExprDist) := 
@@ -300,15 +330,17 @@ def mergeArrayM(fst: ExprDist)(arr: Array (Expr× Nat)): TermElabM ExprDist := d
       pfs := pfs.push (l, e, n)
   let gpTerms ←  groupTermsByHash terms
   let gpPfs ←  groupProofsByHash pfs
-  let ⟨fstTerms, fstProofs⟩ := fst
+  let ⟨fstTerms, fstProofs, _, _⟩ := fst
     let mut gpFstTerms ←  groupTermsByHash fstTerms
     let mut gpFstPfs ←  groupProofsByHash fstProofs
   let mut gpdDists : HashMap (UInt64) ExprDist := HashMap.empty
   for (key, termarr) in gpFstTerms.toArray do
-    gpdDists := gpdDists.insert key ⟨termarr, #[]⟩
+    let d ← build termarr #[]
+    gpdDists := gpdDists.insert key d
   for (key, pfsArr) in gpFstPfs.toArray do
-    gpdDists := gpdDists.insert key ⟨
-        (gpdDists.findD key ExprDist.empty).termsArray, pfsArr⟩
+    let d ← build (
+        (gpdDists.findD key ExprDist.empty).termsArray) pfsArr
+    gpdDists := gpdDists.insert key d
   for (key, termarr) in gpTerms.toArray do
     for (x, deg) in termarr do
       gpdDists :=  
@@ -363,7 +395,7 @@ def allSortsArray(dist: ExprDist) : TermElabM (Array (Expr × Nat)) := do
 /--
 Cutoff a distribution at a given degree with given bound on cardinality.
 -/
-def bound(dist: ExprDist)(degBnd: Nat)(cb: Option Nat) : ExprDist := Id.run do
+def boundM(dist: ExprDist)(degBnd: Nat)(cb: Option Nat) : TermElabM ExprDist := Id.run do
   let mut cumCount : HashMap Nat Nat := HashMap.empty
   for (_, deg) in dist.termsArray do
       for j in [deg:degBnd + 1] do
@@ -371,10 +403,10 @@ def bound(dist: ExprDist)(degBnd: Nat)(cb: Option Nat) : ExprDist := Id.run do
   for (_, _, deg) in dist.proofsArray do
       for j in [deg:degBnd + 1] do
         cumCount := cumCount.insert j (cumCount.findD j 0 + 1)
-  ⟨dist.termsArray.filter fun (_, deg) => 
-      deg ≤ degBnd && (leqOpt (cumCount.find! deg) cb),
+  build (dist.termsArray.filter fun (_, deg) => 
+      deg ≤ degBnd && (leqOpt (cumCount.find! deg) cb)) (
     dist.proofsArray.filter fun (_, _, deg) => deg ≤ degBnd && 
-          (leqOpt (cumCount.find! deg) cb)⟩
+          (leqOpt (cumCount.find! deg) cb))
   
 /--
 Array of types with degrees.

@@ -281,7 +281,7 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(degreeBound: Na
                 return res
               | _ => pure true
           )
-          let dist := ⟨purgedTerms, dist.proofsArray⟩
+          let dist ←  ExprDist.build purgedTerms dist.proofsArray
 
           let eva ← evolve degreeBound cardBound  
                   (isleData initData dist degreeBound cardBound) dist
@@ -302,10 +302,10 @@ def isleM {D: Type}[IsleData D](type: Expr)(evolve : EvolverM D)(degreeBound: Na
             Term.synthesizeSyntheticMVarsNoPostponing
             return (← inferType expPf , expPf , deg))
           let mut evl : ExprDist := ExprDist.empty
-          let res := 
-            ⟨if includePi then 
+          let res ← ExprDist.build 
+            (if includePi then 
                 if excludeLambda then piTypes else lambdaTerms ++ piTypes  
-              else  lambdaTerms, if excludeProofs then #[] else proofs⟩
+              else  lambdaTerms) (if excludeProofs then #[] else proofs)
           return res
 
 /- some evolvers: single step, non-recursive -/
@@ -420,15 +420,37 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
   do
     let mut eqs := ExprDist.empty -- new equations only
     let mut allEquationGroups : HashMap (UInt64) ExprDist := HashMap.empty
-    -- let mut allEquations := ExprDist.empty
+    let mut sideKeys : Array Expr := #[]
+    let mut withLHS : DiscrTree (Expr × Nat) := DiscrTree.empty
+    let mut withRHS : DiscrTree (Expr × Nat) := DiscrTree.empty
     -- initial equations
+    IO.println "Equations symmetry and transitivity closure"
+    let start ← IO.monoMsNow
+    for (l, pf, deg) in init.proofsArray do
+      match l.eq? with
+        | some (_, lhs, rhs) => if !(← isDefEq lhs rhs) then
+          let lhsKey ← lhs.simplify
+          let rhsKey ← rhs.simplify
+          if (← withLHS.getMatch lhsKey).isEmpty && 
+              (← withRHS.getMatch lhsKey).isEmpty then
+            sideKeys := sideKeys.push lhsKey
+          if (← withLHS.getMatch rhsKey).isEmpty && 
+              (← withRHS.getMatch rhsKey).isEmpty then
+            sideKeys := sideKeys.push rhsKey
+          -- let degree := Nat.min deg (← init.findD rhs deg)
+          withLHS ←  withLHS.insert lhsKey (l, deg)
+          -- let degree := Nat.min deg (← init.findD lhs deg)
+          withRHS ←  withRHS.insert rhsKey (l, deg)
+        | none => pure ()
+    IO.println s!"Built DiscrTrees: {(← IO.monoMsNow) - start} ms"
     for (l, pf, deg) in init.proofsArray do
       match l.eq? with
         | some (_, lhs, rhs) => if !(← isDefEq lhs rhs) then
           let key ← exprHash l
           allEquationGroups := allEquationGroups.insert key <|
-              (allEquationGroups.findD key ExprDist.empty).pushProof l pf deg
+            ← (allEquationGroups.findD key ExprDist.empty).pushProofM l pf deg
         | none => pure ()
+    IO.println s!"Gathered equations: {(← IO.monoMsNow) - start} ms"
     -- symmetrize
     let eqnArray := allEquationGroups.toArray
     for (key, allEquations) in eqnArray do
@@ -444,7 +466,8 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
           | none => pure ()
           | some dist => 
             allEquationGroups := allEquationGroups.insert flipkey dist
-            eqs := eqs.pushProof flipProp flip (deg + 1)
+            eqs ←  eqs.pushProofM flipProp flip (deg + 1)
+    IO.println s!"Symmetrized: {(← IO.monoMsNow) - start} ms"
     /- group equations, for y we have proofs of x = y and then y = z,
         record array of (x, pf, deg) and array of (z, pf, z)
     -/
@@ -468,8 +491,6 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
               (grouped.findD key  #[]).push (rhs, #[(lhs, pf, degree)] , #[])
           | some j => 
             let (y, withRhs, withLhs) := (grouped.findD key  #[]).get! j
-            -- if !((← exprHash rhs) = (← exprHash y)) then
-            --   IO.println s!"Hash mismatch for \nrhs: {rhs}, \ny: {y};\nkey: {key}"
             let degree := Nat.min deg (← init.findD lhs deg)
             grouped := grouped.insert key <|
               (grouped.findD key  #[]).set! j (rhs, withRhs.push (lhs, pf, degree) , withLhs)
@@ -486,6 +507,7 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
             grouped := grouped.insert key <|
               (grouped.findD key  #[]).set! j (lhs, withRhs, withLhs.push (rhs, pf, degree))
     -- count cumulative degrees of pairs, deleting reflexive pairs (assuming symmetry)
+    IO.println s!"Grouped equations: {(← IO.monoMsNow) - start} ms"
     let mut cumPairCount : HashMap Nat Nat := HashMap.empty
     for (key, group) in grouped.toArray do
       for (_, m ,_) in group do
@@ -497,6 +519,7 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
         for deg1 in degrees do 
           for j in [deg1 + deg1:degBnd + 1] do
             cumPairCount := cumPairCount.insert j (cumPairCount.findD j 0 - 1)
+    IO.println s!"Cumulative pair counts: {(← IO.monoMsNow) - start} ms"
     for (key, group) in grouped.toArray do
       for (y, withRhs, withLhs) in group do
         for (x, eq1, deg1) in withRhs do
@@ -510,7 +533,8 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
                 Term.synthesizeSyntheticMVarsNoPostponing
                 let key ← exprHash prop
                 unless ← (allEquationGroups.findD key ExprDist.empty).existsPropM prop deg do
-                  eqs := eqs.pushProof prop eq3 deg   
+                  eqs ←  eqs.pushProofM prop eq3 deg   
+    IO.println s!"Finished generating equations: {(← IO.monoMsNow) - start} ms"
     return eqs
 
 /- Recursive evolvers, all based on `isleM` islands -/
@@ -527,7 +551,7 @@ def congrIsleEvolver(D: Type)[NewElem Expr D][IsleData D] : RecEvolverM D :=
       | none => pure ()
       | some (α, lhs, rhs) =>
           eqTypesArr := eqTypesArr.push (α, deg)
-          eqs :=  eqs.pushProof l exp deg
+          eqs ←   eqs.pushProofM l exp deg
           eqTriples := eqTriples.push (exp, α, deg)
     let eqsCum := degreeAbove eqs.allTermsArray degBnd
     let mut isleDistMap : HashMap Expr ExprDist := HashMap.empty
@@ -540,10 +564,11 @@ def congrIsleEvolver(D: Type)[NewElem Expr D][IsleData D] : RecEvolverM D :=
     let finDistsAux : Array (Task (TermElabM ExprDist)) :=  
         (eqTriples.filter (fun (_, _, weq) => degBnd - weq > 0)).map <|
           fun (eq, type, weq) => 
-          Task.spawn ( fun _ =>
+          Task.spawn ( fun _ => do
             let isleDistBase := isleDistMap.findD type ExprDist.empty
-            let xc := c.map (fun x => x / (eqsCum.find! weq)) -- should not be missing
-            let isleDist := (isleDistBase.bound (degBnd -weq -1) xc).termsArray
+            let xc := c.map (fun x => x / (eqsCum.find! weq)) 
+            let bddDist ← isleDistBase.boundM (degBnd -weq -1) xc 
+            let isleDist := bddDist.termsArray
             isleDist.foldlM (
                 fun d (f, wf) => do 
                   match ← congrArg? f eq with 
@@ -630,9 +655,7 @@ def introEvolverM(D: Type)[IsleData D](excludeInit: Bool := true) : RecEvolverM 
             else
               pure (t, deg)
           | _ => pure (t, deg))
-      let isleInit :=
-          -- ←  ExprDist.fromArrayM isleTerms  
-          ⟨isleTerms, init.proofsArray⟩
+      let isleInit ← ExprDist.build isleTerms init.proofsArray
       let ic := c.map <| fun x => x / (cumDegrees.find! deg)
       let isleDist ←   isleM type evolve (degBnd ) ic isleInit 
                 (isleData d init degBnd c) true false false excludeInit

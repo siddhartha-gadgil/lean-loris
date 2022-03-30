@@ -164,25 +164,26 @@ def typeOptEvolverM{D: Type}(types : Nat → Option Nat → D → ExprDist →
 /-- sum over all types derived goals from a tactic -/
 def tacticTypeEvolverM{D: Type}(tactic : MVarId → TermElabM (List MVarId))(indepGoals: Bool) :
     EvolverM D := 
-      typeSumEvolverM (fun degBnd cb data dist => (dist.bound degBnd cb).typesArr) 
+      typeSumEvolverM (fun degBnd cb data dist => do (← dist.boundM degBnd cb).typesArr) 
         (tacticExprArray tactic indepGoals)
 
 /-- sum over all propositions derived goals from a tactic -/
 def tacticPropEvolverM{D: Type}(tactic : MVarId → TermElabM (List MVarId))(indepGoals: Bool) :
     EvolverM D := 
-      typeSumEvolverM (fun degBnd cb data dist => (dist.bound degBnd cb).propsArr) 
+      typeSumEvolverM (fun degBnd cb data dist => do  (← dist.boundM degBnd cb).propsArr) 
         (tacticExprArray tactic indepGoals)
 
 /-- sum over all types derived goals from an optional tactic -/
 def optProofTypeEvolverM{D: Type}(tac? : Expr → TermElabM (Option Expr)) : 
     EvolverM D := 
-      typeOptEvolverM (fun degBnd cb data dist => (dist.bound degBnd cb).typesArr) 
+      typeOptEvolverM (fun degBnd cb data dist => do (← dist.boundM degBnd cb).typesArr) 
         tac?
 
 /-- sum over all propositions derived goals from an optional tactic -/
 def optProofPropEvolverM{D: Type}(tac? : Expr → TermElabM (Option Expr)) : 
     EvolverM D := 
-      typeOptEvolverM (fun degBnd cb data dist => (dist.bound degBnd cb).propsArr) 
+      typeOptEvolverM (fun degBnd cb data dist => 
+        do (← dist.boundM degBnd cb).propsArr) 
         tac?
 
 /-- auxiliary function for apply-based evolver-/
@@ -286,5 +287,6 @@ def natRecEvolverM(D: Type) : EvolverM D :=
         return #[(← mkAppM ``natRec #[fmly], 0), 
         (← whnf <| mkApp fmly (mkConst ``Nat.zero), 1), 
         (← whnf <| ← mkAppM ``natRecStep #[fmly], 1)] 
-  withDegTypeSumEvolverM (fun degBnd cb data dist => (dist.bound degBnd cb).goalsArr) tactic
+  withDegTypeSumEvolverM (fun degBnd cb data dist => 
+    do (← dist.boundM degBnd cb).goalsArr) tactic
 
