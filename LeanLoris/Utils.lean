@@ -12,6 +12,10 @@ def leqOpt(x: Nat)(bd: Option Nat) : Bool :=
   | none => true
   | some b => x ≤ b
 
+def Expr.simplify(e: Expr) : MetaM Expr := do 
+  let r ← simp e (← Simp.Context.mkDefault)
+  return r.expr
+
 /- from the lean source (with minor modifications) -/
 
 def isBlackListed  (declName : Name) : MetaM  Bool := do

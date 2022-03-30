@@ -27,6 +27,8 @@ constant mul : M → M → M
 
 noncomputable instance : Mul M := ⟨mul⟩
 
+@[simp] theorem mul_eq(a b : M) : mul a b = a * b := by rfl
+
 axiom ax1 : (∀ a b : M, (a * b) * b = a)
 axiom ax2 : (∀ a b : M, a * (a * b) = b)
 axiom m : M
