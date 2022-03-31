@@ -47,14 +47,16 @@ def buildM(termsArray : Array (Expr × Nat))
           let mut keys := #[]
           for (x, d) in termsArray do
             let key ← x.simplify
+            if (← termsTree.getMatch key).isEmpty && 
+            (← proofsTree.getMatch key).isEmpty
+              then keys := keys.push key
             termsTree ← termsTree.insert key (x,d)
-            if (← termsTree.getMatch key).isEmpty && (← termsTree.getMatch key).isEmpty
-            then keys := keys.push key
           for (prop, proof, d) in proofsArray do
             let key ← prop.simplify
-            proofsTree ← proofsTree.insert key (prop, proof, d)
-            if (← termsTree.getMatch key).isEmpty && (← termsTree.getMatch key).isEmpty
+            if (← termsTree.getMatch key).isEmpty && 
+              (← proofsTree.getMatch key).isEmpty
             then keys := keys.push key
+            proofsTree ← proofsTree.insert key (prop, proof, d)
           return ⟨termsTree, proofsTree, keys⟩
 
 def termDegreeM?(d: ExprDist)(x: Expr) : TermElabM (Option Nat) := do
@@ -187,10 +189,10 @@ def diffM(fst snd: ExprDist) : TermElabM ExprDist := do
     for key in fst.keys do
       for (x, deg) in (← fst.termsTree.getMatch key) do
         unless ← snd.existsM x deg do
-          dist ← dist.updateTermM x deg
+          dist ← dist.pushTermM x deg
       for (prop, pf, deg) in (← fst.proofsTree.getMatch key) do
         unless ← snd.existsPropM prop deg do
-          dist ← dist.updateProofM prop pf  deg
+          dist ← dist.pushProofM prop pf  deg
     return dist
 
 /--

@@ -114,7 +114,6 @@ We prove modus-ponens using mixed reasoning, specifically function application a
 -/
 def modus_ponens(A B: Prop) : A → (A → B)→ B := by
   evolve ev![intro, simple-app] 1 
-  admit
 
 def modus_ponens2(A B: Prop) : A → (A → B)→ B := by
   intros
@@ -128,7 +127,6 @@ The below examples are elementary.
 -- ∀ (A : Prop), A → A
 def implies_self(A: Prop) : A → A := by
   evolve ev![intro-all]  1 
-  admit
 
 -- ∀ (A B : Prop), A → (A → B) → B
 def deduction(A B: Prop)(a : A)(f: A → B) : B := by
@@ -138,7 +136,6 @@ def deduction(A B: Prop)(a : A)(f: A → B) : B := by
 -- ∀ (A : Type) (a : A), a = a
 def eql_refl(A: Type) : ∀ a: A, a = a := by
   evolve ev![intro, rfl]  1
-  admit
 
 -- ∀ (a b c : Nat), a = b → a = c → b = c
 def eql_flip_trans(a b c: Nat)(p: a = b)(q: a = c) : b = c := by

@@ -145,6 +145,7 @@ def withDegTypeSumEvolverM{D: Type}(types : Nat → Option Nat → D → ExprDis
                 pure ()
               | some ys =>
                 for (y, w0) in ys do terms := terms.push (y, deg + w0)
+            logInfo m!"terms : {← terms.mapM (fun (y, n) => view y)}"
             ExprDist.fromArrayM terms
 
 /-- sum over given types with degrees and optional tactics of derived goals -/
