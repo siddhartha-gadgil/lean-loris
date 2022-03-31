@@ -418,7 +418,7 @@ For a generated equality `x = y`, if the sum `deg` of degrees of `x` and `y` is 
 def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D 
   := fun degBnd card d init => 
   do
-    IO.println "Equations symmetry and transitivity closure"
+    -- IO.println "Equations symmetry and transitivity closure"
     let start ← IO.monoMsNow 
     -- DiscrTree code
     let mut newEquations : Array (Expr × Expr × Nat) := #[]
@@ -442,7 +442,7 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
           let degree := Nat.min deg (← init.findD lhs deg)
           withRHS ←  withRHS.insert rhsKey (rhs, lhs, pf, degree)  
         | none => pure ()
-    IO.println s!"Built DiscrTrees: {(← IO.monoMsNow) - start} ms"
+    -- IO.println s!"Built DiscrTrees: {(← IO.monoMsNow) - start} ms"
     for (l, pf, deg) in init.proofsArray do
       match l.eq? with
         | some (_, lhs, rhs) => 
@@ -461,7 +461,7 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
             let degree := Nat.min deg (← init.findD rhs (deg + 1))
             withRHS ←  withRHS.insert rhsKey (lhs, rhs, flip, degree)
         | none => pure ()
-    IO.println s!"DiscrTree symmetrized ({newEquations.size}): {(← IO.monoMsNow) - start} ms"
+    -- IO.println s!"DiscrTree symmetrized ({newEquations.size}): {(← IO.monoMsNow) - start} ms"
     let mut cumPairCnt : HashMap Nat Nat := HashMap.empty
     for key in sideKeys do
       let m ← withLHS.getMatch key
@@ -489,7 +489,7 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
               let eq3 ← whnf (←   mkAppM ``Eq.trans #[eq1, eq2]) 
               newEquations := 
                   newEquations.push (prop, eq3, deg)  
-    IO.println s!"DiscrTree generation ({newEquations.size}): {(← IO.monoMsNow) - start} ms"
+    -- IO.println s!"DiscrTree generation ({newEquations.size}): {(← IO.monoMsNow) - start} ms"
     let res ← ExprDist.buildM #[] newEquations
     return res
 

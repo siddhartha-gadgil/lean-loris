@@ -47,12 +47,12 @@ def buildM(termsArray : Array (Expr × Nat))
           return ⟨termsArray, proofsArray, termsTree, proofsTree⟩
 
 def termDegreeM?(d: ExprDist)(x: Expr) : TermElabM (Option Nat) := do
-  let arr ← d.termsTree.getMatch (← x.simplify)
+  let arr ← d.termsTree.getUnify (← x.simplify)
   if arr.isEmpty then return none
   else  return some <| arr.foldl (fun x y => Nat.min x y) arr[0]
 
 def propDegreeM?(d: ExprDist)(prop: Expr) : TermElabM (Option Nat) := do
-  let arr ← d.proofsTree.getMatch (← prop.simplify)
+  let arr ← d.proofsTree.getUnify (← prop.simplify)
   let arr := arr.map (fun (_, d) => d)
   if arr.isEmpty then return none
   else  return some <| arr.foldl (fun x y => Nat.min x y) arr[0]
