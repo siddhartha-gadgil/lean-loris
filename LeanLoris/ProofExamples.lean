@@ -97,6 +97,7 @@ def left_right_identities1(α : Type)[Mul α](eₗ eᵣ: α)
       by
         evolve ev![simple-app, eq-closure]  2 
 
+
 /--
 We give a second proof of the result: given a multiplication on a set `α` with a left-identity `eₗ` and a right identity `eᵣ`, we have `eₗ = eᵣ` to illustrate implicit "lemma choosing". Notice that the cutoff is just `1` for both steps. However the proof is obtained as during equality generation, we look-ahead and generate proofs of statements that are simple.
 
@@ -107,15 +108,18 @@ def left_right_identities2(α : Type)[Mul α](eₗ eᵣ: α)
         evolve ev![app] 1  =: dist1
         evolve ev![eq-closure] dist1 1  
 
+
 /--
 We prove modus-ponens using mixed reasoning, specifically function application and introduction of variables for domains of goals.
 -/
 def modus_ponens(A B: Prop) : A → (A → B)→ B := by
   evolve ev![intro, simple-app] 1 
+  admit
 
 def modus_ponens2(A B: Prop) : A → (A → B)→ B := by
   intros
   evolve ev![simple-app] 1
+
 
 /-
 The below examples are elementary. 
@@ -124,14 +128,17 @@ The below examples are elementary.
 -- ∀ (A : Prop), A → A
 def implies_self(A: Prop) : A → A := by
   evolve ev![intro-all]  1 
+  admit
 
 -- ∀ (A B : Prop), A → (A → B) → B
 def deduction(A B: Prop)(a : A)(f: A → B) : B := by
   evolve ev![simple-app]  1 
 
+
 -- ∀ (A : Type) (a : A), a = a
 def eql_refl(A: Type) : ∀ a: A, a = a := by
   evolve ev![intro, rfl]  1
+  admit
 
 -- ∀ (a b c : Nat), a = b → a = c → b = c
 def eql_flip_trans(a b c: Nat)(p: a = b)(q: a = c) : b = c := by

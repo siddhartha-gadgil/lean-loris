@@ -27,19 +27,19 @@ elab "gen1!" t:term : term => do
       for (x, deg) in arr do
         logInfo m!"{x} : {deg}" 
       let m1 ← prodGenArrM  apply? 4 (some 100) arr arr ()
-      for (x, deg) in m1.allTermsArray do
+      for (x, deg) in ← m1.allTermsArrayM do
         logInfo m!"{x} : {deg}" 
       let m2 ← egEvolver  4 (some 100) () (← (ExprDist.fromArrayM arr)) 
-      for (x, deg) in m2.allTermsArray do
+      for (x, deg) in ← m2.allTermsArrayM do
         logInfo m!"{x} : {deg}" 
       logInfo "Evolved state"
       let m3 ← (egEvolver).evolve 12 none () (← (ExprDist.fromArrayM arr))
-      for (x, deg) in m3.allTermsArray do
+      for (x, deg) in ← m3.allTermsArrayM do
         logInfo m!"{x} : {deg}" 
       logInfo "Full Evolved state"
       let m4 ← (egEvolverFull).evolve 12 none (HashMap.empty, [], []) (← (ExprDist.fromArrayM arr)) 
                                           
-      for (x, deg) in m4.allTermsArray do
+      for (x, deg) in ← m4.allTermsArrayM do
         logInfo m!"{x} : {deg}" 
       return x
 
@@ -95,7 +95,7 @@ def lstfromsyn:  TermElabM (RecEvolverM FullData)  :=  do
 /- Packing and unpacking expression collections -/
 
 elab (name:= exprDistPack) "packdist!" s:expr_dist : term => do
-  let m : Array (Expr × Nat)  := (←  parseExprDist s).allTermsArray
+  let m : Array (Expr × Nat)  ←  (←  parseExprDist s).allTermsArrayM
   packWithDegree m.toList
 
 #eval packdist! expr!{(1, 2), ("Hello", 4)}
