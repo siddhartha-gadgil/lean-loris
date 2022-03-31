@@ -455,8 +455,8 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
     -- DiscrTree code
     let mut newEquations : Array (Expr × Expr × Nat) := #[]
     let mut sideKeys : Array Expr := #[]
-    let mut withLHS : DiscrTree (Expr × Expr × Nat) := DiscrTree.empty
-    let mut withRHS : DiscrTree (Expr × Expr × Nat) := DiscrTree.empty
+    let mut withLHS : DiscrTree (Expr × Expr × Expr × Nat) := DiscrTree.empty
+    let mut withRHS : DiscrTree (Expr × Expr × Expr × Nat) := DiscrTree.empty
 
     for (l, pf, deg) in init.proofsArray do
       match l.eq? with
@@ -470,9 +470,9 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
               (← withRHS.getMatch rhsKey).isEmpty then
             sideKeys := sideKeys.push rhsKey
           let degree := Nat.min deg (← init.findD rhs deg)
-          withLHS ←  withLHS.insert lhsKey (rhs, pf, degree)
+          withLHS ←  withLHS.insert lhsKey (lhs, rhs, pf, degree)
           let degree := Nat.min deg (← init.findD lhs deg)
-          withRHS ←  withRHS.insert rhsKey (lhs, pf, degree)
+          withRHS ←  withRHS.insert rhsKey (rhs, lhs, pf, degree)  
         | none => pure ()
     IO.println s!"Built DiscrTrees: {(← IO.monoMsNow) - start} ms"
     for (l, pf, deg) in init.proofsArray do
@@ -480,18 +480,48 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
         | some (_, lhs, rhs) => 
         if !(← isDefEq lhs rhs) then
           let flipProp ← mkEq rhs lhs
-          unless ← init.existsPropM flipProp (deg + 1) do
+          let degree := 
+            Nat.min (Nat.min deg (← init.findD lhs (deg + 1))) (← init.findD rhs (deg + 1))
+          unless ← init.existsPropM flipProp degree do
             let flip ← whnf (← mkAppM ``Eq.symm #[pf])
             let rhsKey ← lhs.simplify
             let lhsKey ← rhs.simplify
             newEquations := 
               newEquations.push (flipProp, flip, deg + 1)
             let degree := Nat.min deg (← init.findD lhs (deg + 1))
-            withLHS ←  withLHS.insert lhsKey (lhs, flip, degree)
+            withLHS ←  withLHS.insert lhsKey (rhs, lhs, flip, degree)
             let degree := Nat.min deg (← init.findD rhs (deg + 1))
-            withRHS ←  withRHS.insert rhsKey (rhs, flip, deg + 1)
+            withRHS ←  withRHS.insert rhsKey (lhs, rhs, flip, degree)
         | none => pure ()
     IO.println s!"DiscrTree symmetrized ({newEquations.size}): {(← IO.monoMsNow) - start} ms"
+    let mut cumPairCnt : HashMap Nat Nat := HashMap.empty
+    for key in sideKeys do
+      let m ← withLHS.getMatch key
+      for (lhs, rhs, pf, _) in m do
+      let degrees := m.map <| fun (_, _, _, deg) => deg
+      for deg1 in degrees do
+        for deg2 in degrees do 
+          for j in [deg1 + deg2:degBnd + 1] do
+            cumPairCnt := cumPairCnt.insert j (cumPairCnt.findD j 0 + 1)
+      for deg1 in degrees do 
+        for j in [deg1 + deg1:degBnd + 1] do
+          cumPairCnt := cumPairCnt.insert j (cumPairCnt.findD j 0 - 1)
+    for key in sideKeys do
+      let withThisLHS ← withLHS.getMatch key
+      let withThisRHS ← withRHS.getMatch key
+      for (y₁, x, eq1, deg1) in withThisRHS do
+        for (y₂, z, eq2, deg2) in withThisLHS do
+        if ← isDefEq y₁ y₂ then
+          let deg := deg1 + deg2
+          if deg ≤ degBnd && (leqOpt (cumPairCnt.findD deg 0)  card) then 
+          unless ← isDefEq x  z do
+            let prop ← mkEq x z
+            Term.synthesizeSyntheticMVarsNoPostponing
+            unless ← init.existsPropM prop deg do
+              let eq3 ← whnf (←   mkAppM ``Eq.trans #[eq1, eq2]) 
+              newEquations := 
+                  newEquations.push (prop, eq3, deg)  
+    IO.println s!"DiscrTree generation ({newEquations.size}): {(← IO.monoMsNow) - start} ms"
 
    /- group equations, for y we have proofs of x = y and then y = z,
         record array of (x, pf, deg) and array of (z, pf, z)
@@ -558,9 +588,32 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
                 Term.synthesizeSyntheticMVarsNoPostponing
                 let key ← exprHash prop
                 unless ← (allEquationGroups.findD key ExprDist.empty).existsPropM prop deg do
-                  eqs ←  eqs.pushProofM prop eq3 deg   
-    IO.println s!"Finished generating equations: {(← IO.monoMsNow) - start} ms"
-    return eqs
+                  eqs ←  eqs.pushProofM prop eq3 deg
+                  unless ← newEquations.anyM (fun (p, _, _) => isDefEq prop p) do
+                    IO.println s!"Did not generate: {← view eq3} ; from {← view eq1} ; and {← view eq2} in DiscrTree"
+                    let key ← y.simplify
+                    let withThisLHS ← withLHS.getMatch key
+                    let withThisRHS ← withRHS.getMatch key
+                    IO.println s!"withThisLHS: {withThisLHS.size}, withThisRHS: {withThisRHS.size}"
+                    let eq1Match ← withThisRHS.filterM (fun (_, _, eq, _) => isDefEq eq eq1)
+                    let eq2Match ← withThisLHS.filterM (fun (_, _, eq, _) => isDefEq eq eq2)
+                    IO.println s!"seeking eq1: {← withThisRHS.anyM (fun (_, _, eq, _) => isDefEq eq eq1)}"
+                    IO.println s!"seeking eq2: {← withThisLHS.anyM (fun (_, _, eq, _) => isDefEq eq eq2)}"
+                    IO.println s!"seeking key : {← sideKeys.anyM (fun key => isDefEq key y)}"
+                    IO.println s!"eq1Match: {eq1Match.size}, eq2Match: {eq2Match.size}"
+                    IO.println s!"x: {← view x}, y: {← view y}, z: {← view z}, deg: {deg}"
+                    IO.println "DiscrTree values"
+                    for (y₁, x, _, d) in eq1Match do
+                      IO.println s!"y₁ : {← view y₁}, x: {← view x}, deg : {d}"
+                      IO.println s!"Expected degree: {Nat.min d (← init.findD x d)}"
+                      IO.println s!"Is new : {← newEquations.anyM (fun (prop, _, _) => isDefEq prop eq1)}"
+                    for (y₂, z, _, d) in eq2Match do
+                      IO.println s!"y₂ : {← view y₂}, z: {← view z}, deg : {d}"
+                      IO.println s!"Expected degree: {Nat.min d (← init.findD z d)}"
+                      IO.println s!"Is new : {← newEquations.anyM (fun (prop, _, _) => isDefEq prop eq2)}"
+    IO.println s!"Finished generating equations ({eqs.proofsArray.size}): {(← IO.monoMsNow) - start} ms"
+    let res ← ExprDist.buildM #[] newEquations
+    return res
 
 /- Recursive evolvers, all based on `isleM` islands -/
 
