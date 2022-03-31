@@ -43,7 +43,8 @@ def addKeyM (d: ExprDist)(key: Expr) : TermElabM ExprDist := do
 def buildM(termsArray : Array (Expr × Nat))
           (proofsArray: Array (Expr × Expr × Nat)) : TermElabM ExprDist := do
           let mut termsTree : DiscrTree (Expr × Nat) := DiscrTree.empty
-          let mut proofsTree :  DiscrTree (Expr × Expr × Nat) := DiscrTree.empty
+          let mut proofsTree :  
+              DiscrTree (Expr × Expr × Nat) := DiscrTree.empty
           let mut keys := #[]
           for (x, d) in termsArray do
             let key ← x.simplify
@@ -73,14 +74,14 @@ def propDegreeM?(d: ExprDist)(prop: Expr) : TermElabM (Option Nat) := do
   else  return some <| arr.foldl (fun x y => Nat.min x y) arr[0]
 
 def existsM(d: ExprDist)(x: Expr)(deg : Nat) : TermElabM Bool := do
-  match ← termDegreeM? d x with
-  | none => return false
-  | some deg' => return deg' ≤ deg
+  let arr ← d.termsTree.getMatch (← x.simplify)
+  let arr := arr.filter (fun (y, d) => d ≤ deg) 
+  arr.anyM (fun (y, _) => isDefEq x y)
 
 def existsPropM(d: ExprDist)(prop: Expr)(deg : Nat) : TermElabM Bool := do
-  match ← propDegreeM? d prop with
-  | none => return false
-  | some deg' => return deg' ≤ deg
+  let arr ← d.proofsTree.getMatch (← prop.simplify)
+  let arr := arr.filter (fun (_, _, d) => d ≤ deg) 
+  arr.anyM (fun ⟨p, _, _⟩ => isDefEq prop p)
 
 def termsArrayM(d: ExprDist) : TermElabM (Array (Expr × Nat)) := do
   let mut arr := #[]
@@ -137,7 +138,7 @@ Add a term with no checks; to be used only if it is known that the term is not a
 def pushTermM(m: ExprDist)(x: Expr)(d: Nat) : TermElabM ExprDist := do
   let key ← x.simplify
   let m ← m.addKeyM key
-  let newTermsTree ← m.termsTree.insert (← x.simplify) (x, d) 
+  let newTermsTree ← m.termsTree.insert key (x, d) 
   return ⟨newTermsTree, m.proofsTree, m.keys⟩
 
 /--
@@ -146,7 +147,7 @@ Add a proof with no checks; to be used only if it is known that the proposition 
 def pushProofM(m: ExprDist)(prop x: Expr)(d: Nat) : TermElabM ExprDist := do
   let key ← prop.simplify
   let m ← m.addKeyM key
-  let newProofTree ← m.proofsTree.insert (← prop.simplify) (prop, x, d)
+  let newProofTree ← m.proofsTree.insert key (prop, x, d)
   return ⟨m.termsTree, newProofTree, m.keys⟩
 /--
 Adds a proof if appropriate, and returns `some dist` if the distribution has been modified.
@@ -185,15 +186,17 @@ def updatedExprM?
 Compute the set difference of two distributions using hashes.
 -/
 def diffM(fst snd: ExprDist) : TermElabM ExprDist := do
-    let mut dist := ExprDist.empty
+    let mut termsTree : DiscrTree (Expr × Nat) := DiscrTree.empty
+    let mut proofsTree :  
+        DiscrTree (Expr × Expr × Nat) := DiscrTree.empty    
     for key in fst.keys do
       for (x, deg) in (← fst.termsTree.getMatch key) do
         unless ← snd.existsM x deg do
-          dist ← dist.pushTermM x deg
+          termsTree ← termsTree.insert key (x, deg)
       for (prop, pf, deg) in (← fst.proofsTree.getMatch key) do
         unless ← snd.existsPropM prop deg do
-          dist ← dist.pushProofM prop pf  deg
-    return dist
+          proofsTree ← proofsTree.insert key (prop, pf, deg)
+    return ⟨termsTree, proofsTree, fst.keys⟩
 
 /--
 Merge without using hashes; not used currently but as the hashing is hacky this is not deleted.
@@ -220,6 +223,8 @@ def fromArrayM(arr: Array (Expr× Nat)): TermElabM ExprDist := do
       dist ← dist.updateTermM e n
     else
       let l ← inferType e
+      let l ← whnf l
+      Term.synthesizeSyntheticMVarsNoPostponing
       dist ← dist.updateProofM l e n
   return dist
 
@@ -322,14 +327,15 @@ def forallOfEquality(dist: ExprDist) : TermElabM (Array (Expr × Nat))  := do
 Returns a proof of the proposition with degree if present in the distribution.
 -/
 def getProofM?(dist: ExprDist)(prop: Expr) : TermElabM (Option (Expr ×  Nat)) := do
-  let opt ←  (← dist.proofsArrayM).findM? <| fun (l, p, deg) => isDefEq l prop
+  let opt ←  (← dist.proofsTree.getMatch (← prop.simplify)).findM? 
+      <| fun (l, p, deg) => isDefEq l prop
   return opt.map <| fun (_, p, deg) => (p, deg)
 
 /--
 Checks whether a proof is present.
 -/
 def hasProof(dist: ExprDist)(prop: Expr) : TermElabM Bool := do
-  (← dist.proofsArrayM).anyM <| fun (l, _, _) => isDefEq l prop
+  (← dist.proofsTree.getMatch (← prop.simplify)).anyM <| fun (l, _, _) => isDefEq l prop
 
 /--
 Array of propositions with degrees that are present as proofs and whose proofs are not present.
@@ -342,7 +348,7 @@ def goalsArr(dist: ExprDist) : TermElabM (Array (Expr × Nat)) := do
 Returns a term with degree which is definitionally equal to the given term if present.
 -/
 def getTermM?(dist: ExprDist)(elem: Expr) : TermElabM (Option (Expr ×  Nat)) := do
-  (← dist.termsArrayM).findM? <| fun (t, deg) => isDefEq t elem
+  (← dist.termsTree.getMatch (← elem.simplify)).findM? <| fun (t, deg) => isDefEq t elem
 
 /--
 Array of proofs with degrees that are in the distribution for given goals;
@@ -383,13 +389,6 @@ Find degree of term if present or return default.
 -/
 def findD(dist: ExprDist)(elem: Expr)(default: Nat) : TermElabM Nat := do
   return (← termDegreeM? dist elem).getD default
-  -- match ← getTermM? dist elem with
-  -- | some (t, deg) =>
-  --   let deg' ← dist.termDegreeM? elem
-  --   unless (deg' = some deg) do
-  --     IO.println s!"Warning: term degree changed from {deg} to {deg'}"
-  --   pure deg
-  -- | none => pure default
 
 def mapM(dist: ExprDist)(f: Expr → TermElabM Expr) : TermElabM ExprDist := do
   let termsArrayBase ← (← dist.allTermsArrayM).mapM <| fun (e, n) => do
