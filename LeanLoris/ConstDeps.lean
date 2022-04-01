@@ -176,6 +176,7 @@ structure FrequencyData where
   typeTermFreqs: HashMap (Name × Name) Nat
   typeTermMap : HashMap Name (HashMap Name Nat)
   allObjects : HashSet Name
+  triples: Array (Name × (Array Name) × (Array Name))
 
 namespace FrequencyData
 
@@ -188,10 +189,12 @@ def asJson(fd: FrequencyData) : Json :=
     toJson <| (fd.typeTermMap.toArray).map (fun (n, m) => 
         (n, m.toArray))
   let sizeJs := toJson fd.size
+  let triplesJs := fd.triples.map (fun (n, l, t) => 
+      Json.mkObj [("name", toJson n), ("terms", toJson l), ("types", toJson t)])
   Json.mkObj [
     ("names", namesJs), ("terms", termsJs), ("types", typesJs),
     ("type-terms", typeTermJs), ("type-term-map", typeTermMapJs),
-    ("size", sizeJs)]
+    ("size", sizeJs), ("triples", toJson triplesJs)]
 
 /-- from off-spring triple obtain frequency data; not counting multiple occurences -/
 def get (triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyData := do
@@ -215,7 +218,7 @@ def get (triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyDa
         let trms := (typeTermMap.findD y HashMap.empty)
         let trms := trms.insert x (trms.findD x 0 + 1)
         typeTermMap := typeTermMap.insert y trms 
-  pure ⟨size, termFreqs, typeFreqs, typeTermFreqs, typeTermMap, allObjects⟩
+  pure ⟨size, termFreqs, typeFreqs, typeTermFreqs, typeTermMap, allObjects, triples⟩
 
 /-- from off-spring triple obtain frequency data; counting multiple occurences -/
 def withMultiplicity(triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyData := do
@@ -239,7 +242,7 @@ def withMultiplicity(triples: Array (Name × (Array Name) × (Array Name))) : IO
         let trms := (typeTermMap.findD y HashMap.empty)
         let trms := trms.insert x (trms.findD x 0 + 1)
         typeTermMap := typeTermMap.insert y trms 
-  pure ⟨size, termFreqs, typeFreqs, typeTermFreqs, typeTermMap, allObjects⟩
+  pure ⟨size, termFreqs, typeFreqs, typeTermFreqs, typeTermMap, allObjects, triples⟩
 
 /-- frequency of occurence of names in definitions -/
 def termFreqData (data: FrequencyData) : IO (Array (Name × Nat)) := do
