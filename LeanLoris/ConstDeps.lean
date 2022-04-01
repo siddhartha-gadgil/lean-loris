@@ -178,6 +178,21 @@ structure FrequencyData where
   allObjects : HashSet Name
 
 namespace FrequencyData
+
+def asJson(fd: FrequencyData) : Json := 
+  let namesJs := toJson fd.allObjects.toArray
+  let termsJs := toJson fd.termFreqs.toArray
+  let typesJs := toJson fd.typeFreqs.toArray
+  let typeTermJs := toJson fd.typeTermFreqs.toArray
+  let typeTermMapJs := 
+    toJson <| (fd.typeTermMap.toArray).map (fun (n, m) => 
+        (n, m.toArray))
+  let sizeJs := toJson fd.size
+  Json.mkObj [
+    ("names", namesJs), ("terms", termsJs), ("types", typesJs),
+    ("type-terms", typeTermJs), ("type-term-map", typeTermMapJs),
+    ("size", sizeJs)]
+
 /-- from off-spring triple obtain frequency data; not counting multiple occurences -/
 def get (triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyData := do
   let size := triples.size
@@ -300,12 +315,14 @@ def matrixData(triples: Array (Name × (Array Name) × (Array Name))) :
 
 /-- Json data: array names of definitions; frequency matrices of occurence of names in definitions and in types of definitions -/
 def matrixJson(triples: Array (Name × (Array Name) × (Array Name))) : Json :=
-  let (objects, termsArray, typesArr) := matrixData triples
+  let (objects, termsArray, typeTermsMatrix) := matrixData triples
   let namesJs := toJson objects
   let termsJs := toJson termsArray
-  let typesJs := toJson typesArr
+  let typesJs := toJson typeTermsMatrix
   Json.mkObj [("names", namesJs), ("terms", termsJs), ("types", typesJs)]
 
 /-- String of Json data: array names of definitions; frequency matrices of occurence of names in definitions and in types of definitions -/
 def matrixView(triples: Array (Name × (Array Name) × (Array Name))) : String :=
   (matrixJson triples).pretty
+
+instance [ToJson FrequencyData] : ToJson FrequencyData := ⟨FrequencyData.asJson⟩
