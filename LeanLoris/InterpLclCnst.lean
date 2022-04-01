@@ -30,20 +30,20 @@ def localConst{α : Type}(f: Nat → α) :=
             semistep!,
             recFn!] expr!{(thm!, 0)} 2 5000 =: dist1
   let ⟨⟨base1, _⟩, ⟨semistep1, _⟩, ⟨recFn1, _⟩⟩ := seek
-  -- let _ : semistep = semistep1 := by rfl
-  -- let _ : base = base1 := by rfl
-  -- let seek2 := evolve! ev![intro, rfl, eq-closure, nat-rec, app, binop] 
-  --           expr![ 
-  --           base!, 
-  --           semistep!,
-  --           step!,
-  --           recFn!] dist1 2 5000 =: dist2
-  -- let seek3 := evolve! ev![Σev![simple-binop] ^ +intro] expr![thm!] 
-  --         expr!{(thm!, 0), (base, 0), (recFn, 0), (step, 0)} 2 5000
-  -- let ⟨⟨thm, _⟩, _⟩ := seek3
-  -- let pf : thm! := fun h => (recFn h) (base h) (step h)
-  -- thm
-  ()
+  let _ : semistep = semistep1 := by rfl
+  let _ : base = base1 := by rfl
+  let seek2 := evolve! ev![intro, rfl, eq-closure, nat-rec, app, binop] 
+            expr![ 
+            base!, 
+            semistep!,
+            step!,
+            recFn!] dist1 2 5000 =: dist2
+  let seek3 := evolve! ev![Σev![simple-binop] ^ +intro] expr![thm!] 
+          expr!{(thm!, 0), (base, 0), (recFn, 0), (step, 0)} 2 5000
+  let ⟨⟨thm, _⟩, _⟩ := seek3
+  let pf : thm! := fun h => (recFn h) (base h) (step h)
+  thm
+  
 
 
 #check localConst
