@@ -182,9 +182,17 @@ namespace FrequencyData
 
 def asJson(fd: FrequencyData) : Json := 
   let namesJs := toJson fd.allObjects.toArray
-  let termsJs := toJson fd.termFreqs.toArray
-  let typesJs := toJson fd.typeFreqs.toArray
-  let typeTermJs := toJson fd.typeTermFreqs.toArray
+  let termsJs := toJson <| 
+      fd.termFreqs.toArray.map (fun (n, c) => 
+        Json.mkObj [("name", toJson n),("count", toJson c)])
+  let typesJs := toJson <|
+    fd.typeFreqs.toArray.map (fun (n, c) => 
+        Json.mkObj [("name", toJson n),("count", toJson c)])
+  let typeTermJs := toJson <| 
+        fd.typeTermFreqs.toArray.map (
+          fun ((term, type), count) =>
+            Json.mkObj [("term", toJson term), ("type", toJson type), ("count", toJson count)])
+        
   let typeTermMapJs := 
     toJson <| (fd.typeTermMap.toArray).map (fun (n, m) => 
         (n, m.toArray))
