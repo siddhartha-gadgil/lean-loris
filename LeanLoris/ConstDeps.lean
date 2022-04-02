@@ -195,7 +195,8 @@ def asJson(fd: FrequencyData) : Json :=
         
   let typeTermMapJs := 
     toJson <| (fd.typeTermMap.toArray).map (fun (n, m) => 
-        (n, m.toArray))
+       Json.mkObj [("type", toJson n), 
+          ("terms", cntJson m.toArray)])
   let sizeJs := toJson fd.size
   let triplesJs := fd.triples.map (fun (n, l, t) => 
       Json.mkObj [("name", toJson n), ("terms", toJson l), ("types", toJson t)])
@@ -203,6 +204,8 @@ def asJson(fd: FrequencyData) : Json :=
     ("names", namesJs), ("terms", termsJs), ("types", typesJs),
     ("type-terms", typeTermJs), ("type-term-map", typeTermMapJs),
     ("size", sizeJs), ("triples", toJson triplesJs)]
+  where cntJson (arr : Array (Name × Nat)) : Json :=
+        toJson <| arr.map (fun (n, c) => Json.mkObj [("name", toJson n), ("count", toJson c)])
 
 /-- from off-spring triple obtain frequency data; not counting multiple occurences -/
 def get (triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyData := do
