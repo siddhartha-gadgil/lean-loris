@@ -36,7 +36,9 @@ def mathDepData(mathenv: Environment) : IO Unit := do
       let typeTerm := data.typeTermView
       IO.FS.writeFile file typeTerm
       let file := System.mkFilePath ["data/frequencies.json"]
-      let freqs := data.asJson.pretty
+      let freqJsonC : CoreM Json := data.asJson
+      let (freqJson, _) ←   freqJsonC.toIO {maxHeartbeats := 100000000000} {env := mathenv}
+      let freqs := freqJson.pretty
       IO.FS.writeFile file freqs
       let file := System.mkFilePath ["data/matrices.json"]
       let matrices := matrixView triples

@@ -444,3 +444,5 @@ def addEg (x y: Nat) := simp! (Nat.add x (Nat.mul x y))
 #check DiscrTree.mkPath
 
 #check Array.any
+
+#eval isProof (mkConst ``Nat.add_assoc)

@@ -85,8 +85,8 @@ partial def recExprNames: Expr → MetaM (Array Name) :=
 
 /-- names that are offspring of the constant with a given name -/
 def offSpring? (name: Name) : MetaM (Option (Array Name)) := do
-  let expr ← nameExpr?  name
-  match expr with
+  let expr? ← nameExpr?  name
+  match expr? with
   | some e => 
     return  some <| (← recExprNames e)
   | none => return none
@@ -180,8 +180,11 @@ structure FrequencyData where
 
 namespace FrequencyData
 
-def asJson(fd: FrequencyData) : Json := 
+def asJsonM(fd: FrequencyData) : MetaM Json := do
   let namesJs := toJson fd.allObjects.toArray
+  let proofs ← fd.allObjects.toArray.filterM (
+      fun n => do isProof (← mkConstWithFreshMVarLevels n))
+  let proofsJs :=  toJson <| proofs    
   let termsJs := toJson <| 
       fd.termFreqs.toArray.map (fun (n, c) => 
         Json.mkObj [("name", toJson n),("count", toJson c)])
@@ -200,12 +203,16 @@ def asJson(fd: FrequencyData) : Json :=
   let sizeJs := toJson fd.size
   let triplesJs := fd.triples.map (fun (n, l, t) => 
       Json.mkObj [("name", toJson n), ("terms", toJson l), ("types", toJson t)])
-  Json.mkObj [
-    ("names", namesJs), ("terms", termsJs), ("types", typesJs),
+  return Json.mkObj [
+    ("names", namesJs), ("proofs", proofsJs), ("terms", termsJs), ("types", typesJs),
     ("type-terms", typeTermJs), ("type-term-map", typeTermMapJs),
     ("size", sizeJs), ("triples", toJson triplesJs)]
   where cntJson (arr : Array (Name × Nat)) : Json :=
         toJson <| arr.map (fun (n, c) => Json.mkObj [("name", toJson n), ("count", toJson c)])
+
+def asJson(fd: FrequencyData) : CoreM Json :=
+  let m := asJsonM fd
+  m.run'
 
 /-- from off-spring triple obtain frequency data; not counting multiple occurences -/
 def get (triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyData := do
@@ -339,4 +346,3 @@ def matrixJson(triples: Array (Name × (Array Name) × (Array Name))) : Json :=
 def matrixView(triples: Array (Name × (Array Name) × (Array Name))) : String :=
   (matrixJson triples).pretty
 
-instance [ToJson FrequencyData] : ToJson FrequencyData := ⟨FrequencyData.asJson⟩
