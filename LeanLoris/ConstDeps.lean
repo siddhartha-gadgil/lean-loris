@@ -8,7 +8,7 @@ import Lean.Data.Json.Basic
 import Lean.Data.Json.Printer
 import Lean.Data.Json.Basic
 import Lean.Data.Json.FromToJson
-open Lean Meta Std
+open Lean Meta Std Elab
 
 /- 
 Generating data of expressions in the definition and the types of global constants in the environment, with the goal of using for machine learning. System level definitions are excluded, based on the prefix of their names.
@@ -121,6 +121,7 @@ def offSpringTriple(excludePrefixes: List Name := [])
       fun (n, type) => 
           do 
           let l := (← offSpring? n).getD #[]
+          let type ← type.simplify
           let l := l.filter fun n => !(excludePrefixes.any (fun pfx => pfx.isPrefixOf n))
           let tl ←  exprDescendants type
           let tl := tl.filter fun n => !(excludePrefixes.any (fun pfx => pfx.isPrefixOf n))
@@ -346,3 +347,11 @@ def matrixJson(triples: Array (Name × (Array Name) × (Array Name))) : Json :=
 def matrixView(triples: Array (Name × (Array Name) × (Array Name))) : String :=
   (matrixJson triples).pretty
 
+elab "simp!" t:term: term => do 
+  let e ← Term.elabTerm t none
+  let r ← e.simplify
+  return r
+
+#eval simp! 2
+
+#check Nat.mul
