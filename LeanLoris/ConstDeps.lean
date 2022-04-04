@@ -69,8 +69,16 @@ partial def recExprNames: Expr → MetaM (Array Name) :=
               (ftype.data.binderInfo.isExplicit)
             let expl := expl?.getD true
             let s ←  
-              if !expl then recExprNames f else
-                return (← recExprNames f) ++ (← recExprNames a)
+              if !expl then 
+                match a with
+                | Expr.const name _ _  =>
+                    do
+                    if ← (isWhiteListed name) 
+                      then
+                        return (← recExprNames f).push name
+                      else recExprNames f 
+                | _ =>   recExprNames f 
+                else return (← recExprNames f) ++ (← recExprNames a)
             return s
       | Expr.lam _ _ b _ => 
           do

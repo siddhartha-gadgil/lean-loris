@@ -23,7 +23,7 @@ def mathDepData(mathenv: Environment) : IO Unit := do
   IO.println "We consider dependencies in MathLib4 and generate various forms of data for machine learning. As of now these are for basic experiments.\n"
   let offCore := offSpringTripleCore
   let ei := offCore.run' 
-      {maxHeartbeats := 100000000000, maxRecDepth := 100000} {env := mathenv}
+      {maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
   match ←  ei.toIO' with
   | Except.ok triples => 
       IO.println "\nData obtained"
@@ -39,7 +39,7 @@ def mathDepData(mathenv: Environment) : IO Unit := do
       let file := System.mkFilePath ["data/frequencies.json"]
       let freqJsonC : CoreM Json := data.asJson
       let (freqJson, _) ←   freqJsonC.toIO 
-          {maxHeartbeats := 100000000000, maxRecDepth := 100000} {env := mathenv}
+          {maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
       let freqs := freqJson.pretty
       IO.FS.writeFile file freqs
       let file := System.mkFilePath ["data/matrices.json"]
