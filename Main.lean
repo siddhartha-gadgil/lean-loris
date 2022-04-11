@@ -62,7 +62,7 @@ def mathDepData(mathenv: Environment) : IO Unit := do
   | Except.ok triples => 
       IO.println "\nData obtained"
       IO.println s!"Using {triples.size} definitions" 
-      let data ← FrequencyData.get triples
+      let data ← FrequencyData.withMultiplicity triples
       let file := System.mkFilePath ["data/shallow-frequencies.json"]
       let freqJsonC : CoreM Json := data.asJson
       let (freqJson, _) ←   freqJsonC.toIO 
