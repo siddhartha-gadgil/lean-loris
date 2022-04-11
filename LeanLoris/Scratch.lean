@@ -446,3 +446,19 @@ def addEg (x y: Nat) := simp! (Nat.add x (Nat.mul x y))
 #check Array.any
 
 #eval isProof (mkConst ``Nat.add_assoc)
+
+example : Trans (. ≤ . : Nat → Nat → Prop) (. ≤ . : Nat → Nat → Prop) (. ≤ . : Nat → Nat → Prop) := inferInstance
+
+#check Trans Nat.le Nat.le
+
+def transExpr {α : Type}{x y z : Expr}{rel: Expr}: MetaM Expr := do
+        let r1 ←  mkAppM' rel #[x, y]
+        let r2 ←  mkAppM' rel #[y, z]
+        let l ←
+          withLocalDecl `pf1 BinderInfo.default r1 fun pf1 =>
+          withLocalDecl `pf2 BinderInfo.default r2 fun pf2 => do
+            let pf3 ← mkAppM ``trans #[pf1, pf2]
+              -- Term.elabAppArgs f #[]
+              --   #[Term.Arg.expr pf1, Term.Arg.expr pf2] none (explicit := false) (ellipsis := false)
+            mkLambdaFVars #[pf1, pf2] pf3
+        pure l

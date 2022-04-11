@@ -136,12 +136,39 @@ def offSpringTriple(excludePrefixes: List Name := [])
           return (n, l, tl)
   return kv
 
+/-- 
+Array of constants, names in their definition, and names in their type. 
+-/
+def offSpringShallowTriple(excludePrefixes: List Name := [])
+              : MetaM (Array (Name × (Array Name) × (Array Name) )) :=
+  do
+  let keys ←  constantNameTypes  
+  IO.println s!"Tokens: {keys.size}"
+  let goodKeys := keys.filter fun (name, _) =>
+    !(excludePrefixes.any (fun pfx => pfx.isPrefixOf name))
+  IO.println s!"Tokens considered (excluding system code): {goodKeys.size}"
+  let kv : Array (Name × (Array Name) × (Array Name)) ←  (goodKeys).mapM $ 
+      fun (n, type) => 
+          do 
+          let l := (← offSpring? n).getD #[]
+          let type ← type.simplify
+          let l := l.filter fun n => !(excludePrefixes.any (fun pfx => pfx.isPrefixOf n))
+          let tl ←  recExprNames type
+          let tl := tl.filter fun n => !(excludePrefixes.any (fun pfx => pfx.isPrefixOf n))
+          return (n, l, tl)
+  return kv
+
 /--
 In core monad : array of constants, names in their definition, and names in their type. 
 -/
 def offSpringTripleCore: 
     CoreM (Array (Name × (Array Name) × (Array Name) )) := 
           (offSpringTriple [`Lean, `Std, `IO, 
+          `Char, `String, `ST, `StateT, `Repr, `ReaderT, `EIO, `BaseIO]).run' 
+  
+def offSpringShallowTripleCore: 
+    CoreM (Array (Name × (Array Name) × (Array Name) )) := 
+          (offSpringShallowTriple [`Lean, `Std, `IO, 
           `Char, `String, `ST, `StateT, `Repr, `ReaderT, `EIO, `BaseIO]).run' 
 
 /-- binomial pmf -/

@@ -12,13 +12,14 @@ Running computationally expensive code. Specifically, depending on the command l
 1. A Czech-Slovak Olympiad problem: purely forward reasoning.
 2. Mixed reasoning: functions satisfying `∀ n: Nat, f(n + 1) = f(n)` are constants.
 3. Generation of dependency data for machine learning.
+4. Generation of shallow dependency data for machine learning.
 -/
 
 set_option maxHeartbeats 10000000
 set_option maxRecDepth 1000
 set_option compiler.extract_closed false
 
-def mathDepData(mathenv: Environment) : IO Unit := do
+def mathDepFullData(mathenv: Environment) : IO Unit := do
   IO.println "\n# Dependencies for data for machine learning.\n"
   IO.println "We consider dependencies in MathLib4 and generate various forms of data for machine learning. As of now these are for basic experiments.\n"
   let offCore := offSpringTripleCore
@@ -45,6 +46,29 @@ def mathDepData(mathenv: Environment) : IO Unit := do
       let file := System.mkFilePath ["data/matrices.json"]
       let matrices := matrixView triples
       IO.FS.writeFile file matrices
+  | Except.error e =>
+    do
+          let msg ← e.toMessageData.toString
+          IO.println msg
+  return ()
+
+def mathDepData(mathenv: Environment) : IO Unit := do
+  IO.println "\n# Dependencies for data for machine learning.\n"
+  IO.println "We consider dependencies in MathLib4 and generate various forms of data for machine learning. As of now these are for basic experiments.\n"
+  let offCore := offSpringShallowTripleCore
+  let ei := offCore.run' 
+      {maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
+  match ←  ei.toIO' with
+  | Except.ok triples => 
+      IO.println "\nData obtained"
+      IO.println s!"Using {triples.size} definitions" 
+      let data ← FrequencyData.get triples
+      let file := System.mkFilePath ["data/shallow-frequencies.json"]
+      let freqJsonC : CoreM Json := data.asJson
+      let (freqJson, _) ←   freqJsonC.toIO 
+          {maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
+      let freqs := freqJson.pretty
+      IO.FS.writeFile file freqs
   | Except.error e =>
     do
           let msg ← e.toMessageData.toString
@@ -113,7 +137,9 @@ def main (args: List String) : IO Unit := do
   IO.println "1. Czech-Slovak Olympiad example"
   IO.println "2. Induction: locally constant functions"
   IO.println "3. Dependency generation"
+  IO.println "4. Shallow dependency generation"
   if args.contains "2" then runLclConst env
   if args.contains "1" then runCzSl env
-  if args.contains "3" then mathDepData mathenv
+  if args.contains "3" then mathDepFullData mathenv
+  if args.contains "4" then mathDepData mathenv
   return ()
