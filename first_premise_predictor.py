@@ -74,9 +74,9 @@ keras.callbacks.TensorBoard(
 model.compile(
     optimizer=keras.optimizers.Adam(),  # Optimizer
     # Loss function to minimize
-    loss=keras.losses.MeanAbsoluteError(),
+    loss=keras.losses.KLDivergence(),
     # List of metrics to monitor
-    metrics=[keras.metrics.MeanAbsoluteError()],
+    metrics=[keras.metrics.KLDivergence()],
 )
 
 print('Built tensors')
@@ -90,7 +90,7 @@ history = model.fit(
     statements_tensor,
     proofs_tensor,
     batch_size=64,
-    epochs=64,
+    epochs=1024,
     # We pass some validation for
     # monitoring validation loss and metrics
     # at the end of each epoch
