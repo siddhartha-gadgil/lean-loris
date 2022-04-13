@@ -43,11 +43,15 @@ proofs = [normalize(row) for row in terms]
 model = keras.Sequential([
     keras.Input(shape=(dim,), name="types"),
     layers.Dense(32, activation="elu", kernel_initializer='glorot_normal',
-                 kernel_regularizer=regularizers.l2(0.01), name="dense_1"),
-    layers.Dropout(0.5),
+                 kernel_regularizer=regularizers.l2(0.001),
+                 bias_regularizer=regularizers.l2(0.01),
+                 name="dense_1"),
+    layers.Dropout(0.2),
     layers.Dense(32, activation="elu", kernel_initializer='glorot_normal',
-                 kernel_regularizer=regularizers.l2(0.001), name="dense_2"),
-    layers.Dropout(0.5),
+                 kernel_regularizer=regularizers.l2(0.001),
+                 bias_regularizer=regularizers.l2(0.01),
+                 name="dense_2"),
+    layers.Dropout(0.2),
     layers.Dense(dim, activation="softmax", name="predictions")
 ]
 )
@@ -70,9 +74,9 @@ keras.callbacks.TensorBoard(
 model.compile(
     optimizer=keras.optimizers.Adam(),  # Optimizer
     # Loss function to minimize
-    loss=keras.losses.MeanSquaredError(),
+    loss=keras.losses.MeanAbsoluteError(),
     # List of metrics to monitor
-    metrics=[keras.metrics.MeanSquaredError()],
+    metrics=[keras.metrics.MeanAbsoluteError()],
 )
 
 print('Built tensors')
@@ -86,7 +90,7 @@ history = model.fit(
     statements_tensor,
     proofs_tensor,
     batch_size=64,
-    epochs=16,
+    epochs=64,
     # We pass some validation for
     # monitoring validation loss and metrics
     # at the end of each epoch
