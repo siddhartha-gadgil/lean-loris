@@ -52,7 +52,10 @@ repr = layers.Dense(
     kernel_initializer='glorot_normal', bias_initializer='zeros',
     kernel_regularizer=regularizers.l2(0.001))(inputs)
 # output via representation, normalized by softmax
-low_rank_out = layers.Dense(dim, activation='elu', name="low_rank_out")(repr)
+low_rank_out = layers.Dense(
+    dim, activation='elu', name="low_rank_out",
+    kernel_initializer='glorot_normal', bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001))(repr)
 low_rank_prob = tf.keras.activations.softmax(low_rank_out)
 
 # probability of using weights in statements and its complement
@@ -102,3 +105,34 @@ type_matrix = prob_matrix(data_types, dim)
 
 test_term_matrix = prob_matrix(test_terms, dim)
 test_type_matrix = prob_matrix(test_types, dim)
+
+model.compile(
+    optimizer=keras.optimizers.Adam(),  # Optimizer
+    # Loss function to minimize
+    loss=keras.losses.KLDivergence(),
+    # List of metrics to monitor
+    metrics=[keras.metrics.KLDivergence()],
+)
+
+print('Built tensors')
+
+print("Fit model on training data")
+
+log_dir = "/home/gadgil/code/lean-loris/logs"
+tensorboard_callback = tf.keras.callbacks.TensorBoard(
+    log_dir=log_dir, histogram_freq=1)
+history = model.fit(
+    term_matrix,
+    type_matrix,
+    batch_size=64,
+    epochs=1024,
+    # We pass some validation for
+    # monitoring validation loss and metrics
+    # at the end of each epoch
+    validation_data=(test_term_matrix, test_type_matrix),
+    callbacks=[tensorboard_callback]
+)
+
+print("Done training")
+
+print(history.history)
