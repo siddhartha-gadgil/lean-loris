@@ -31,6 +31,7 @@ data_triples = []
 test_triples = []
 random.seed(5)
 for triple in triples:
+   if len(triple["types"]) and len(triple["terms"]) > 0: 
     r = random.random()
     if r < 0.9:
         data_triples.append(triple)
