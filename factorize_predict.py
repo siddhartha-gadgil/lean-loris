@@ -43,11 +43,11 @@ inputs = keras.Input(shape=(dim,))
 rep = layers.Dense(rep_dim, activation= 'elu',  name="rep", kernel_initializer='glorot_normal', bias_initializer='zeros',
                  kernel_regularizer=regularizers.l2(0.001))(inputs)
 low_rank_out = layers.Dense(dim, activation= 'elu', name="low_rank_out")(rep)
-low_rank_scaled = layers.Softmax()(low_rank_out)
+low_rank_scaled = tf.keras.activations.softmax(low_rank_out)
 prob_preserve = layers.Dense(1, activation='sigmoid', kernel_initializer='glorot_normal', bias_initializer='zeros',
      kernel_regularizer=regularizers.l2(0.001), name="prob_preserve")(rep)
 from_statement = layers.multiply([inputs, prob_preserve])
-outputs_sum = layers.add([low_rank_out, from_statement])
+outputs_sum = layers.add([low_rank_scaled, from_statement])
 outputs= layers.Softmax()(outputs_sum)
 model = keras.Model(inputs=inputs, outputs=outputs, name="factorization_model")
 print(model.summary())
