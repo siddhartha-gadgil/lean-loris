@@ -13,10 +13,13 @@ js = file.read()
 data = json.loads(js)
 file.close()
 names = data["names"]
-print (len(names))
+indices = index_dict(names)
 dim = len(names)
 triples = data["triples"]
+
+print (len(names))
 print (len(triples))
+
 data_triples = []
 test_triples = []
 random.seed(5)
@@ -30,6 +33,7 @@ print (len(data_triples))
 print (len(test_triples))
 data_size = len(data_triples)
 
+# The model
 rep_dim=10
 inputs = keras.Input(shape=(dim,))
 rep = layers.Dense(rep_dim,  name="rep")(inputs)
@@ -40,6 +44,19 @@ outputs = layers.add([low_rank_out, from_statement])
 model = keras.Model(inputs=inputs, outputs=outputs, name="factorization_model")
 print(model.summary())
 
-indices = index_dict(names)
 print(test_triples[0]["terms"])
 print(test_triples[0]["types"])
+
+def terms_and_types(triples):
+    terms =[t["terms"] for t in triples]
+    types = [t["types"] for t in triples]
+    return terms, types
+
+(data_terms, data_types) = terms_and_types(data_triples)
+(test_terms, test_types) = terms_and_types(test_triples)
+
+
+
+print(data_terms[0])
+print(data_types[0])
+print(len(data_terms))
