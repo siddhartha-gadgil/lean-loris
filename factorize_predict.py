@@ -42,8 +42,38 @@ data_size = len(data_triples)
 print(
     f'Separated into data_triples: {len(data_triples)} and test_triples: {len(test_triples)}')
 
-# The model
-repr_dim = 10 # dimension of the reprresentations
+# lists of lists for terms and types
+def terms_and_types(triples):
+    terms = [t["terms"] for t in triples]
+    types = [t["types"] for t in triples]
+    return terms, types
+
+(data_terms, data_types) = terms_and_types(data_triples)
+(test_terms, test_types) = terms_and_types(test_triples)
+
+# numpy matrix of probability distributions of terms and types
+def prob_matrix(data, dim):
+    data_size = len(data)
+    matrix = np.zeros((data_size, dim), np.float32)
+    for i in range(len(data)):
+        row = data[i]
+        size = len(row)
+        if size > 0:
+            for name in row:
+                j = indices[name]
+                matrix[i][j] = matrix[i][j] + (1 / size)
+    return matrix
+
+
+term_matrix = prob_matrix(data_terms, dim)
+type_matrix = prob_matrix(data_types, dim)
+
+test_term_matrix = prob_matrix(test_terms, dim)
+test_type_matrix = prob_matrix(test_types, dim)
+
+
+# The first model
+repr_dim = 10 # dimension of the representations
 inputs = keras.Input(shape=(dim,))
 # the representation layer
 repr = layers.Dense(
@@ -74,39 +104,10 @@ low_rank_scaled = layers.multiply([prob_others, low_rank_prob])
 outputs = layers.add([low_rank_scaled, from_statement])
 
 # the built model
-model = keras.Model(inputs=inputs, outputs=outputs, name="factorization_model")
-print(model.summary())
+model1 = keras.Model(inputs=inputs, outputs=outputs, name="factorization_model1")
+print(model1.summary())
 
-# lists of lists for terms and types
-def terms_and_types(triples):
-    terms = [t["terms"] for t in triples]
-    types = [t["types"] for t in triples]
-    return terms, types
-
-(data_terms, data_types) = terms_and_types(data_triples)
-(test_terms, test_types) = terms_and_types(test_triples)
-
-# numpy matrix of probability distributions of terms and types
-def prob_matrix(data, dim):
-    data_size = len(data)
-    matrix = np.zeros((data_size, dim), np.float32)
-    for i in range(len(data)):
-        row = data[i]
-        size = len(row)
-        if size > 0:
-            for name in row:
-                j = indices[name]
-                matrix[i][j] = matrix[i][j] + (1 / size)
-    return matrix
-
-
-term_matrix = prob_matrix(data_terms, dim)
-type_matrix = prob_matrix(data_types, dim)
-
-test_term_matrix = prob_matrix(test_terms, dim)
-test_type_matrix = prob_matrix(test_types, dim)
-
-model.compile(
+model1.compile(
     optimizer=keras.optimizers.Adam(),  # Optimizer
     # Loss function to minimize
     loss=keras.losses.KLDivergence(),
@@ -114,25 +115,26 @@ model.compile(
     metrics=[keras.metrics.KLDivergence()],
 )
 
-print('Built tensors')
+print("Compiled model 1")
 
-print("Fit model on training data")
+
 
 log_dir = "/home/gadgil/code/lean-loris/logs"
 tensorboard_callback = tf.keras.callbacks.TensorBoard(
     log_dir=log_dir, histogram_freq=1)
-history = model.fit(
-    term_matrix,
-    type_matrix,
-    batch_size=64,
-    epochs=1024,
-    # We pass some validation for
-    # monitoring validation loss and metrics
-    # at the end of each epoch
-    validation_data=(test_term_matrix, test_type_matrix),
-    callbacks=[tensorboard_callback]
-)
 
-print("Done training")
-
-print(history.history)
+def fit(n=1024, m= model1):
+    history = m.fit(
+        term_matrix,
+        type_matrix,
+        batch_size=64,
+        epochs=n,
+        # We pass some validation for
+        # monitoring validation loss and metrics
+        # at the end of each epoch
+        validation_data=(test_term_matrix, test_type_matrix),
+        callbacks=[tensorboard_callback]
+    )
+    print("Done training")
+    print(history.history)
+    return history
