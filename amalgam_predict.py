@@ -174,6 +174,66 @@ model2.compile(
 
 print("Compiled model 2")
 
+# The third model - like the second but with dropout
+repr_dim3 = 10 # dimension of the representations
+step_dim3 = 20
+inputs3 = keras.Input(shape=(dim,))
+# the representation layer
+repr_step3 = layers.Dense(
+    step_dim3,
+    activation='elu',  name="repr_step",
+    kernel_initializer='glorot_normal', bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001))(inputs3)
+repr_drop3 = layers.Dropout(0.5)(repr_step3)
+repr3 = layers.Dense(
+    repr_dim3,
+    activation='elu',  name="repr",
+    kernel_initializer='glorot_normal', bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001))(repr_drop3)
+repr3drop = layers.Dropout(0.5)(repr3)
+
+# output via representation, normalized by softmax
+low_rank_step3 = layers.Dense(
+    step_dim3, activation='elu', name="low_rank_step",
+    kernel_initializer='glorot_normal', bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001))(repr3drop)
+
+low_rank_drop3 = layers.Dropout(0.5)(low_rank_step3)
+low_rank_out3 = layers.Dense(
+    dim, activation='elu', name="low_rank_out",
+    kernel_initializer='glorot_normal', bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001))(low_rank_drop3)
+low_rank_prob3 = tf.keras.activations.softmax(low_rank_out3)
+
+# probability of using weights in statements and its complement
+prob_self3 = layers.Dense(
+    1, activation='sigmoid',
+    kernel_initializer='glorot_normal',
+    bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001),
+    name="prob_self")(repr3drop)
+prob_others3 = layers.subtract(
+    [tf.constant(1, dtype=np.float32, shape=(1,)), prob_self3])
+
+# weighted average of directly predicted weights and type weights with weight learned
+from_statement3 = layers.multiply([inputs3, prob_self3])
+low_rank_scaled3 = layers.multiply([prob_others3, low_rank_prob3])
+outputs3 = layers.add([low_rank_scaled3, from_statement3])
+
+# the built model
+model3 = keras.Model(inputs=inputs3, outputs=outputs3, name="factorization_model3")
+print(model3.summary())
+
+model3.compile(
+    optimizer=keras.optimizers.Adam(),  # Optimizer
+    # Loss function to minimize
+    loss=keras.losses.KLDivergence(),
+    # List of metrics to monitor
+    metrics=[keras.metrics.KLDivergence()],
+)
+
+print("Compiled model 3")
+
 
 
 log_dir = "/home/gadgil/code/lean-loris/logs"
@@ -190,7 +250,14 @@ def fit(n=1024, m= model1):
         # monitoring validation loss and metrics
         # at the end of each epoch
         validation_data=(test_term_matrix, test_type_matrix),
-        callbacks=[tensorboard_callback]
+        callbacks=[tensorboard_callback, keras.callbacks.EarlyStopping(
+        # Stop training when `val_loss` is no longer improving
+        monitor="val_loss",
+        # "no longer improving" being defined as "no better than 1e-2 less"
+        min_delta=1e-2,
+        # "no longer improving" being further defined as "for at least 2 epochs"
+        patience=20,
+        verbose=1,)]
     )
     print("Done training")
     return history
