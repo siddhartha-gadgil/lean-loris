@@ -73,41 +73,89 @@ test_type_matrix = prob_matrix(test_types, dim)
 
 
 # The first model
-repr_dim = 10 # dimension of the representations
-inputs = keras.Input(shape=(dim,))
+repr_dim1 = 10 # dimension of the representations
+inputs1 = keras.Input(shape=(dim,))
 # the representation layer
-repr = layers.Dense(
-    repr_dim,
+repr1 = layers.Dense(
+    repr_dim1,
     activation='elu',  name="repr",
     kernel_initializer='glorot_normal', bias_initializer='zeros',
-    kernel_regularizer=regularizers.l2(0.001))(inputs)
+    kernel_regularizer=regularizers.l2(0.001))(inputs1)
 # output via representation, normalized by softmax
-low_rank_out = layers.Dense(
+low_rank_out1 = layers.Dense(
     dim, activation='elu', name="low_rank_out",
     kernel_initializer='glorot_normal', bias_initializer='zeros',
-    kernel_regularizer=regularizers.l2(0.001))(repr)
-low_rank_prob = tf.keras.activations.softmax(low_rank_out)
+    kernel_regularizer=regularizers.l2(0.001))(repr1)
+low_rank_prob1 = tf.keras.activations.softmax(low_rank_out1)
 
 # probability of using weights in statements and its complement
-prob_self = layers.Dense(
+prob_self1 = layers.Dense(
     1, activation='sigmoid',
     kernel_initializer='glorot_normal',
     bias_initializer='zeros',
     kernel_regularizer=regularizers.l2(0.001),
-    name="prob_self")(repr)
-prob_others = layers.subtract(
-    [tf.constant(1, dtype=np.float32, shape=(1,)), prob_self])
+    name="prob_self")(repr1)
+prob_others1 = layers.subtract(
+    [tf.constant(1, dtype=np.float32, shape=(1,)), prob_self1])
 
 # weighted average of directly predicted weights and type weights with weight learned
-from_statement = layers.multiply([inputs, prob_self])
-low_rank_scaled = layers.multiply([prob_others, low_rank_prob])
-outputs = layers.add([low_rank_scaled, from_statement])
+from_statement1 = layers.multiply([inputs1, prob_self1])
+low_rank_scaled1 = layers.multiply([prob_others1, low_rank_prob1])
+outputs1 = layers.add([low_rank_scaled1, from_statement1])
 
 # the built model
-model1 = keras.Model(inputs=inputs, outputs=outputs, name="factorization_model1")
+model1 = keras.Model(inputs=inputs1, outputs=outputs1, name="factorization_model1")
 print(model1.summary())
 
-model1.compile(
+# The second model
+repr_dim2 = 10 # dimension of the representations
+step_dim2 = 20
+inputs2 = keras.Input(shape=(dim,))
+# the representation layer
+repr_step2 = layers.Dense(
+    step_dim2,
+    activation='elu',  name="repr_step",
+    kernel_initializer='glorot_normal', bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001))(inputs2)
+repr2 = layers.Dense(
+    repr_dim2,
+    activation='elu',  name="repr",
+    kernel_initializer='glorot_normal', bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001))(repr_step2)
+
+# output via representation, normalized by softmax
+low_rank_step2 = layers.Dense(
+    step_dim2, activation='elu', name="low_rank_step",
+    kernel_initializer='glorot_normal', bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001))(repr2)
+
+low_rank_out2 = layers.Dense(
+    dim, activation='elu', name="low_rank_out",
+    kernel_initializer='glorot_normal', bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001))(low_rank_step2)
+low_rank_prob2 = tf.keras.activations.softmax(low_rank_out2)
+
+# probability of using weights in statements and its complement
+prob_self2 = layers.Dense(
+    1, activation='sigmoid',
+    kernel_initializer='glorot_normal',
+    bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001),
+    name="prob_self")(repr2)
+prob_others2 = layers.subtract(
+    [tf.constant(1, dtype=np.float32, shape=(1,)), prob_self2])
+
+# weighted average of directly predicted weights and type weights with weight learned
+from_statement2 = layers.multiply([inputs2, prob_self2])
+low_rank_scaled2 = layers.multiply([prob_others2, low_rank_prob2])
+outputs2 = layers.add([low_rank_scaled2, from_statement2])
+
+# the built model
+model2 = keras.Model(inputs=inputs2, outputs=outputs2, name="factorization_model2")
+print(model2.summary())
+
+
+model2.compile(
     optimizer=keras.optimizers.Adam(),  # Optimizer
     # Loss function to minimize
     loss=keras.losses.KLDivergence(),
@@ -115,7 +163,7 @@ model1.compile(
     metrics=[keras.metrics.KLDivergence()],
 )
 
-print("Compiled model 1")
+print("Compiled model 2")
 
 
 
@@ -136,5 +184,4 @@ def fit(n=1024, m= model1):
         callbacks=[tensorboard_callback]
     )
     print("Done training")
-    print(history.history)
-    return history
+    # return history
