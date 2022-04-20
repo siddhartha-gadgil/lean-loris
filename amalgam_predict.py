@@ -193,4 +193,4 @@ def fit(n=1024, m= model1):
         callbacks=[tensorboard_callback]
     )
     print("Done training")
-    # return history
+    return history
