@@ -31,27 +31,32 @@ data_triples = []
 test_triples = []
 random.seed(5)
 for triple in triples:
-   if len(triple["types"]) and len(triple["terms"]) > 0: 
-    r = random.random()
-    if r < 0.9:
-        data_triples.append(triple)
-    else:
-        test_triples.append(triple)
+    if len(triple["types"]) and len(triple["terms"]) > 0:
+        r = random.random()
+        if r < 0.9:
+            data_triples.append(triple)
+        else:
+            test_triples.append(triple)
 data_size = len(data_triples)
 
 print(
     f'Separated into data_triples: {len(data_triples)} and test_triples: {len(test_triples)}')
 
 # lists of lists for terms and types
+
+
 def terms_and_types(triples):
     terms = [t["terms"] for t in triples]
     types = [t["types"] for t in triples]
     return terms, types
 
+
 (data_terms, data_types) = terms_and_types(data_triples)
 (test_terms, test_types) = terms_and_types(test_triples)
 
 # numpy matrix of probability distributions of terms and types
+
+
 def prob_matrix(data, dim):
     data_size = len(data)
     matrix = np.zeros((data_size, dim), np.float32)
@@ -71,9 +76,24 @@ type_matrix = prob_matrix(data_types, dim)
 test_term_matrix = prob_matrix(test_terms, dim)
 test_type_matrix = prob_matrix(test_types, dim)
 
+# numpy vector of count of terms and types
+
+
+def count_matrix(pairs, dim):
+    vec = np.zeros((dim, ), np.float32)
+    for d in pairs:
+        name = d['name']
+        count = d['count']
+        vec[indices[name]] = count
+    return vec
+
+
+term_count = count_matrix(data['terms'], dim)
+type_count = count_matrix(data['types'], dim)
+freq_ratio = tf.constant([(10 + term_count[i]) / (10 + type_count[i]) for i in range(dim)], shape=(1, dim ), dtype=tf.float32)
 
 # The first model
-repr_dim1 = 10 # dimension of the representations
+repr_dim1 = 10  # dimension of the representations
 inputs1 = keras.Input(shape=(dim,))
 # the representation layer
 repr1 = layers.Dense(
@@ -104,7 +124,8 @@ low_rank_scaled1 = layers.multiply([prob_others1, low_rank_prob1])
 outputs1 = layers.add([low_rank_scaled1, from_statement1])
 
 # the built model
-model1 = keras.Model(inputs=inputs1, outputs=outputs1, name="factorization_model1")
+model1 = keras.Model(inputs=inputs1, outputs=outputs1,
+                     name="factorization_model1")
 print(model1.summary())
 model1.compile(
     optimizer=keras.optimizers.Adam(),  # Optimizer
@@ -118,7 +139,7 @@ print("Compiled model 1")
 
 
 # The second model
-repr_dim2 = 10 # dimension of the representations
+repr_dim2 = 10  # dimension of the representations
 step_dim2 = 20
 inputs2 = keras.Input(shape=(dim,))
 # the representation layer
@@ -161,7 +182,8 @@ low_rank_scaled2 = layers.multiply([prob_others2, low_rank_prob2])
 outputs2 = layers.add([low_rank_scaled2, from_statement2])
 
 # the built model
-model2 = keras.Model(inputs=inputs2, outputs=outputs2, name="factorization_model2")
+model2 = keras.Model(inputs=inputs2, outputs=outputs2,
+                     name="factorization_model2")
 print(model2.summary())
 
 model2.compile(
@@ -175,7 +197,7 @@ model2.compile(
 print("Compiled model 2")
 
 # The third model - like the second but with dropout
-repr_dim3 = 10 # dimension of the representations
+repr_dim3 = 10  # dimension of the representations
 step_dim3 = 20
 inputs3 = keras.Input(shape=(dim,))
 # the representation layer
@@ -221,7 +243,8 @@ low_rank_scaled3 = layers.multiply([prob_others3, low_rank_prob3])
 outputs3 = layers.add([low_rank_scaled3, from_statement3])
 
 # the built model
-model3 = keras.Model(inputs=inputs3, outputs=outputs3, name="factorization_model3")
+model3 = keras.Model(inputs=inputs3, outputs=outputs3,
+                     name="factorization_model3")
 print(model3.summary())
 
 model3.compile(
@@ -234,13 +257,77 @@ model3.compile(
 
 print("Compiled model 3")
 
+# The fourth model, scaling inputs before mixing in.
+repr_dim4 = 10  # dimension of the representations
+step_dim4 = 20
+inputs4 = keras.Input(shape=(dim,))
+# the representation layer
+repr_step4 = layers.Dense(
+    step_dim4,
+    activation='elu',  name="repr_step",
+    kernel_initializer='glorot_normal', bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001))(inputs4)
+repr_drop4 = layers.Dropout(0.5)(repr_step4)
+repr4 = layers.Dense(
+    repr_dim4,
+    activation='elu',  name="repr",
+    kernel_initializer='glorot_normal', bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001))(repr_drop4)
+repr4drop = layers.Dropout(0.5)(repr4)
+
+# output via representation, normalized by softmax
+low_rank_step4 = layers.Dense(
+    step_dim4, activation='elu', name="low_rank_step",
+    kernel_initializer='glorot_normal', bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001))(repr4drop)
+
+low_rank_drop4 = layers.Dropout(0.5)(low_rank_step4)
+low_rank_out4 = layers.Dense(
+    dim, activation='elu', name="low_rank_out",
+    kernel_initializer='glorot_normal', bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001))(low_rank_drop4)
+low_rank_prob4 = tf.keras.activations.softmax(low_rank_out4)
+
+# probability of using weights in statements and its complement
+prob_self4 = layers.Dense(
+    1, activation='sigmoid',
+    kernel_initializer='glorot_normal',
+    bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.001),
+    name="prob_self")(repr4drop)
+prob_others4 = layers.subtract(
+    [tf.constant(1, dtype=np.float32, shape=(1,)), prob_self4])
+
+# weighted average of directly predicted weights and type weights with weight learned
+freq_scale = tf.Variable(freq_ratio)
+inputs_raw_scaled4 = layers.multiply([inputs4, freq_scale])
+inputs_scaled4 = tf.keras.activations.softmax(inputs_raw_scaled4)
+from_statement4 = layers.multiply([inputs_scaled4, prob_self4])
+low_rank_scaled4 = layers.multiply([prob_others4, low_rank_prob4])
+outputs4 = layers.add([low_rank_scaled4, from_statement4])
+
+# the built model
+model4 = keras.Model(inputs=inputs4, outputs=outputs4,
+                     name="factorization_model4")
+print(model4.summary())
+
+model4.compile(
+    optimizer=keras.optimizers.Adam(),  # Optimizer
+    # Loss function to minimize
+    loss=keras.losses.KLDivergence(),
+    # List of metrics to monitor
+    metrics=[keras.metrics.KLDivergence()],
+)
+
+print("Compiled model 4")
 
 
 log_dir = "/home/gadgil/code/lean-loris/logs"
 tensorboard_callback = tf.keras.callbacks.TensorBoard(
     log_dir=log_dir, histogram_freq=1)
 
-def fit(n=1024, m= model1):
+
+def fit(n=1024, m=model1, epsilon=0.0003):
     history = m.fit(
         term_matrix,
         type_matrix,
@@ -251,13 +338,13 @@ def fit(n=1024, m= model1):
         # at the end of each epoch
         validation_data=(test_term_matrix, test_type_matrix),
         callbacks=[tensorboard_callback, keras.callbacks.EarlyStopping(
-        # Stop training when `val_loss` is no longer improving
-        monitor="val_loss",
-        # "no longer improving" being defined as "no better than 1e-2 less"
-        min_delta=1e-2,
-        # "no longer improving" being further defined as "for at least 2 epochs"
-        patience=20,
-        verbose=1,)]
+            # Stop training when `val_loss` is no longer improving
+            monitor="val_loss",
+            # "no longer improving" being defined as "no better than 1e-2 less"
+            min_delta=epsilon,
+            # "no longer improving" being further defined as "for at least 2 epochs"
+            patience=20,
+            verbose=1,)]
     )
     print("Done training")
     return history
