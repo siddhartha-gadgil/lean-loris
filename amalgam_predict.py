@@ -106,6 +106,16 @@ outputs1 = layers.add([low_rank_scaled1, from_statement1])
 # the built model
 model1 = keras.Model(inputs=inputs1, outputs=outputs1, name="factorization_model1")
 print(model1.summary())
+model1.compile(
+    optimizer=keras.optimizers.Adam(),  # Optimizer
+    # Loss function to minimize
+    loss=keras.losses.KLDivergence(),
+    # List of metrics to monitor
+    metrics=[keras.metrics.KLDivergence()],
+)
+
+print("Compiled model 1")
+
 
 # The second model
 repr_dim2 = 10 # dimension of the representations
@@ -153,7 +163,6 @@ outputs2 = layers.add([low_rank_scaled2, from_statement2])
 # the built model
 model2 = keras.Model(inputs=inputs2, outputs=outputs2, name="factorization_model2")
 print(model2.summary())
-
 
 model2.compile(
     optimizer=keras.optimizers.Adam(),  # Optimizer
