@@ -398,11 +398,11 @@ low_rank_scaled5 = prob_others5 * low_rank_prob5
 outputs5 = low_rank_scaled5 + from_statement5
 
 # the built model
-model4 = keras.Model(inputs=inputs4, outputs=outputs4,
-                     name="factorization_model4")
-print(model4.summary())
+model5 = keras.Model(inputs=inputs5, outputs=outputs5,
+                     name="factorization_model5")
+print(model5.summary())
 
-model4.compile(
+model5.compile(
     optimizer=keras.optimizers.Adam(),  # Optimizer
     # Loss function to minimize
     loss=keras.losses.KLDivergence(),
@@ -410,7 +410,7 @@ model4.compile(
     metrics=[keras.metrics.KLDivergence()],
 )
 
-print("Compiled model 4")
+print("Compiled model 5")
 
 
 
