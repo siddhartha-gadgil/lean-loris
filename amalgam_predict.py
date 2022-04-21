@@ -1,9 +1,11 @@
+from audioop import bias
 import json
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras import regularizers
+# import tensorflow_probability as tfp
 
 import random
 
@@ -293,12 +295,20 @@ prob_self4 = layers.Dense(
     1, activation='sigmoid',
     kernel_initializer='glorot_normal',
     bias_initializer='zeros',
-    kernel_regularizer=regularizers.l2(0.001),
+    kernel_regularizer='l1_l2',
     name="prob_self")(repr4drop)
 prob_others4 = 1 - prob_self4
 
 # weighted average of directly predicted weights and type weights with weight learned
-freq_scale = tf.Variable(freq_ratio)
+dummy_single4 = layers.Dense(
+    1, activation='sigmoid',
+    kernel_initializer='zeros',
+    bias_initializer=tf.keras.initializers.Constant(1.0),
+    kernel_regularizer='l1_l2',
+    name="dummy_single")(repr4drop)
+freq_scale = layers.Dense(dim, bias_initializer=tf.keras.initializers.Constant(1.0), kernel_initializer='zeros',
+                          kernel_regularizer=regularizers.l1(0.01), name = 'frequency_scale')(dummy_single4)
+# tfp.layers.VariableLayer(shape=(dim, 1), dtype=tf.float32, initializer=tf.keras.initializers.Constant(1.0))
 inputs_raw_scaled4 = inputs4 * freq_scale
 inputs_scaled_total4 = tf.reduce_sum(inputs_raw_scaled4, axis=1, keepdims=True)
 inputs_scaled4 = inputs_raw_scaled4 / inputs_scaled_total4
@@ -338,14 +348,14 @@ def fit(n=1024, m=model1, epsilon=0.00001):
         # at the end of each epoch
         validation_data=(test_term_matrix, test_type_matrix),
         callbacks=[tensorboard_callback,
-                #    keras.callbacks.EarlyStopping(
-                #        # Stop training when `val_loss` is no longer improving
-                #        monitor="val_loss",
-                #        # "no longer improving" being defined as "no better than 1e-2 less"
-                #        min_delta=epsilon,
-                #        # "no longer improving" being further defined as "for at least 2 epochs"
-                #        patience=20,
-                #        verbose=1,)
+                   #    keras.callbacks.EarlyStopping(
+                   #        # Stop training when `val_loss` is no longer improving
+                   #        monitor="val_loss",
+                   #        # "no longer improving" being defined as "no better than 1e-2 less"
+                   #        min_delta=epsilon,
+                   #        # "no longer improving" being further defined as "for at least 2 epochs"
+                   #        patience=20,
+                   #        verbose=1,)
                    ]
     )
     print("Done training")
