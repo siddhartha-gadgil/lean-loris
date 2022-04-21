@@ -115,13 +115,12 @@ prob_self1 = layers.Dense(
     bias_initializer='zeros',
     kernel_regularizer=regularizers.l2(0.001),
     name="prob_self")(repr1)
-prob_others1 = layers.subtract(
-    [tf.constant(1, dtype=np.float32, shape=(1,)), prob_self1])
+prob_others1 = 1 - prob_self1
 
 # weighted average of directly predicted weights and type weights with weight learned
-from_statement1 = layers.multiply([inputs1, prob_self1])
-low_rank_scaled1 = layers.multiply([prob_others1, low_rank_prob1])
-outputs1 = layers.add([low_rank_scaled1, from_statement1])
+from_statement1 = inputs1 * prob_self1
+low_rank_scaled1 = prob_others1 * low_rank_prob1
+outputs1 = low_rank_scaled1 + from_statement1
 
 # the built model
 model1 = keras.Model(inputs=inputs1, outputs=outputs1,
@@ -173,13 +172,12 @@ prob_self2 = layers.Dense(
     bias_initializer='zeros',
     kernel_regularizer=regularizers.l2(0.001),
     name="prob_self")(repr2)
-prob_others2 = layers.subtract(
-    [tf.constant(1, dtype=np.float32, shape=(1,)), prob_self2])
+prob_others2 = 1 - prob_self2
 
 # weighted average of directly predicted weights and type weights with weight learned
-from_statement2 = layers.multiply([inputs2, prob_self2])
-low_rank_scaled2 = layers.multiply([prob_others2, low_rank_prob2])
-outputs2 = layers.add([low_rank_scaled2, from_statement2])
+from_statement2 = inputs2 * prob_self2
+low_rank_scaled2 = prob_others2 * low_rank_prob2
+outputs2 = low_rank_scaled2 + from_statement2
 
 # the built model
 model2 = keras.Model(inputs=inputs2, outputs=outputs2,
@@ -234,13 +232,12 @@ prob_self3 = layers.Dense(
     bias_initializer='zeros',
     kernel_regularizer=regularizers.l2(0.001),
     name="prob_self")(repr3drop)
-prob_others3 = layers.subtract(
-    [tf.constant(1, dtype=np.float32, shape=(1,)), prob_self3])
+prob_others3 = 1 - prob_self3
 
 # weighted average of directly predicted weights and type weights with weight learned
-from_statement3 = layers.multiply([inputs3, prob_self3])
-low_rank_scaled3 = layers.multiply([prob_others3, low_rank_prob3])
-outputs3 = layers.add([low_rank_scaled3, from_statement3])
+from_statement3 = inputs3 * prob_self3
+low_rank_scaled3 = prob_others3 * low_rank_prob3
+outputs3 = low_rank_scaled3 + from_statement3
 
 # the built model
 model3 = keras.Model(inputs=inputs3, outputs=outputs3,
@@ -295,16 +292,15 @@ prob_self4 = layers.Dense(
     bias_initializer='zeros',
     kernel_regularizer=regularizers.l2(0.001),
     name="prob_self")(repr4drop)
-prob_others4 = layers.subtract(
-    [tf.constant(1, dtype=np.float32, shape=(1,)), prob_self4])
+prob_others4 = 1 - prob_self4
 
 # weighted average of directly predicted weights and type weights with weight learned
 freq_scale = tf.Variable(freq_ratio)
-inputs_raw_scaled4 = layers.multiply([inputs4, freq_scale])
-inputs_scaled4 = tf.keras.activations.softmax(inputs_raw_scaled4)
-from_statement4 = layers.multiply([inputs_scaled4, prob_self4])
-low_rank_scaled4 = layers.multiply([prob_others4, low_rank_prob4])
-outputs4 = layers.add([low_rank_scaled4, from_statement4])
+inputs_raw_scaled4 = inputs4 * freq_scale
+inputs_scaled4 = tf.keras.activations.softmax(inputs_raw_scaled4) # TODO: scale instead of softmax
+from_statement4 = inputs_scaled4 * prob_self4 
+low_rank_scaled4 = prob_others4 * low_rank_prob4
+outputs4 = low_rank_scaled4 * from_statement4
 
 # the built model
 model4 = keras.Model(inputs=inputs4, outputs=outputs4,
