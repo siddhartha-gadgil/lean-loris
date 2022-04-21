@@ -297,10 +297,11 @@ prob_others4 = 1 - prob_self4
 # weighted average of directly predicted weights and type weights with weight learned
 freq_scale = tf.Variable(freq_ratio)
 inputs_raw_scaled4 = inputs4 * freq_scale
-inputs_scaled4 = tf.keras.activations.softmax(inputs_raw_scaled4) # TODO: scale instead of softmax
+inputs_scaled_total4 = tf.reduce_sum(inputs_raw_scaled4, axis=1, keepdims=True)
+inputs_scaled4 = inputs_raw_scaled4 /inputs_scaled_total4
 from_statement4 = inputs_scaled4 * prob_self4 
 low_rank_scaled4 = prob_others4 * low_rank_prob4
-outputs4 = low_rank_scaled4 * from_statement4
+outputs4 = low_rank_scaled4 + from_statement4
 
 # the built model
 model4 = keras.Model(inputs=inputs4, outputs=outputs4,
