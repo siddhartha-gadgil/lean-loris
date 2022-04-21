@@ -90,7 +90,8 @@ def count_matrix(pairs, dim):
 
 term_count = count_matrix(data['terms'], dim)
 type_count = count_matrix(data['types'], dim)
-freq_ratio = tf.constant([(10 + term_count[i]) / (10 + type_count[i]) for i in range(dim)], shape=(1, dim ), dtype=tf.float32)
+freq_ratio = tf.constant([(10 + term_count[i]) / (10 + type_count[i])
+                          for i in range(dim)], shape=(1, dim), dtype=tf.float32)
 
 # The first model
 repr_dim1 = 10  # dimension of the representations
@@ -298,8 +299,8 @@ prob_others4 = 1 - prob_self4
 freq_scale = tf.Variable(freq_ratio)
 inputs_raw_scaled4 = inputs4 * freq_scale
 inputs_scaled_total4 = tf.reduce_sum(inputs_raw_scaled4, axis=1, keepdims=True)
-inputs_scaled4 = inputs_raw_scaled4 /inputs_scaled_total4
-from_statement4 = inputs_scaled4 * prob_self4 
+inputs_scaled4 = inputs_raw_scaled4 / inputs_scaled_total4
+from_statement4 = inputs_scaled4 * prob_self4
 low_rank_scaled4 = prob_others4 * low_rank_prob4
 outputs4 = low_rank_scaled4 + from_statement4
 
@@ -334,14 +335,16 @@ def fit(n=1024, m=model1, epsilon=0.0003):
         # monitoring validation loss and metrics
         # at the end of each epoch
         validation_data=(test_term_matrix, test_type_matrix),
-        callbacks=[tensorboard_callback, keras.callbacks.EarlyStopping(
-            # Stop training when `val_loss` is no longer improving
-            monitor="val_loss",
-            # "no longer improving" being defined as "no better than 1e-2 less"
-            min_delta=epsilon,
-            # "no longer improving" being further defined as "for at least 2 epochs"
-            patience=20,
-            verbose=1,)]
+        callbacks=[tensorboard_callback,
+                #    keras.callbacks.EarlyStopping(
+                #        # Stop training when `val_loss` is no longer improving
+                #        monitor="val_loss",
+                #        # "no longer improving" being defined as "no better than 1e-2 less"
+                #        min_delta=epsilon,
+                #        # "no longer improving" being further defined as "for at least 2 epochs"
+                #        patience=20,
+                #        verbose=1,)
+                   ]
     )
     print("Done training")
     return history
