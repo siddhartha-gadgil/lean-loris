@@ -307,7 +307,7 @@ dummy_single4 = layers.Dense(
     kernel_regularizer='l1_l2',
     name="dummy_single")(repr4drop)
 freq_scale = layers.Dense(dim, bias_initializer=tf.keras.initializers.Constant(1.0), kernel_initializer='zeros',
-                          kernel_regularizer=regularizers.l1(0.01), name = 'frequency_scale')(dummy_single4)
+                          kernel_regularizer=regularizers.l1(0.01), name = 'frequency_scale', activation = 'softmax')(dummy_single4)
 # tfp.layers.VariableLayer(shape=(dim, 1), dtype=tf.float32, initializer=tf.keras.initializers.Constant(1.0))
 inputs_raw_scaled4 = inputs4 * freq_scale
 inputs_scaled_total4 = tf.reduce_sum(inputs_raw_scaled4, axis=1, keepdims=True)
