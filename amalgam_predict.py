@@ -90,8 +90,10 @@ def count_matrix(pairs, dim):
 
 term_count = count_matrix(data['terms'], dim)
 type_count = count_matrix(data['types'], dim)
-freq_ratio = tf.constant([(10 + term_count[i]) / (10 + type_count[i])
-                          for i in range(dim)], shape=(1, dim), dtype=tf.float32)
+# freq_ratio = tf.constant([(10 + term_count[i]) / (10 + type_count[i])
+#                           for i in range(dim)], shape=(1, dim), dtype=tf.float32)
+
+freq_ratio = tf.ones((1, dim), dtype=tf.float32)
 
 # The first model
 repr_dim1 = 10  # dimension of the representations
@@ -254,7 +256,7 @@ model3.compile(
 )
 
 print("Compiled model 3")
-
+print('\nCompiling fourth model')
 # The fourth model, scaling inputs before mixing in.
 repr_dim4 = 10  # dimension of the representations
 step_dim4 = 20
@@ -325,7 +327,7 @@ tensorboard_callback = tf.keras.callbacks.TensorBoard(
     log_dir=log_dir, histogram_freq=1)
 
 
-def fit(n=1024, m=model1, epsilon=0.0003):
+def fit(n=1024, m=model1, epsilon=0.00001):
     history = m.fit(
         term_matrix,
         type_matrix,
