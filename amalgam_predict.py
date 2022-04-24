@@ -437,34 +437,34 @@ class Scaling(keras.layers.Layer):
 
 print('\nCompiling sixth model')
 # The sixth model, scaling inputs before mixing in using a custom layer.
-repr_dim6 = 10  # dimension of the representations
-step_dim6 = 20
+repr_dim6 = 20  # dimension of the representations
+step_dim6 = 50
 inputs6 = keras.Input(shape=(dim,))
 # the representation layer
 repr_step6 = layers.Dense(
     step_dim6,
     activation='elu',  name="repr_step",
     kernel_initializer='glorot_normal', bias_initializer='zeros',
-    kernel_regularizer=regularizers.l2(0.001))(inputs6)
+    kernel_regularizer=regularizers.l2(0.002))(inputs6)
 repr_drop6 = layers.Dropout(0.5)(repr_step6)
 repr6 = layers.Dense(
     repr_dim6,
     activation='elu',  name="repr",
     kernel_initializer='glorot_normal', bias_initializer='zeros',
-    kernel_regularizer=regularizers.l2(0.001))(repr_drop6)
+    kernel_regularizer=regularizers.l2(0.002))(repr_drop6)
 repr6drop = layers.Dropout(0.5)(repr6)
 
 # output via representation, normalized by softmax
 low_rank_step6 = layers.Dense(
     step_dim6, activation='elu', name="low_rank_step",
     kernel_initializer='glorot_normal', bias_initializer='zeros',
-    kernel_regularizer=regularizers.l2(0.001))(repr6drop)
+    kernel_regularizer=regularizers.l2(0.002))(repr6drop)
 
 low_rank_drop6 = layers.Dropout(0.5)(low_rank_step6)
 low_rank_out6 = layers.Dense(
     dim, activation='elu', name="low_rank_out",
     kernel_initializer='glorot_normal', bias_initializer='zeros',
-    kernel_regularizer=regularizers.l2(0.001))(low_rank_drop6)
+    kernel_regularizer=regularizers.l2(0.002))(low_rank_drop6)
 low_rank_prob6 = tf.keras.activations.softmax(low_rank_out6)
 
 # probability of using weights in statements and its complement
@@ -477,7 +477,7 @@ prob_self6 = layers.Dense(
 prob_others6 = 1 - prob_self6
 
 # weighted average of directly predicted weights and type weights with weight learned
-scaling = Scaling(dim)
+scaling = Scaling(dim, epsilon=0.00003)
 inputs_raw_scaled6 = scaling(inputs6)
 inputs_scaled_total6 = tf.reduce_sum(inputs_raw_scaled6, axis=1, keepdims=True)
 inputs_scaled6 = inputs_raw_scaled6 / inputs_scaled_total6
@@ -508,14 +508,14 @@ tensorboard_callback = tf.keras.callbacks.TensorBoard(
 
 def fit(n=1024, m=model1, epsilon=0.00001):
     history = m.fit(
-        term_matrix,
         type_matrix,
+        term_matrix,
         batch_size=64,
         epochs=n,
         # We pass some validation for
         # monitoring validation loss and metrics
         # at the end of each epoch
-        validation_data=(test_term_matrix, test_type_matrix),
+        validation_data=(test_type_matrix, test_term_matrix),
         callbacks=[tensorboard_callback,
                    #    keras.callbacks.EarlyStopping(
                    #        # Stop training when `val_loss` is no longer improving
