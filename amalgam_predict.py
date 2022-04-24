@@ -414,14 +414,14 @@ print("Compiled model 5")
 
 
 class Scaling(keras.layers.Layer):
-    def __init__(self, input_dim, init_ratios, epsilon=0.00001, **kwargs):
+    def __init__(self, input_dim, init_ratios, **kwargs):
         super(Scaling, self).__init__(**kwargs)
         initial_const = tf.constant(np.array([tf.math.log(x) for x in init_ratios]), shape=(1, input_dim), dtype=tf.float32)
         self.w = tf.Variable(
             initial_value=initial_const,
             shape=(1, input_dim),  trainable=True, dtype=tf.float32)
         self.input_dim = input_dim
-        self.epsilon = epsilon
+
         self.init_ratios = init_ratios
 
     def call(self, inputs):
@@ -431,7 +431,6 @@ class Scaling(keras.layers.Layer):
         config = super().get_config()
         config.update({
             'input_dim': self.input_dim,
-            'epsilon': self.epsilon,
             'init_ratios': self.init_ratios,
         })
         return config
@@ -440,30 +439,30 @@ ratios = [(1 + term_count[i]) / (1 + type_count[i]) for i in range(dim)]
 
 print('\nCompiling sixth model')
 # The sixth model, scaling inputs before mixing in using a custom layer.
-repr_dim6 = 20  # dimension of the representations
-step_dim6 = 50
+repr_dim6 = 40  # dimension of the representations
+step_dim6 = 100
 inputs6 = keras.Input(shape=(dim,))
 # the representation layer
 repr_step6 = layers.Dense(
     step_dim6,
     activation='elu',  name="repr_step",
     kernel_initializer='glorot_normal', bias_initializer='zeros',
-    kernel_regularizer=regularizers.l2(0.002))(inputs6)
-repr_drop6 = layers.Dropout(0.5)(repr_step6)
+    kernel_regularizer=regularizers.l2(0.0002))(inputs6)
+repr_drop6 = layers.Dropout(0.7)(repr_step6)
 repr6 = layers.Dense(
     repr_dim6,
     activation='elu',  name="repr",
     kernel_initializer='glorot_normal', bias_initializer='zeros',
-    kernel_regularizer=regularizers.l2(0.002))(repr_drop6)
-repr6drop = layers.Dropout(0.5)(repr6)
+    kernel_regularizer=regularizers.l2(0.0002))(repr_drop6)
+repr6drop = layers.Dropout(0.7)(repr6)
 
 # output via representation, normalized by softmax
 low_rank_step6 = layers.Dense(
     step_dim6, activation='elu', name="low_rank_step",
     kernel_initializer='glorot_normal', bias_initializer='zeros',
-    kernel_regularizer=regularizers.l2(0.002))(repr6drop)
+    kernel_regularizer=regularizers.l2(0.0002))(repr6drop)
 
-low_rank_drop6 = layers.Dropout(0.5)(low_rank_step6)
+low_rank_drop6 = layers.Dropout(0.7)(low_rank_step6)
 low_rank_out6 = layers.Dense(
     dim, activation='elu', name="low_rank_out",
     kernel_initializer='glorot_normal', bias_initializer='zeros',
@@ -480,7 +479,7 @@ prob_self6 = layers.Dense(
 prob_others6 = 1 - prob_self6
 
 # weighted average of directly predicted weights and type weights with weight learned
-scaling = Scaling(dim, ratios, epsilon=0.00003)
+scaling = Scaling(dim, ratios)
 inputs_raw_scaled6 = scaling(inputs6)
 inputs_scaled_total6 = tf.reduce_sum(inputs_raw_scaled6, axis=1, keepdims=True)
 inputs_scaled6 = inputs_raw_scaled6 / inputs_scaled_total6
