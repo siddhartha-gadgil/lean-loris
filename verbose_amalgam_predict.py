@@ -1,4 +1,3 @@
-from audioop import bias
 import json
 import numpy as np
 import tensorflow as tf
@@ -508,7 +507,7 @@ tensorboard_callback = tf.keras.callbacks.TensorBoard(
     log_dir=log_dir, histogram_freq=1)
 
 
-def fit(n=1024, m=model1, epsilon=0.00001):
+def fit(n=1024, m=model1):
     history = m.fit(
         type_matrix,
         term_matrix,
