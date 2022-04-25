@@ -113,6 +113,18 @@ class Scaling(keras.layers.Layer):
         })
         return config
 
+class WeightedAverage(keras.layers.Layer):
+    def __init__(self,  **kwargs):
+        super(WeightedAverage, self).__init__(**kwargs)
+        self.w = self.add_weight(
+            initializer='zeros',
+            shape=(1, 1),  trainable=True, dtype=tf.float32)
+
+    def call(self, layers):
+        p = tf.sigmoid(self.w)
+        q = 1 - p
+        return (layers[0] * p) + (layers[1] * q)
+
 log_dir = "/home/gadgil/code/lean-loris/logs"
 tensorboard_callback = tf.keras.callbacks.TensorBoard(
     log_dir=log_dir, histogram_freq=1)
@@ -179,13 +191,13 @@ def proofs_from_representation(rpr, dim, step_dim):
 
 
 # The sixth model in the original experiments, scaling inputs before mixing in using a custom layer.
-def model6(data, repr_dim6 = 40, step_dim6 = 100):
+def model6(data, repr_dim = 40, step_dim = 100):
     dim = data['dim']
     inputs = keras.Input(shape=(dim,))
     # the representation layer
-    repr6drop = representation(inputs, repr_dim6, step_dim6)
+    rpr = representation(inputs, repr_dim, step_dim)
     # output via representation, normalized by softmax
-    proofs_from_props_prob6 = proofs_from_representation(repr6drop, dim, step_dim6)
+    proofs_from_props = proofs_from_representation(rpr, dim, step_dim)
     # weighted average of directly predicted weights and type weights with weight learned
     inputs_scaled = scaled_inputs(inputs, data)
     # probability of using weights in statements and its complement
@@ -194,9 +206,9 @@ def model6(data, repr_dim6 = 40, step_dim6 = 100):
         kernel_initializer='glorot_normal',
         bias_initializer='zeros',
         kernel_regularizer='l1_l2',
-        name="prob_self")(repr6drop)
+        name="prob_self")(rpr)
     from_statement6 = inputs_scaled * prob_self6
-    proofs_from_props_scaled6 = (1 - prob_self6) * proofs_from_props_prob6
+    proofs_from_props_scaled6 = (1 - prob_self6) * proofs_from_props
     outputs6 = proofs_from_props_scaled6 + from_statement6
     # the built model
     model6 = keras.Model(inputs=inputs, outputs=outputs6,
@@ -209,3 +221,26 @@ def model6(data, repr_dim6 = 40, step_dim6 = 100):
         metrics=[keras.metrics.KLDivergence()],
     )
     return model6
+
+def model7(data, repr_dim = 40, step_dim = 100):
+    dim = data['dim']
+    inputs = keras.Input(shape=(dim,))
+    # the representation layer
+    rpr = representation(inputs, repr_dim, step_dim)
+    # output via representation, normalized by softmax
+    proofs_from_props = proofs_from_representation(rpr, dim, step_dim)
+    # weighted average of directly predicted weights and type weights with weight learned
+    inputs_scaled = scaled_inputs(inputs, data)
+    weighted_average = WeightedAverage()
+    outputs = weighted_average([inputs_scaled, proofs_from_props])
+    # the built model
+    model7 = keras.Model(inputs=inputs, outputs=outputs,
+                        name="factorization_model7")
+    model7.compile(
+        optimizer=keras.optimizers.Adam(),  # Optimizer
+        # Loss function to minimize
+        loss=keras.losses.KLDivergence(),
+        # List of metrics to monitor
+        metrics=[keras.metrics.KLDivergence()],
+    )
+    return model7
