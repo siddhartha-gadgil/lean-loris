@@ -45,8 +45,8 @@ def count_matrix(pairs, dim, indices):
     return vec
 
 
-def load_data(filename="data/shallow-frequencies.json"):
-    with open(filename, 'r') as f:
+def load_data(filename="shallow-frequencies"):
+    with open(f'data/{filename}.json', 'r') as f:
         data = json.load(f)
         names = data["names"]
         indices = index_dict(names)
@@ -143,37 +143,51 @@ def fit(epochs, model, data):
     print("Done training")
     return history
 
+def scaled_inputs(inputs, data):
+    ratios=freq_ratios(data)
+    scaling = Scaling(data['dim'], ratios)
+    inputs_raw_scaled = scaling(inputs)
+    inputs_scaled_total = tf.reduce_sum(inputs_raw_scaled, axis=1, keepdims=True)
+    inputs_scaled = inputs_raw_scaled / inputs_scaled_total
+    return inputs_scaled
+
+def representation(inputs, repr_dim , step_dim ):
+    repr_step = layers.Dense(
+    step_dim,
+    activation='elu',  name="repr_step",
+    kernel_initializer='glorot_normal', bias_initializer='zeros',
+    kernel_regularizer=regularizers.l2(0.0002))(inputs)
+    repr_drop = layers.Dropout(0.7)(repr_step)
+    repr_step2 = layers.Dense(
+        repr_dim,
+        activation='elu',  name="repr",
+        kernel_initializer='glorot_normal', bias_initializer='zeros',
+        kernel_regularizer=regularizers.l2(0.0002))(repr_drop)
+    return layers.Dropout(0.7)(repr_step2)
+
+def proofs_from_representation(rpr, dim, step_dim):
+    proofs_from_props_step6 = layers.Dense(
+        step_dim, activation='elu', name="proofs_from_props_step",
+        kernel_initializer='glorot_normal', bias_initializer='zeros',
+        kernel_regularizer=regularizers.l2(0.0002))(rpr)
+    proofs_from_props_drop6 = layers.Dropout(0.7)(proofs_from_props_step6)
+    proofs_from_props_out6 = layers.Dense(
+        dim, activation='elu', name="proofs_from_props_out",
+        kernel_initializer='glorot_normal', bias_initializer='zeros',
+        kernel_regularizer=regularizers.l2(0.002))(proofs_from_props_drop6)
+    return tf.keras.activations.softmax(proofs_from_props_out6)
+
 
 # The sixth model in the original experiments, scaling inputs before mixing in using a custom layer.
 def model6(data, repr_dim6 = 40, step_dim6 = 100):
     dim = data['dim']
-    ratios=freq_ratios(data)
-    inputs6 = keras.Input(shape=(dim,))
+    inputs = keras.Input(shape=(dim,))
     # the representation layer
-    repr_step6 = layers.Dense(
-        step_dim6,
-        activation='elu',  name="repr_step",
-        kernel_initializer='glorot_normal', bias_initializer='zeros',
-        kernel_regularizer=regularizers.l2(0.0002))(inputs6)
-    repr_drop6 = layers.Dropout(0.7)(repr_step6)
-    repr6 = layers.Dense(
-        repr_dim6,
-        activation='elu',  name="repr",
-        kernel_initializer='glorot_normal', bias_initializer='zeros',
-        kernel_regularizer=regularizers.l2(0.0002))(repr_drop6)
-    repr6drop = layers.Dropout(0.7)(repr6)
+    repr6drop = representation(inputs, repr_dim6, step_dim6)
     # output via representation, normalized by softmax
-    low_rank_step6 = layers.Dense(
-        step_dim6, activation='elu', name="low_rank_step",
-        kernel_initializer='glorot_normal', bias_initializer='zeros',
-        kernel_regularizer=regularizers.l2(0.0002))(repr6drop)
-
-    low_rank_drop6 = layers.Dropout(0.7)(low_rank_step6)
-    low_rank_out6 = layers.Dense(
-        dim, activation='elu', name="low_rank_out",
-        kernel_initializer='glorot_normal', bias_initializer='zeros',
-        kernel_regularizer=regularizers.l2(0.002))(low_rank_drop6)
-    low_rank_prob6 = tf.keras.activations.softmax(low_rank_out6)
+    proofs_from_props_prob6 = proofs_from_representation(repr6drop, dim, step_dim6)
+    # weighted average of directly predicted weights and type weights with weight learned
+    inputs_scaled = scaled_inputs(inputs, data)
     # probability of using weights in statements and its complement
     prob_self6 = layers.Dense(
         1, activation='sigmoid',
@@ -181,19 +195,12 @@ def model6(data, repr_dim6 = 40, step_dim6 = 100):
         bias_initializer='zeros',
         kernel_regularizer='l1_l2',
         name="prob_self")(repr6drop)
-    prob_others6 = 1 - prob_self6
-    # weighted average of directly predicted weights and type weights with weight learned
-    scaling = Scaling(dim, ratios)
-    inputs_raw_scaled6 = scaling(inputs6)
-    inputs_scaled_total6 = tf.reduce_sum(inputs_raw_scaled6, axis=1, keepdims=True)
-    inputs_scaled6 = inputs_raw_scaled6 / inputs_scaled_total6
-    from_statement6 = inputs_scaled6 * prob_self6
-    low_rank_scaled6 = prob_others6 * low_rank_prob6
-    outputs6 = low_rank_scaled6 + from_statement6
+    from_statement6 = inputs_scaled * prob_self6
+    proofs_from_props_scaled6 = (1 - prob_self6) * proofs_from_props_prob6
+    outputs6 = proofs_from_props_scaled6 + from_statement6
     # the built model
-    model6 = keras.Model(inputs=inputs6, outputs=outputs6,
+    model6 = keras.Model(inputs=inputs, outputs=outputs6,
                         name="factorization_model6")
-    print(model6.summary())
     model6.compile(
         optimizer=keras.optimizers.Adam(),  # Optimizer
         # Loss function to minimize
@@ -201,5 +208,4 @@ def model6(data, repr_dim6 = 40, step_dim6 = 100):
         # List of metrics to monitor
         metrics=[keras.metrics.KLDivergence()],
     )
-    print("Compiled model 6")
     return model6
