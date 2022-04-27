@@ -1,4 +1,5 @@
 import json
+from tabnanny import verbose
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -125,7 +126,9 @@ class WeightedAverage(keras.layers.Layer):
         q = 1 - p
         return (layers[0] * p) + (layers[1] * q)
 
-log_dir = "/home/gadgil/code/lean-loris/logs"
+import os
+cwd = os.getcwd()
+log_dir = f"{cwd}/logs"
 tensorboard_callback = tf.keras.callbacks.TensorBoard(
     log_dir=log_dir, histogram_freq=1)
 
@@ -153,6 +156,34 @@ def fit(epochs, model, data):
                    ]
     )
     print("Done training")
+    return history
+
+def fit0(epochs, model, data, name):
+    td = training_data(data)
+    log_dir = f"{cwd}/logs/{name}"
+    print(f'logging in {log_dir}')
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(
+        log_dir=log_dir, histogram_freq=1)
+    history = model.fit(
+        td['type_matrix'],
+        td['term_matrix'],
+        batch_size=64,
+        epochs=epochs,
+        verbose=0,
+        # We pass some validation for
+        # monitoring validation loss and metrics
+        # at the end of each epoch
+        validation_data=(td['test_type_matrix'], td['test_term_matrix']),
+        callbacks=[tensorboard_callback]
+    )
+    print("Done training")
+    return history
+
+def train(epochs, model, data, name):
+    history = fit0(epochs, model, data, name)
+    f = open(f'data/{name}.json', 'w')
+    json.dump(history.history, f)
+    f.close()
     return history
 
 def scaled_inputs(inputs, data):
