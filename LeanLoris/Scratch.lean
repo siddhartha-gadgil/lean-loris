@@ -1,6 +1,7 @@
 import Lean.Meta
 import Lean.Elab
 import Std
+import LeanLoris.Utils
 open Lean Meta Elab 
 open Nat Std
 
@@ -375,20 +376,6 @@ def egLen : MetaM Expr :=
 #eval egLen
 
 
-/-- natural number from expression built from `Nat.zero` and `Nat.succ` -/
-partial def exprNat : Expr → TermElabM Nat := fun expr => 
-  do
-    let mvar ←  mkFreshExprMVar (some (mkConst ``Nat))
-    let sExp := mkApp (mkConst ``Nat.succ) mvar
-    if ← isDefEq sExp expr then
-      Term.synthesizeSyntheticMVarsNoPostponing
-      let prev ← exprNat (← whnf mvar)
-      return succ prev
-    else 
-    if ← isDefEq (mkConst `Nat.zero) expr then
-      return zero
-    else
-      throwError m!"{expr} not a Nat expression"
 
 def six : TermElabM Nat := do
   exprNat (← sixExpr)
@@ -462,3 +449,51 @@ def transExpr {α : Type}{x y z : Expr}{rel: Expr}: MetaM Expr := do
               --   #[Term.Arg.expr pf1, Term.Arg.expr pf2] none (explicit := false) (ellipsis := false)
             mkLambdaFVars #[pf1, pf2] pf3
         pure l
+
+#check @Mul.mul
+
+@[inline] def Lean.Expr.app6? (e : Expr) (fName : Name) : Option (Expr × Expr × Expr × Expr × Expr × Expr) :=
+  if e.isAppOfArity fName 6 then
+    some (e.appFn!.appFn!.appFn!.appFn!.appFn!.appArg!, 
+      e.appFn!.appFn!.appFn!.appFn!.appArg!,
+      e.appFn!.appFn!.appFn!.appArg!, e.appFn!.appFn!.appArg!, e.appFn!.appArg!, e.appArg!)
+  else
+    none
+
+def mul?(expr: Expr) : TermElabM (
+      Option (Expr × Expr × Expr × Expr × Expr × Expr)) :=
+  do
+    let x := expr.app6? ``HMul.hMul
+    return x
+
+open Lean Elab Meta Term
+
+set_option pp.all true
+
+syntax (name:= mul) "mul!" term : term
+@[termElab mul]def mulImpl : TermElab := fun stx _ => do
+match stx with
+| `(mul! $s) => do  
+  let e ← Term.elabTerm s none
+  let e ← e.simplify
+  logInfo m!"{e}"
+  let r ← mul? e
+  Term.synthesizeSyntheticMVarsNoPostponing
+  logInfo m!"{r}"
+  let r' := r.get!
+  let (_, _, _, _, a, b) := r'
+  return a
+| _ => throwIllFormedSyntax
+
+def nfst :=  fun n m : Nat => mul! (n * m)
+
+#eval nfst 3 4
+
+#check Expr.eq?
+
+instance : Mul Bool where
+  mul := fun b1 b2 => b1 && b2
+
+def bfst :=  fun x y : Bool => mul! x * y
+
+#eval bfst false true
