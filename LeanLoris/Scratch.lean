@@ -497,3 +497,14 @@ instance : Mul Bool where
 def bfst :=  fun x y : Bool => mul! x * y
 
 #eval bfst false true
+
+def goal := ∀  (y n: Nat),  y < n + 1 + y
+
+elab "show!" t:term: term => do 
+  let e ← Term.elabTerm t none
+  let e ← whnf e
+  IO.println e
+  return e
+
+
+#check show! goal
