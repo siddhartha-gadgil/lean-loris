@@ -75,6 +75,23 @@ def mathDepData(mathenv: Environment) : IO Unit := do
           IO.println msg
   return ()
 
+def mathPrompt(mathenv: Environment) : IO Unit := do
+  IO.println "\n# Propmpts for premises for machine learning.\n"
+  IO.println "We consider dependencies in MathLib4 and generate data for simple prompts. As of now these are for basic experiments.\n"
+  let promptCore := prompCoreJs
+  let ei := promptCore.run' 
+      {maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
+  match ←  ei.toIO' with
+  | Except.ok view => 
+      IO.println "\nData obtained"
+      let file := System.mkFilePath ["data/simple-prompts.json"]
+      IO.FS.writeFile file view
+  | Except.error e =>
+    do
+          let msg ← e.toMessageData.toString
+          IO.println msg
+  return ()
+
 def lclConstDocs: String :=
 "Our main example of mixed reasoning is the result that if f: Nat → α is a function from natural numbers to a type α such that ∀ n : Nat, f (n + 1) = f n, then ∀n : Nat, f n = f 0, i.e. f is a constant function if it is locally constant.\n"
 
@@ -138,8 +155,10 @@ def main (args: List String) : IO Unit := do
   IO.println "2. Induction: locally constant functions"
   IO.println "3. Dependency generation"
   IO.println "4. Shallow dependency generation"
+  IO.println "5. Dependency prompt generation"
   if args.contains "2" then runLclConst env
   if args.contains "1" then runCzSl env
   if args.contains "3" then mathDepFullData mathenv
   if args.contains "4" then mathDepData mathenv
+  if args.contains "5" then mathPrompt mathenv
   return ()
