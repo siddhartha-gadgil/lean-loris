@@ -136,7 +136,7 @@ def offSpringTriple(excludePrefixes: List Name := [])
           return (n, l, tl)
   return kv
 
-def promptArrayM(excludePrefixes: List Name := [])
+def promptArrayM(excludePrefixes: List Name := [])(freqBound: Nat := 50)
               : MetaM (Array (Name × String × (Array Name) )) :=
   do
   let keys ←  constantNameTypes  
@@ -144,18 +144,24 @@ def promptArrayM(excludePrefixes: List Name := [])
   let goodKeys := keys.filter fun (name, _) =>
     !(excludePrefixes.any (fun pfx => pfx.isPrefixOf name))
   IO.println s!"Tokens considered (excluding system code): {goodKeys.size}"
+  let mut termFreqs : HashMap Name Nat := HashMap.empty
   let kv : Array (Name × String × (Array Name)) ←  (goodKeys).mapM $ 
       fun (n, type) => 
           do 
           let l := (← offSpring? n).getD #[]
+          let s ← view type
           let type ← type.simplify
           let tl ←  exprDescendants type
           let tl := tl.filter fun n => !(excludePrefixes.any (fun pfx => pfx.isPrefixOf n))
           let l := l.filter fun n => !(
             excludePrefixes.any (fun pfx => pfx.isPrefixOf n)
             ∨ tl.contains n)
-          let s ← view type
           return (n, s, l)
+  for (n, s, l) in kv do
+    for x in l do
+            termFreqs := termFreqs.insert x ((termFreqs.findD x 0) + 1)
+  let kv := kv.map fun (n, s, l) => 
+    (n, s, (l.filter fun n => termFreqs.findD n 0 < freqBound).toList.eraseDups.toArray)
   return kv
 
 /-- 
@@ -194,13 +200,22 @@ def offSpringShallowTripleCore:
           (offSpringShallowTriple [`Lean, `Std, `IO, 
           `Char, `String, `ST, `StateT, `Repr, `ReaderT, `EIO, `BaseIO]).run' 
 
+structure Prompt where
+  name: Name
+  type: String
+  offspring : Array Name
+deriving ToJson, FromJson
+
 def promptCore: CoreM (Array (Name × String × (Array Name) )) :=
   (promptArrayM [`Lean, `Std, `IO, 
           `Char, `String, `ST, `StateT, `Repr, `ReaderT, `EIO, `BaseIO]).run'
 
 def prompCoreJs : CoreM String := do
   let kv : Array (Name × String × (Array Name) ) ←  promptCore
-  return (toJson kv).pretty
+  let arr := kv.map fun (n, s, l) => 
+    let d : Prompt := ⟨n, s, l⟩
+    toJson d
+  return (toJson arr).pretty
 
 /-- binomial pmf -/
 def binom (n k: Nat)(p: Float) : Float := Id.run do
