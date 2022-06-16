@@ -27,15 +27,20 @@ def checkTerm (s : String) : MetaM Bool := do
 
 syntax term "•" term : term
 syntax term "⊆" term : term
+syntax term "⊂" term : term
+syntax term "∩" term : term
+
 
 #eval checkTerm "a • s"
 
 declare_syntax_cat term3
 
 syntax term : term3
+syntax "(" term3 ")" : term
 syntax "λ" ident "," term3 : term3
 syntax "λ"  ident ":" term3  "," term3 : term3
 syntax "λ" "(" ident ":" term3 ")" "," term3 : term3
+syntax "⇑" term3 : term
 macro_rules
 | `(term3|$x:term) => `($x)
 | `(term3|λ $x:ident : $type:term , $y:term) => 
@@ -52,6 +57,7 @@ def checkTerm3 (s : String) : MetaM Bool := do
 
 #eval checkTerm "λ x : Nat, x + 1"
 #eval checkTerm3 "λ x : Nat, x + 1"
+#eval checkTerm3 "B (λ (t : finset α), s ∩ t)"
 
 def checkStatements : MetaM (List (String × Bool × Bool)) := do
   let prompts ← depsPrompt
