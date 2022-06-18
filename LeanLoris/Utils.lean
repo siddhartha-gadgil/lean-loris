@@ -74,7 +74,7 @@ partial def exprNat : Expr → TermElabM Nat := fun expr =>
 
 /-- formatted view of an expression -/
 def view(expr: Expr): MetaM String := do
-  let stx ← PrettyPrinter.delab (← getCurrNamespace) (← getOpenDecls) expr
+  let stx ← PrettyPrinter.delab  expr
   let fmt ← PrettyPrinter.ppTerm stx
   return fmt.pretty
 

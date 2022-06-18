@@ -24,7 +24,7 @@ def mathDepFullData(mathenv: Environment) : IO Unit := do
   IO.println "We consider dependencies in MathLib4 and generate various forms of data for machine learning. As of now these are for basic experiments.\n"
   let offCore := offSpringTripleCore
   let ei := offCore.run' 
-      {maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
+      {fileName := "", fileMap := ⟨"", #[], #[]⟩, maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
   match ←  ei.toIO' with
   | Except.ok triples => 
       IO.println "\nData obtained"
@@ -40,7 +40,7 @@ def mathDepFullData(mathenv: Environment) : IO Unit := do
       let file := System.mkFilePath ["data/frequencies.json"]
       let freqJsonC : CoreM Json := data.asJson
       let (freqJson, _) ←   freqJsonC.toIO 
-          {maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
+          {fileName := "", fileMap := ⟨"", #[], #[]⟩, maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
       let freqs := freqJson.pretty
       IO.FS.writeFile file freqs
       let file := System.mkFilePath ["data/matrices.json"]
@@ -57,7 +57,7 @@ def mathDepData(mathenv: Environment) : IO Unit := do
   IO.println "We consider dependencies in MathLib4 and generate various forms of data for machine learning. As of now these are for basic experiments.\n"
   let offCore := offSpringShallowTripleCore
   let ei := offCore.run' 
-      {maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
+      {fileName := "", fileMap := ⟨"", #[], #[]⟩, maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
   match ←  ei.toIO' with
   | Except.ok triples => 
       IO.println "\nData obtained"
@@ -66,7 +66,7 @@ def mathDepData(mathenv: Environment) : IO Unit := do
       let file := System.mkFilePath ["data/shallow-frequencies.json"]
       let freqJsonC : CoreM Json := data.asJson
       let (freqJson, _) ←   freqJsonC.toIO 
-          {maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
+          {fileName := "", fileMap := ⟨"", #[], #[]⟩, maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
       let freqs := freqJson.pretty
       IO.FS.writeFile file freqs
   | Except.error e =>
@@ -80,7 +80,7 @@ def mathPrompt(mathenv: Environment) : IO Unit := do
   IO.println "We consider dependencies in MathLib4 and generate data for simple prompts. As of now these are for basic experiments.\n"
   let promptCore := prompCoreJs
   let ei := promptCore.run' 
-      {maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
+      {fileName := "", fileMap := ⟨"", #[], #[]⟩, maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
   match ←  ei.toIO' with
   | Except.ok view => 
       IO.println "\nData obtained"
@@ -98,7 +98,7 @@ def lclConstDocs: String :=
 def runLclConst(env: Environment) : IO Unit := do
   IO.println s!"\n# Induction: locally constant functions\n\n{lclConstDocs}"
   let c := coreView LclConst.view3
-  let ei := c.run' {maxHeartbeats := 100000000000} {env := env}
+  let ei := c.run' {fileName := "", fileMap := ⟨"", #[], #[]⟩, maxHeartbeats := 100000000000} {env := env}
   let view := ei.toIO <| fun e => IO.Error.userError $ "Error while running" 
   match ←  ei.toIO' with
   | Except.ok view => 
@@ -134,7 +134,7 @@ The progress in proving the lemmas is output at each intermediate step, and fina
 def runCzSl(env: Environment) : IO Unit := do
   IO.println s!"\n# Czech-Slovak Olympiad example\n\n{czslDocs}"
   let c := coreView view4
-  let ei := c.run' {maxHeartbeats := 100000000000} {env := env}
+  let ei := c.run' {fileName := "", fileMap := ⟨"", #[], #[]⟩, maxHeartbeats := 100000000000} {env := env}
   match ←  ei.toIO' with
   | Except.ok view => 
       IO.println "\n# Run completed\n"

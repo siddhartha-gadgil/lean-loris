@@ -89,7 +89,7 @@ def parseNameMap : Syntax → TermElabM (Array (Name × Nat))
     do
           let m : Array (Name × Nat) ←  xs.mapM (fun s => do
               match s with 
-              | `(nameWt|($x:ident, $n:numLit)) =>                  
+              | `(nameWt|($x:ident, $n:num)) =>                  
                   return (x.getId, (Syntax.isNatLit? n).get!)
               | _ =>
                 throwError m!"{s} is not a valid nameWt"

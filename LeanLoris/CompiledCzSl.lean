@@ -18,11 +18,11 @@ open ProdSeq
 open RecEvolverM
 
 namespace CzSl
-constant M : Type
+opaque M : Type
 
 instance : Inhabited (M → M → M) := ⟨fun x _ => x⟩
 
-constant mul : M → M → M
+opaque mul : M → M → M
 
 
 noncomputable instance : Mul M := ⟨mul⟩

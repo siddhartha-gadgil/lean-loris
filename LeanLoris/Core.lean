@@ -19,7 +19,9 @@ open Nat
 def apply? (f x : Expr) : TermElabM (Option Expr) :=
   do
     try
-      let expr ← elabAppArgs f #[] #[Arg.expr x] none (explicit := false) (ellipsis := false)
+      let expr ← mkAppM' f #[x] 
+      -- elabAppArgs f #[] #[Arg.expr x] none (explicit := false) (ellipsis := false)
+      Term.synthesizeSyntheticMVarsNoPostponing
       let exprType ← inferType expr
       if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  then 
         Term.synthesizeSyntheticMVarsNoPostponing
@@ -32,8 +34,8 @@ def apply? (f x : Expr) : TermElabM (Option Expr) :=
 def applyPair? (f x y : Expr) : TermElabM (Option Expr) :=
   do
     try
-      let expr ← elabAppArgs f #[] #[Arg.expr x, Arg.expr y] none 
-                    (explicit := false) (ellipsis := false)
+      let expr ← mkAppM' f #[x, y] 
+      --  ← elabAppArgs f #[] #[Arg.expr x, Arg.expr y] none (explicit := false) (ellipsis := false)
       let exprType ← inferType expr
       if ← (isTypeCorrect expr <&&>  isTypeCorrect exprType)  then 
         Term.synthesizeSyntheticMVarsNoPostponing
@@ -80,7 +82,7 @@ def nameApply? (f: Name) (x : Expr) : TermElabM (Option Expr) :=
         Term.synthesizeSyntheticMVarsNoPostponing
         return some <| ← whnf expr
       else
-      Elab.logWarning m!"not type correct : {expr} = {f} ({x})" 
+      logWarning m!"not type correct : {expr} = {f} ({x})" 
       return none
     catch e =>
         -- Elab.logInfo m!"failed from name, arg : 
@@ -98,7 +100,7 @@ def nameApplyPair? (f: Name) (x y: Expr) : TermElabM (Option Expr) :=
         Term.synthesizeSyntheticMVarsNoPostponing
         return some <| ← whnf expr
       else
-      Elab.logWarning m!"not type correct : {expr} = {f}({x}, {y})" 
+      logWarning m!"not type correct : {expr} = {f}({x}, {y})" 
       return none
     catch e =>
         -- Elab.logInfo m!"failed from name, arg : 

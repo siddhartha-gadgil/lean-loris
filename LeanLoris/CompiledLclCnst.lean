@@ -14,10 +14,10 @@ open Lean.Elab.Term
 open RecEvolverM
 namespace LclConst
 
-constant α : Type
+opaque α : Type
 axiom a : α 
 noncomputable instance : Inhabited α := ⟨a⟩
-constant f : Nat → Nat 
+opaque f : Nat → Nat 
 
 -- the claims and proofs
 def hyp! := ∀ n: Nat, f (n + 1) = f n
