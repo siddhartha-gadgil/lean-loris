@@ -433,6 +433,5 @@ elab "simp!" t:term: term => do
   let r ← e.simplify
   return r
 
-#eval simp! 2
+-- #eval simp! 2
 
-#check Nat.mul
