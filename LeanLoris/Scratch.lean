@@ -481,10 +481,14 @@ partial def showSyntax : Syntax → String
 def tctSeq : Syntax → TermElabM (List Syntax)
 | `(myby $s:tacticSeq) => do
   let tcs := s[0][0]
+  IO.println s
   IO.println (showSyntax s)
   IO.println (showSyntax tcs)
   let n := tcs.getArgs.size
   (List.range n).mapM <| fun j => do
+    match tcs[j] with
+    | `(tactic|$xs) => IO.println (showSyntax xs)
+    | _ => IO.println ("not a tactic")
     IO.println tcs[j][0][0]
     IO.println tcs[j][0].getArgs.size
     IO.println (showSyntax tcs[j])
@@ -500,7 +504,8 @@ def tcseg : TermElabM (List Syntax) := do
     let stx ← `(myby 
                       simp
                       rw [Nat.add]
-                      skip 
+                      {admit ; admit}
+                      skip ; skip
                       simp [Nat.succ, Nat.zero, ← Nat] 
                       admit)
     let _ ← `(by simp ; skip)
@@ -508,6 +513,11 @@ def tcseg : TermElabM (List Syntax) := do
 
 #eval tcseg 
 
-#check List.length_cons
+syntax (name:= hello) "hello" : tactic
+@[tactic hello] def helloImpl : Tactic := fun _ => do
+    logInfo m!"hello"
+    pure ()
 
-#check Lean.Syntax.node
+def n: Nat := by
+    hello
+    exact 3
