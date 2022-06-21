@@ -57,44 +57,6 @@ def counts: TermElabM (Array Nat) := do
   let cnts ←  cntsAux.mapM <| fun t => t.get
   return cnts
 
-def countIO (env: Environment)(n: Nat) : IO (Option Nat) := do
-    let el := count (ToExpr.toExpr n)
-    let m := el.run'
-    let c := m.run'
-    let ei := c.run' {maxHeartbeats := 100000000000} {env}
-    match ←  ei.toIO' with
-  | Except.ok n => 
-      return some n
-  | Except.error e =>
-      return none
-
-set_option maxHeartbeats 100000000
-
-def countsPar(env: Environment) : IO (Nat) := do
-  let arr : Array Nat := #[1, 2, 3, 4, 5, 6]
-  let eg ←  (countIO env 3).asTask.toIO
-  let ego := eg.get
-  let egopt := match ego with
-      | Except.ok n => n
-      | Except.error e => none 
-  let cntsAux := arr.map <| fun i =>  
-    ((countIO env i).asTask (Task.Priority.dedicated)).toIO
-  let cnts ←  cntsAux.mapM <| fun iot => do 
-        let tsk ← iot
-        let eio := tsk.get
-        match eio with
-          | Except.ok n => return n
-          | Except.error e => return none
-  let total := cnts.foldl (fun acc nopt => 
-      match nopt with
-      | some k => acc + k 
-      | none => acc) 0
-  return total
-
-def countsM : MetaM Nat := do
-  countsPar (← getEnv)
-
--- #eval countsM
 
 open Nat
 
@@ -386,10 +348,6 @@ def eg: Option Nat := some 3
 
 #eval eg.map (. * 2)
  
-#eval OptionM.run do
-    let x ← eg
-    let y ← eg
-    return x * 2 + y
 
 def diff : (n: Nat) → (m: Nat) → m ≤ n → Nat 
 | n, m, _ => n - m
@@ -411,9 +369,8 @@ def simpCtx := Simp.Context.mkDefault
 def simpLemmas2 : MetaM Nat := do
   let ctx ← simpCtx
   let simpTheorems := ctx.simpTheorems
-  return simpTheorems.lemmaNames.size
+  sorry
 
-#eval simpLemmas2
 
 def simpDef(e: Expr) : MetaM Simp.Result := do simp e (← simpCtx)
 
@@ -508,3 +465,32 @@ elab "show!" t:term: term => do
 
 
 #check show! goal
+
+open Term
+
+declare_syntax_cat mytacseq
+syntax "myby" tacticSeq : term
+
+def tctSeq : Syntax → TermElabM (List Syntax)
+| `(myby $s:tacticSeq) => 
+  let tcs := s[0][0]
+  let n := tcs.getArgs.size
+  (List.range n).mapM <| fun j => 
+    match tcs[j][0][0] with
+    | `(tactic| simp [ $args,* ]) => `(tactic|admit)
+    | `(tactic| $name) => `(tactic|$name)
+    | _ => panic! "strange syntax"
+| _ => panic! "strange syntax"
+
+def tcseg : TermElabM (List Syntax) := do 
+    let stx ← `(myby 
+                      simp
+                      skip 
+                      simp [Nat.succ, Nat.zero] 
+                      admit)
+    let _ ← `(by simp ; skip)
+    tctSeq stx
+
+#eval tcseg 
+
+#check Lean.Syntax.node
