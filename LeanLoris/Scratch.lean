@@ -471,26 +471,43 @@ open Term
 declare_syntax_cat mytacseq
 syntax "myby" tacticSeq : term
 
+partial def showSyntax : Syntax → String
+| Syntax.node _ _ args => 
+  (args.map <| fun s => showSyntax s).foldl (fun acc s => acc ++ " " ++ s) ""
+| Lean.Syntax.atom _ val => val
+| Lean.Syntax.ident _ _ val _ => val.toString
+| _ => ""
+
 def tctSeq : Syntax → TermElabM (List Syntax)
-| `(myby $s:tacticSeq) => 
+| `(myby $s:tacticSeq) => do
   let tcs := s[0][0]
+  IO.println (showSyntax s)
+  IO.println (showSyntax tcs)
   let n := tcs.getArgs.size
-  (List.range n).mapM <| fun j => 
-    match tcs[j][0][0] with
-    | `(tactic| simp [ $args,* ]) => `(tactic|admit)
-    | `(tactic| $name) => `(tactic|$name)
-    | _ => panic! "strange syntax"
+  (List.range n).mapM <| fun j => do
+    IO.println tcs[j][0][0]
+    IO.println tcs[j][0].getArgs.size
+    IO.println (showSyntax tcs[j])
+    IO.println tcs[j][0][1]
+    IO.println tcs[j][0][2]
+    IO.println tcs[j][0][3]
+    IO.println tcs[j][0][4]
+    IO.println tcs[j][0][5]
+    return tcs[j][0][0]
 | _ => panic! "strange syntax"
 
 def tcseg : TermElabM (List Syntax) := do 
     let stx ← `(myby 
                       simp
+                      rw [Nat.add]
                       skip 
-                      simp [Nat.succ, Nat.zero] 
+                      simp [Nat.succ, Nat.zero, ← Nat] 
                       admit)
     let _ ← `(by simp ; skip)
     tctSeq stx
 
 #eval tcseg 
+
+#check List.length_cons
 
 #check Lean.Syntax.node
