@@ -11,6 +11,9 @@ syntax str: jsonid
 declare_syntax_cat json
 syntax str : json
 syntax num : json
+syntax "true" : json
+syntax "false" : json
+syntax "null" : json
 syntax "{" (jsonid ": " json),* "}" : json
 syntax "[" json,* "]" : json
 
@@ -23,11 +26,17 @@ def getJsonSyntax(s: String) : MetaM Syntax := do
 
 #eval getJsonSyntax "[{hello: 1}, [2, 3]]"
 
-syntax "json " json : term
+#check Bool.true
 
 open Json in
 partial def parseJsonSyntax (s: Syntax) : MetaM Json := do
   match s with
+  | `(json|true) => do
+      return Json.bool Bool.true 
+  | `(json|false) => do
+      return Json.bool Bool.false
+  | `(json|null) => do
+      return (Json.null)
   | `(json|$s:str) => pure (Syntax.isStrLit? s).get!
   | `(json|$n:num) => pure (Syntax.isNatLit? n).get!
   | `(json|{ $[$ns : $js],* }) => do
@@ -54,3 +63,12 @@ partial def parseJsonSyntax (s: Syntax) : MetaM Json := do
 def readJson(s: String) : MetaM Json := do
   let stx ← getJsonSyntax s
   parseJsonSyntax stx
+
+#eval readJson "[{hello: 1}, [2, 3], {\"x\": 3}]"
+
+def checkRead: MetaM Json := do 
+  let file := System.mkFilePath ["data/test.json"]
+  let s ← IO.FS.readFile file 
+  readJson s
+
+#eval checkRead
