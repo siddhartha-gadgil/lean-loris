@@ -2,6 +2,7 @@
 perf*
 .vscode/
 /lean_packages
+!/lean_packages/manifest.json
 tmp//build
 /lean_packages
 /build
