@@ -238,7 +238,10 @@ match s with
   logResults (some tk) goals finalDist
   let reportDist ← goals.mapM $ fun g => do
     let pf? ←  (finalDist.getProofM? g)
-    return pf?.getD (mkConst ``Unit, 0)
+    let pf? ← pf?.mapM <| fun (pf, n) => do
+      let pf ← pf.simplify
+      return (pf, n)
+    return pf?.getD (Lean.mkConst ``Unit, 0)
   return ← (ppackWithDegree reportDist.toList)
 | _ => throwIllFormedSyntax
 

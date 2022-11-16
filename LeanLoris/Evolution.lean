@@ -329,7 +329,7 @@ def applyPairEvolver(D: Type)[NewElem Expr D]: EvolverM D :=
     return res
 
 /-- evolver by application without unification; efficient as function domains are matched with argument types.-/
-def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun degBnd c d init => 
+def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun degBnd c _ init => 
   do
     let mut doms : Array Expr := #[]
     let mut funcsWithDom : DiscrTree (Expr× Nat) := DiscrTree.empty
