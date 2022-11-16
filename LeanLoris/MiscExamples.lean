@@ -59,10 +59,11 @@ def egMap := FinDist.fromList [(1, 2), (2, 3), (3, 4), (7, 1), (9, 1), (10, 3)]
 #eval egMap.exists 10 2 -- not in dist because of the degree
 #eval egMap.exists 10 3
 #eval (FinDist.zeroLevel #[3, 4, 7]).toArray
-#eval (FinDist.update egMap 10 4).getOp 10 -- not updated because of the degree
-#eval (FinDist.update egMap 10 2).getOp 10
-#eval (FinDist.update egMap 6 2).getOp 6
+-- #eval (FinDist.update egMap 10 4).getOp 10 -- not updated because of the degree
+-- #eval (FinDist.update egMap 10 2).getOp 10
+-- #eval (FinDist.update egMap 6 2).getOp 6
 
+#check FinDist.findM?
 
 /- Evolution examples using Syntax -/
 open Nat

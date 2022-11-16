@@ -14,7 +14,7 @@ open Nat
   including Mondaic forms. For expressions we use `ExprDist` instead
   as we want Definitional equality, not Boolean equality.
 -/
-abbrev FinDist (α : Type)[Hashable α][BEq α] := HashMap α Nat 
+abbrev FinDist (α : Type)[Hashable α][BEq α] := Std.HashMap α Nat 
 
 /--
 Distribution on names
@@ -23,7 +23,7 @@ abbrev NameDist := FinDist Name
 
 namespace FinDist
 
-def empty{α : Type} [Hashable α][BEq α] : FinDist α := HashMap.empty
+def empty{α : Type} [Hashable α][BEq α] : FinDist α := Std.HashMap.empty
 
 /--
 Merge finite distributions, with the lowest value for a key
@@ -75,22 +75,22 @@ def mapM{α β : Type}[Hashable α][BEq α][Hashable β][BEq β]
 number of keys with given value
 -/
 def degreeCount{α : Type}[Hashable α][BEq α] 
-    (m: FinDist α) : HashMap Nat Nat := 
+    (m: FinDist α) : Std.HashMap Nat Nat := 
       m.toArray.foldl (fun deg (key, val) =>
         match deg.find? val with
         | some v =>
           deg.insert val (v + 1)
         | none => 
           deg.insert val 1
-      ) HashMap.empty
+      ) Std.HashMap.empty
 
 /--
 number of keys with value greater than or equal to given value, up to the maximum value
 -/
 def cumulDegreeCount{α : Type}[Hashable α][BEq α] 
-    (m: FinDist α) (maxDegree : Nat) : HashMap Nat Nat := Id.run do
+    (m: FinDist α) (maxDegree : Nat) : Std.HashMap Nat Nat := Id.run do
       let base := degreeCount m
-      let mut deg := HashMap.empty
+      let mut deg := Std.HashMap.empty
       for (key, val) in base.toArray do
         for j in [key: (maxDegree + 1)] do
           match deg.find? j with
@@ -156,13 +156,13 @@ def update{α : Type}[Hashable α][BEq α]
 distribution from list of (with degree) elements.
 -/
 def fromList{α : Type}[Hashable α][BEq α] (l : List (α  × Nat)) : FinDist α :=
-  l.foldl (fun m (a, n) => m.update a n) HashMap.empty
+  l.foldl (fun m (a, n) => m.update a n) Std.HashMap.empty
 
 /--
 distribution from array of (with degree) elements.
 -/
 def fromArray{α : Type}[Hashable α][BEq α] (arr: Array (α × Nat)) : FinDist α :=
-  arr.foldl (fun m (x, deg) => m.update x deg) HashMap.empty
+  arr.foldl (fun m (x, deg) => m.update x deg) Std.HashMap.empty
 
 /--
 the keys
@@ -201,8 +201,8 @@ given an array of elements with degrees, return a map of the number of
 elements with degree at least a given number, up to the maximum degree.
 -/
 def degreeAbove{α : Type}(withDeg : Array (α × Nat))(maxDegree: Nat): 
-    HashMap Nat Nat := Id.run do
-      let mut deg := HashMap.empty
+    Std.HashMap Nat Nat := Id.run do
+      let mut deg := Std.HashMap.empty
       for (_, n) in withDeg do
         for j in [n: (maxDegree + 1)] do
           match deg.find? j with
@@ -216,11 +216,11 @@ def degreeAbove{α : Type}(withDeg : Array (α × Nat))(maxDegree: Nat):
 return map of number of elements with a given degree in an array of pairs.
 -/
 def arrDegreeCount{α : Type}[Hashable α][BEq α] 
-    (m: Array (α× Nat)) : HashMap Nat Nat := 
+    (m: Array (α× Nat)) : Std.HashMap Nat Nat := 
       m.foldl (fun deg (key, val) =>
         match deg.find? val with
         | some v =>
           deg.insert val (v + 1)
         | none => 
           deg.insert val 1
-      ) HashMap.empty
+      ) Std.HashMap.empty

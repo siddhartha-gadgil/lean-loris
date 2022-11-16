@@ -348,7 +348,7 @@ def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun degBnd c d i
       let key ← type.simplify
       unless (← funcsWithDom.getMatch key).isEmpty do           
         termsWithTypes ← termsWithTypes.insert key (x, deg)
-    let mut cumPairCount : HashMap Nat Nat := HashMap.empty
+    let mut cumPairCount : Std.HashMap Nat Nat := HashMap.empty
     for dom in doms do
       let key ← dom.simplify
       let fns ← funcsWithDom.getMatch key
@@ -462,7 +462,7 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
             withRHS ←  withRHS.insert rhsKey (lhs, rhs, flip, degree)
         | none => pure ()
     -- IO.println s!"DiscrTree symmetrized ({newEquations.size}): {(← IO.monoMsNow) - start} ms"
-    let mut cumPairCnt : HashMap Nat Nat := HashMap.empty
+    let mut cumPairCnt : Std.HashMap Nat Nat := HashMap.empty
     for key in sideKeys do
       let m ← withLHS.getMatch key
       for (lhs, rhs, pf, _) in m do
@@ -510,7 +510,7 @@ def congrIsleEvolver(D: Type)[NewElem Expr D][IsleData D] : RecEvolverM D :=
           eqs ←   eqs.pushProofM l exp deg
           eqTriples := eqTriples.push (exp, α, deg)
     let eqsCum := degreeAbove eqs.allTermsArray degBnd
-    let mut isleDistMap : HashMap Expr ExprDist := HashMap.empty
+    let mut isleDistMap : Std.HashMap Expr ExprDist := HashMap.empty
     let eqTypesExpr ←  ExprDist.fromArrayM eqTypesArr
     for (type, deg) in eqTypesExpr.termsArray do
       if degBnd - deg > 0 then

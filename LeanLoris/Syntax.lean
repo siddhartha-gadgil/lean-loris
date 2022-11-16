@@ -213,7 +213,7 @@ syntax save_target := "=:" ident
 
 syntax (name:= evolution) 
   "evolve!" evolver_list (expr_list)? expr_dist (name_dist)? num (num)? (save_target)?  : term
-@[termElab evolution] def evolutionImpl : TermElab := fun s _ =>
+@[term_elab evolution] def evolutionImpl : TermElab := fun s _ =>
 match s with
 | `(evolve!%$tk $evolvers $(goals?)? $initDist $(nameDist?)? $degBnd $(card?)? $(saveTo?)?)  => do
   let ev ← parseEvolverList evolvers

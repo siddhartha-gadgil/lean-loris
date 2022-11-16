@@ -3,9 +3,10 @@ open Lake DSL
 
 package «lean-loris» 
 
+@[default_target]
 lean_lib LeanLoris
 
-@[defaultTarget]
+@[default_target]
 lean_exe all {
   supportInterpreter := true
 }

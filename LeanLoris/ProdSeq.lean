@@ -181,8 +181,8 @@ infixr:65 ":::" => PProd.mk
 end ProdSeq
 
 /- Saving and loading an `ExprDist` -/
-initialize exprDistCache : IO.Ref (HashMap Name (Expr × ExprDist)) 
-                          ← IO.mkRef (HashMap.empty)
+initialize exprDistCache : IO.Ref (Std.HashMap Name (Expr × ExprDist)) 
+                          ← IO.mkRef (Std.HashMap.empty)
 
 /-- save an `ExprDist` after serializing at the given name -/
 def ExprDist.save (name: Name)(es: ExprDist) : TermElabM (Unit) := do
@@ -196,7 +196,7 @@ def ExprDist.save (name: Name)(es: ExprDist) : TermElabM (Unit) := do
   let fvars := fvIds.map mkFVar
   Term.synthesizeSyntheticMVarsNoPostponing 
   let espair ← es.mapM (fun e => do 
-       return (← Term.levelMVarToParam (← instantiateMVars e)).1)
+       return (← Term.levelMVarToParam (← instantiateMVars e)))
   let es ← espair.mapM (fun e => do whnf <| ←  mkLambdaFVars fvars e)
   let varPack ← ProdSeq.lambdaPack fvars.toList
   let cache ← exprDistCache.get

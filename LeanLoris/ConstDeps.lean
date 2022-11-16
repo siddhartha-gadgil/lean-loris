@@ -16,7 +16,7 @@ Generating data of expressions in the definition and the types of global constan
 As this is experimental, various forms of data are generated.
 -/
 
-initialize exprRecCache : IO.Ref (HashMap Expr (Array Name)) ← IO.mkRef (HashMap.empty)
+initialize exprRecCache : IO.Ref ( Std.HashMap Expr (Array Name)) ← IO.mkRef ( Std.HashMap.empty)
 
 def getCached? (e : Expr) : IO (Option (Array Name)) := do
   let cache ← exprRecCache.get
@@ -51,7 +51,7 @@ partial def recExprNames: Expr → MetaM (Array Name) :=
   | some offs => return offs
   | none =>
     let res ← match e with
-      | Expr.const name _ _  =>
+      | Expr.const name _   =>
         do
         if ← (isWhiteListed name) 
           then return #[name] 
@@ -61,17 +61,17 @@ partial def recExprNames: Expr → MetaM (Array Name) :=
             | some e => recExprNames e
             | none => return #[]
           else pure #[]        
-      | Expr.app f a _ => 
+      | Expr.app f a  => 
           do  
             let ftype? ← inferType? f 
             let expl? := 
               ftype?.map $ fun ftype =>
-              (ftype.data.binderInfo.isExplicit)
+              (ftype.binderInfo.isExplicit)
             let expl := expl?.getD true
             let s ←  
               if !expl then 
                 match a with
-                | Expr.const name _ _  =>
+                | Expr.const name _   =>
                     do
                     if ← (isWhiteListed name) 
                       then
@@ -144,7 +144,7 @@ def promptArrayM(excludePrefixes: List Name := [])(freqBound: Nat := 50)
   let goodKeys := keys.filter fun (name, _) =>
     !(excludePrefixes.any (fun pfx => pfx.isPrefixOf name))
   IO.println s!"Tokens considered (excluding system code): {goodKeys.size}"
-  let mut termFreqs : HashMap Name Nat := HashMap.empty
+  let mut termFreqs :  Std.HashMap Name Nat :=  Std.HashMap.empty
   let kv : Array (Name × String × (Array Name)) ←  (goodKeys).mapM $ 
       fun (n, type) => 
           do 
@@ -232,19 +232,19 @@ def binomAbove (n k: Nat)(p: Float) : Float := Id.run do
   return 1.0 - acc 
 
 def Array.countMap {α : Type}[BEq α][Hashable α] (arr: Array (α × Nat)) :
-     HashMap α Nat :=
-        HashMap.ofListWith (arr.toList) (Nat.add)
+      Std.HashMap α Nat :=
+         Std.HashMap.ofListWith (arr.toList) (Nat.add)
 
 def Array.probMap {α : Type}[BEq α][Hashable α] (arr: Array (α × Nat)) :
-     HashMap α Float :=
+      Std.HashMap α Float :=
         let cnt := arr.countMap
-        let total := arr.foldl (fun acc (a, n) => acc + n) 0
-        if total = 0 then HashMap.empty else
-          HashMap.ofList (
+        let total := arr.foldl (fun acc (_, n) => acc + n) 0
+        if total == 0 then  Std.HashMap.empty else
+           Std.HashMap.ofList (
               cnt.toList.map $ fun (a, n) => (a, n.toFloat / total.toFloat))
 
 def probOverlap {α : Type}[BEq α][Hashable α]
-      (d d' : HashMap α Float) : Float :=
+      (d d' :  Std.HashMap α Float) : Float :=
       let pq : Array Float := 
         d.toArray.filterMap (fun (a, p) => 
             (d'.find? a).map (fun x => min x p))
@@ -253,10 +253,10 @@ def probOverlap {α : Type}[BEq α][Hashable α]
 /-- various frequencies of names in definitions and types -/
 structure FrequencyData where
   size : Nat
-  termFreqs: HashMap Name Nat
-  typeFreqs: HashMap Name Nat
-  typeTermFreqs: HashMap (Name × Name) Nat
-  typeTermMap : HashMap Name (HashMap Name Nat)
+  termFreqs:  Std.HashMap Name Nat
+  typeFreqs:  Std.HashMap Name Nat
+  typeTermFreqs:  Std.HashMap (Name × Name) Nat
+  typeTermMap :  Std.HashMap Name ( Std.HashMap Name Nat)
   allObjects : HashSet Name
   triples: Array (Name × (Array Name) × (Array Name))
 
@@ -299,10 +299,10 @@ def asJson(fd: FrequencyData) : CoreM Json :=
 /-- from off-spring triple obtain frequency data; not counting multiple occurences -/
 def get (triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyData := do
   let size := triples.size
-  let mut termFreqs := HashMap.empty
-  let mut typeFreqs := HashMap.empty
-  let mut typeTermFreqs := HashMap.empty
-  let mut typeTermMap := HashMap.empty
+  let mut termFreqs :=  Std.HashMap.empty
+  let mut typeFreqs :=  Std.HashMap.empty
+  let mut typeTermFreqs :=  Std.HashMap.empty
+  let mut typeTermMap :=  Std.HashMap.empty
   let mut allObjects := HashSet.empty
   for (name, terms, types) in triples do
     allObjects := allObjects.insert name
@@ -315,7 +315,7 @@ def get (triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyDa
     for y in types.toList.eraseDups do
       for x in terms.toList.eraseDups do      
         typeTermFreqs := typeTermFreqs.insert (y, x) ((typeTermFreqs.findD (y, x) 0) + 1)
-        let trms := (typeTermMap.findD y HashMap.empty)
+        let trms := (typeTermMap.findD y  Std.HashMap.empty)
         let trms := trms.insert x (trms.findD x 0 + 1)
         typeTermMap := typeTermMap.insert y trms 
   pure ⟨size, termFreqs, typeFreqs, typeTermFreqs, typeTermMap, allObjects, triples⟩
@@ -323,10 +323,10 @@ def get (triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyDa
 /-- from off-spring triple obtain frequency data; counting multiple occurences -/
 def withMultiplicity(triples: Array (Name × (Array Name) × (Array Name))) : IO FrequencyData := do
   let size := triples.size
-  let mut termFreqs := HashMap.empty
-  let mut typeFreqs := HashMap.empty
-  let mut typeTermFreqs := HashMap.empty
-  let mut typeTermMap := HashMap.empty
+  let mut termFreqs :=  Std.HashMap.empty
+  let mut typeFreqs :=  Std.HashMap.empty
+  let mut typeTermFreqs :=  Std.HashMap.empty
+  let mut typeTermMap :=  Std.HashMap.empty
   let mut allObjects := HashSet.empty
   for (name, terms, types) in triples do
     allObjects := allObjects.insert name
@@ -339,7 +339,7 @@ def withMultiplicity(triples: Array (Name × (Array Name) × (Array Name))) : IO
     for y in types do
       for x in terms do      
         typeTermFreqs := typeTermFreqs.insert (y, x) ((typeTermFreqs.findD (y, x) 0) + 1)
-        let trms := (typeTermMap.findD y HashMap.empty)
+        let trms := (typeTermMap.findD y  Std.HashMap.empty)
         let trms := trms.insert x (trms.findD x 0 + 1)
         typeTermMap := typeTermMap.insert y trms 
   pure ⟨size, termFreqs, typeFreqs, typeTermFreqs, typeTermMap, allObjects, triples⟩
@@ -383,10 +383,10 @@ def typeTermView(data: FrequencyData) : String :=
   let arr : Array (Name × Nat × String)  := data.typeTermArray.map <| fun (type, freq, terms) => 
       (type, freq, (terms.toList.drop 1).foldl (fun acc (x, freq) => 
           let pair := s!"[\"{x}\", {freq}]"
-          acc ++ "," ++ pair) s!"[\"{terms[0].1}\", {terms[0].2}]")
+          acc ++ "," ++ pair) s!"[\"{terms[0]!.1}\", {terms[0]!.2}]")
   let arr2 : Array String := arr.map $ fun (type, freq, terms) =>
         s!"[\"{type}\", {freq}, [{terms}]]"
-  let multiline := (arr2.toList.drop 1).foldl (fun acc x => acc ++ ",\n" ++ x) s!"{arr2[0]}"
+  let multiline := (arr2.toList.drop 1).foldl (fun acc x => acc ++ ",\n" ++ x) s!"{arr2[0]!}"
   s!"[{multiline}]"
 
 end FrequencyData
@@ -408,12 +408,12 @@ def matrixData(triples: Array (Name × (Array Name) × (Array Name))) :
             countVec objects (count types)
         return ⟨objects, termsArray, typesArr⟩
         where 
-          count (arr: Array Name) : HashMap Name Nat := Id.run do  
-            let mut m := HashMap.empty
+          count (arr: Array Name) :  Std.HashMap Name Nat := Id.run do  
+            let mut m :=  Std.HashMap.empty
             for x in arr do
               m := m.insert x (m.findD x 0 + 1)
             return m
-          countVec (objs: Array Name) (m: HashMap Name Nat) :=
+          countVec (objs: Array Name) (m:  Std.HashMap Name Nat) :=
             objs.map $ fun x => m.findD x 0
 
 /-- Json data: array names of definitions; frequency matrices of occurence of names in definitions and in types of definitions -/

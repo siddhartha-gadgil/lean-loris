@@ -8,7 +8,6 @@ open Meta
 open Elab
 open Lean.Elab.Term
 open Std
-open Std.HashMap
 open Nat
 
 /- Basic functions for generation: at the level of expressions and arrays of expressions with degrees -/
@@ -190,8 +189,8 @@ def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α
     (maxDegree : Nat)(card? : Option Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
     (data: D) : TermElabM ExprDist := do 
     if maxDegree > 0 then
-      let mut fstTagGrouped: HashMap Nat (Array (α × Bool × Bool)) := HashMap.empty
-      let mut sndTagGrouped: HashMap Nat (Array (β × Bool × Bool)) := HashMap.empty
+      let mut fstTagGrouped:  Std.HashMap Nat (Array (α × Bool × Bool)) :=  Std.HashMap.empty
+      let mut sndTagGrouped:  Std.HashMap Nat (Array (β × Bool × Bool)) :=  Std.HashMap.empty
       for (a, deg1) in fst do
         let prev := fstTagGrouped.findD deg1 #[]
         fstTagGrouped := fstTagGrouped.insert deg1 <| prev.push (a, ← newElem data a deg1)
@@ -213,8 +212,9 @@ def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α
                     withDegPairs := withDegPairs.push (e1, e2, deg1 + deg2  + 1)
       let arr1 : Array (TermElabM (Option (Expr × Nat))) := 
           withDegPairs.map <| fun (e1, e2, deg) => 
-                (compose e1 e2).map (fun oe => 
-                      oe.map (fun e4 => (e4, deg) ))
+                do
+                let e3? ← compose e1 e2
+                return e3?.map (fun e3 => (e3, deg) )
       let arr2 ←  arr1.filterMapM <| fun t => t
       let res ← ExprDist.fromArrayM arr2 
       return res
@@ -226,8 +226,8 @@ def prodPolyGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageDat
     (maxDegree : Nat)(card? : Option Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
     (data: D) : TermElabM ExprDist := do 
     if maxDegree > 0 then
-      let mut fstTagGrouped: HashMap Nat (Array (α × Bool × Bool)) := HashMap.empty
-      let mut sndTagGrouped: HashMap Nat (Array (β × Bool × Bool)) := HashMap.empty
+      let mut fstTagGrouped:  Std.HashMap Nat (Array (α × Bool × Bool)) :=  Std.HashMap.empty
+      let mut sndTagGrouped:  Std.HashMap Nat (Array (β × Bool × Bool)) :=  Std.HashMap.empty
       for (a, deg1) in fst do
         let prev := fstTagGrouped.findD deg1 #[]
         fstTagGrouped := fstTagGrouped.insert deg1 <| prev.push (a, ← newElem data a deg1)
@@ -265,9 +265,9 @@ def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ 
     (maxDegree : Nat)(card? : Option Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
     (third : Array (γ × Nat))(data: D) : TermElabM ExprDist := do 
     if maxDegree > 0 then
-      let mut fstTagGrouped: HashMap Nat (Array (α × Bool × Bool)) := HashMap.empty
-      let mut sndTagGrouped: HashMap Nat (Array (β × Bool × Bool)) := HashMap.empty
-      let mut thirdTagGrouped: HashMap Nat (Array (γ × Bool × Bool)) := HashMap.empty
+      let mut fstTagGrouped:  Std.HashMap Nat (Array (α × Bool × Bool)) :=  Std.HashMap.empty
+      let mut sndTagGrouped:  Std.HashMap Nat (Array (β × Bool × Bool)) :=  Std.HashMap.empty
+      let mut thirdTagGrouped:  Std.HashMap Nat (Array (γ × Bool × Bool)) :=  Std.HashMap.empty
       for (a, deg1) in fst do
         let prev := fstTagGrouped.findD deg1 #[]
         fstTagGrouped := fstTagGrouped.insert deg1 <| prev.push (a, ← newElem data a deg1)
@@ -294,9 +294,9 @@ def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ 
                   then
                     withDegTriples := withDegTriples.push (e1, e2, e3, deg1 + deg2 + w3 + 1)
       let arr1 : Array (TermElabM (Option (Expr × Nat))) := 
-          withDegTriples.map <| fun (e1, e2, e3, deg) => 
-                (compose e1 e2 e3).map (fun oe => 
-                      oe.map (fun e4 => (e4, deg) ))
+          withDegTriples.map <| fun (e1, e2, e3, deg) => do
+                let e4? ← compose e1 e2 e3
+                return e4?.map (fun  e4 => (e4, deg) )
       let arr2 ←  arr1.filterMapM <| fun t => t
       let res ← ExprDist.fromArrayM arr2
       return res

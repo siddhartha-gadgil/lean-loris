@@ -23,13 +23,13 @@ def getContext : MetaM Simp.Context := do
     pure ctx
   | some c => pure c
 
-initialize simplifyCache : IO.Ref (HashMap Expr Expr) ← IO.mkRef HashMap.empty
+initialize simplifyCache : IO.Ref (Std.HashMap Expr Expr) ← IO.mkRef Std.HashMap.empty
 
 def Lean.Expr.simplify(e: Expr) : MetaM Expr := do 
   let cache ← simplifyCache.get
   match cache.find? e with
   | none => 
-    let r ← simp e (← Simp.Context.mkDefault)
+    let (r, _) ← simp e (← Simp.Context.mkDefault)
     simplifyCache.set (cache.insert e r.expr)
     return r.expr
   | some expr => return expr
@@ -112,7 +112,7 @@ def negate (p: Expr) : MetaM Expr := do
   | some q => return q
   | none => 
     match p with
-    | Expr.app a  b _ => return (mkAnd a (mkNot b)) 
+    | Expr.app a b  => return (mkAnd a (mkNot b)) 
     | Expr.forallE _ x b _ => 
       let type ← inferType x
       let family ← 

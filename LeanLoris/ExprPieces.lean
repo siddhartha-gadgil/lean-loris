@@ -7,7 +7,7 @@ open Lean Meta Elab Term
 
 /- Computing subexpressions : for hashing, tactics, data -/
 
-initialize expNamesCache : IO.Ref (HashMap Bool (HashMap Expr (List Name))) ← IO.mkRef (HashMap.empty)
+initialize expNamesCache : IO.Ref ( Std.HashMap Bool ( Std.HashMap Expr (List Name))) ← IO.mkRef ( Std.HashMap.empty)
 
 def getCachedNames? (withDoms: Bool)(e : Expr) : IO (Option (List Name)) := do
   let cache ← expNamesCache.get
@@ -15,7 +15,7 @@ def getCachedNames? (withDoms: Bool)(e : Expr) : IO (Option (List Name)) := do
 
 def cacheName (withDoms: Bool)(e: Expr) (offs : List Name) : IO Unit := do
   let cache ← expNamesCache.get
-  let prev := cache.findD withDoms HashMap.empty
+  let prev := cache.findD withDoms  Std.HashMap.empty
   expNamesCache.set (cache.insert withDoms $ prev.insert e offs)
   return ()
 
@@ -32,7 +32,7 @@ it appears that definitionally equal expressions hash to the same value.
 partial def exprHash : Expr → TermElabM UInt64 
   | e =>
     match e with
-      | Expr.const name _ _  =>
+      | Expr.const name _   =>
         do
         let type? ← inferType? e
         let isForAll := (type?.map (fun type => type.isForall)).getD true
@@ -41,21 +41,21 @@ partial def exprHash : Expr → TermElabM UInt64
           match ← nameExpr?  name with
           | some e => exprHash e
           | none => return 7
-      | Expr.app f a _ => 
+      | Expr.app f a  => 
           do  
             let ftype? ← inferType? f 
             let expl? := 
               ftype?.map $ fun ftype =>
-              (ftype.data.binderInfo.isExplicit)
+              (ftype.binderInfo.isExplicit)
             let expl := expl?.getD true
             if !expl then pure 7 else return mixHash (← exprHash f) (← exprHash a)
       | Expr.lam _ t b _ => 
           return mixHash (← exprHash t) (← exprHash b)
       | Expr.forallE _ t b _ => do
           return mixHash (← exprHash t) (← exprHash b) 
-      | Expr.letE _ t v b _ => 
+      | Expr.letE _ t _ b _ => 
           return mixHash (← exprHash t) (← exprHash b)
-      | Expr.lit _ d => return d.hash
+      | Expr.lit  d => return d.hash
       | _ => return 7
 
 
@@ -67,7 +67,7 @@ partial def subExpr?(withDoms: Bool)(parent: Expr): Expr → TermElabM Bool :=
       if ← isDefEq parent e then return true
       else
       match ← whnf e with
-        | Expr.app f a _ => 
+        | Expr.app f a  => 
             (subExpr? withDoms parent f) <||>
                   (subExpr? withDoms parent a)
         | Expr.lam _ t b _ => 
@@ -99,7 +99,7 @@ partial def exprNames (withDoms : Bool): Expr → MetaM (List Name) :=
   | some offs => return offs
   | none =>
     let res ← match e with
-      | Expr.const name _ _  =>
+      | Expr.const name _   =>
         do
         if ← (isWhiteListed name) 
           then return [name] 
@@ -109,12 +109,12 @@ partial def exprNames (withDoms : Bool): Expr → MetaM (List Name) :=
             | some e => exprNames withDoms e
             | none => return []
           else return []        
-      | Expr.app f a _ => 
+      | Expr.app f a  => 
           do  
             let ftype? ← inferType? f 
             let expl? := 
               ftype?.map $ fun ftype =>
-              (ftype.data.binderInfo.isExplicit)
+              (ftype.binderInfo.isExplicit)
             let expl := expl?.getD true            let fdeps ← exprNames withDoms f
             let adeps ← exprNames withDoms a
             let s := 
@@ -161,7 +161,7 @@ was used for hashing earlier in place of `exprHash` but was too weak, i.e., coin
 partial def argList : Expr → TermElabM (List Name) :=
   fun e => do
     let res ← match e with
-      | Expr.const name _ _  =>
+      | Expr.const name _   =>
         do
         let type? ← inferType? e
         let isForAll := (type?.map (fun type => type.isForall)).getD true
@@ -175,12 +175,12 @@ partial def argList : Expr → TermElabM (List Name) :=
             | some e => argList e
             | none => return []
           else return []        
-      | Expr.app f a _ => 
+      | Expr.app f a  => 
           do  
             let ftype? ← inferType? f 
             let expl? := 
               ftype?.map $ fun ftype =>
-              (ftype.data.binderInfo.isExplicit)
+              (ftype.binderInfo.isExplicit)
             let expl := expl?.getD true
             if !expl then pure [] else return (← argList f) ++ (← argList a)
       | Expr.lam _ t b _ => 
@@ -198,7 +198,7 @@ partial def exprHashV : Expr → TermElabM UInt64 :=
   fun e => do 
     logInfo m!"computing hash of {e}"
     match e with
-      | Expr.const name _ _  =>
+      | Expr.const name _   =>
         do
         logInfo m!"{e} is a constant {name}"
         let type? ← inferType? e
@@ -212,13 +212,13 @@ partial def exprHashV : Expr → TermElabM UInt64 :=
           | none => 
             logInfo m!"{e} is a name {name} with no definition"
             return 7
-      | Expr.app f a _ => 
+      | Expr.app f a  => 
           do  
             logInfo m!"{e} is {f} applied to {a}" 
             let ftype? ← inferType? f 
             let expl? := 
               ftype?.map $ fun ftype =>
-              (ftype.data.binderInfo.isExplicit)
+              (ftype.binderInfo.isExplicit)
             let expl := expl?.getD true
             if !expl then
               logInfo m!"{e} isa function with argument not explicit" 
@@ -235,7 +235,7 @@ partial def exprHashV : Expr → TermElabM UInt64 :=
       | Expr.letE _ t v b _ => 
           logInfo m!"{e} is a let {t} {v} {b}"
           return mixHash (← exprHashV t) (← exprHashV b)
-      | Expr.lit _ d => 
+      | Expr.lit  d => 
           logInfo m!"{e} is a literal"
           return d.hash
       | _ =>
