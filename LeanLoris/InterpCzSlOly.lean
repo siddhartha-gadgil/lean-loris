@@ -4,8 +4,16 @@ import LeanLoris.Syntax
 
 namespace CzSlInterp
 
-universe u
-variable {M: Type u}[prod: Mul M]
+opaque M : Type
+
+instance : Inhabited (M → M → M) := ⟨fun x _ => x⟩
+
+opaque mul : M → M → M
+
+
+noncomputable instance : Mul M := ⟨mul⟩
+
+@[simp] theorem mul_eq(a b : M) : mul a b = a * b := by rfl
 /--
 Our main model problem for forward reasoning is the following from a Czech-Slovak Olympiad:
 
@@ -45,11 +53,6 @@ theorem CzSlOly : (∀ a b : M, (a * b) * b = a) → (∀ a b : M, a * (a * b) =
               assumption 
 set_option maxHeartbeats 100000000
 
-def mul(m n: M) := m * n
-
-#check mul
-
-@[simp] theorem mul_eq(a b : M) : mul a b = a * b := by rfl
 
 def CzSlInterpProof(ax1 : ∀ a b : M, (a * b) * b = a)(ax2 : ∀ a b : M, a * (a * b) = b)
                   (m n: M) := 
@@ -69,7 +72,7 @@ def CzSlInterpProof(ax1 : ∀ a b : M, (a * b) * b = a)(ax2 : ∀ a b : M, a * (
       let step3 := evolve! ev![congr-rec, name-binop] expr![lem6!] expr!{(m, 0), (n, 0), (m *n, 0), (lem5, 1)} name!{(CzSlInterp.mul, 0)} 3 6000
       let ⟨⟨lem6, _⟩, _⟩ := step3
       let step7 := evolve! ev![eq-closure, name-binop] expr![thm!] expr!{(m, 0), (n, 0), (m *n, 0),  (lem3, 1), (lem6, 1)} name!{(CzSlInterp.mul, 0)} 1 6000  
-      let ⟨⟨thm, w7⟩, _⟩ := step7                
+      let ⟨⟨thm, _⟩, _⟩ := step7                
       thm
 
 #check @CzSlInterpProof
