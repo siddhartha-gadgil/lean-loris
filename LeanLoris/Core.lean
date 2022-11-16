@@ -26,7 +26,7 @@ def apply? (f x : Expr) : TermElabM (Option Expr) :=
         Term.synthesizeSyntheticMVarsNoPostponing
         return some <| ← whnf expr
       else return none
-    catch e =>
+    catch _ =>
       return none
 
 /-- (optional) application of function with unification to two arguments; for binary operations and relations -/
@@ -40,7 +40,7 @@ def applyPair? (f x y : Expr) : TermElabM (Option Expr) :=
         Term.synthesizeSyntheticMVarsNoPostponing
         return some <| ← whnf expr
       else return none
-    catch e =>
+    catch _ =>
       return none
 
 /-- (optional) function application without unification -/
@@ -54,7 +54,7 @@ def mkApp? (f x : Expr) : TermElabM (Option Expr) :=
         Term.synthesizeSyntheticMVarsNoPostponing
         return some expr
       else return none
-    catch e =>
+    catch _ =>
       return none
 
 /-- (optional) application of function without unification to two arguments; for binary operations and relations-/
@@ -67,7 +67,7 @@ def mkAppPair? (f x y : Expr) : TermElabM (Option Expr) :=
         Term.synthesizeSyntheticMVarsNoPostponing
         return some <| ← whnf expr
       else return none
-    catch e =>
+    catch _ =>
       return none
 
 /-- (optional) function application with unification given name of function -/
@@ -83,7 +83,7 @@ def nameApply? (f: Name) (x : Expr) : TermElabM (Option Expr) :=
       else
       logWarning m!"not type correct : {expr} = {f} ({x})" 
       return none
-    catch e =>
+    catch _ =>
         -- Elab.logInfo m!"failed from name, arg : 
         --     {f} at {x} with type {← inferType x}"
       return none
@@ -101,7 +101,7 @@ def nameApplyPair? (f: Name) (x y: Expr) : TermElabM (Option Expr) :=
       else
       logWarning m!"not type correct : {expr} = {f}({x}, {y})" 
       return none
-    catch e =>
+    catch _ =>
         -- Elab.logInfo m!"failed from name, arg : 
         --     {f} at {x}, {y} with type {← inferType x}"
       return none
@@ -112,21 +112,21 @@ def nameApplyPair? (f: Name) (x y: Expr) : TermElabM (Option Expr) :=
 def rewriteProof (e: Expr) (heq : Expr) (symm : Bool := false) : MetaM (Option Expr) :=
   do
     let heqType ← instantiateMVars (← inferType heq)
-    let (newMVars, binderInfos, heqType) ← forallMetaTelescopeReducing heqType
+    let (newMVars, _, heqType) ← forallMetaTelescopeReducing heqType
     let heq := mkAppN heq newMVars
     match heqType.eq? with
     | none => return none
-    | some (α , lhs, rhs) =>
-    let heqType := if symm then ← mkEq rhs lhs else heqType
-    let hep := if symm then mkEqSymm heq else return heq
+    | some (α , lhs, _) =>
+    -- let heqType := if symm then ← mkEq rhs lhs else heqType
+    let heq ←  if symm then mkEqSymm heq else return heq
     if lhs.getAppFn.isMVar then return none
     else
     let e ← instantiateMVars e
     let eAbst ←  kabstract e lhs
     if !eAbst.hasLooseBVars then return none
     else
-    let eNew := eAbst.instantiate1 rhs
-    let eNew ← instantiateMVars eNew
+    -- let eNew := eAbst.instantiate1 rhs
+    -- let eNew ← instantiateMVars eNew
     let eEqE ← mkEq e e
     let eEqEAbst := mkApp eEqE.appFn! eAbst
     let motive := Lean.mkLambda `_a BinderInfo.default α eEqEAbst
@@ -166,7 +166,7 @@ def congrArg? (f: Expr)(eq : Expr) : TermElabM (Option Expr) :=
       return some <| ← whnf expr
       else 
         return none
-    catch e => 
+    catch _ => 
       return none 
 
 /-- return Boolean pair (is-new, not-external), i.e., whether the element was encountered earlier, and, for "islands", whether the element was present "outside"  -/
@@ -179,12 +179,12 @@ def newElem{α D : Type}[c: NewElem α D](d : D)(a : α)(n : Nat) :
 
 /-- set the new element functions as constants -/
 def constNewElem{α D: Type}: Bool × Bool →  NewElem α D
-  | ans => ⟨fun d a degBnd => pure ans⟩
+  | ans => ⟨fun _ _ _ => pure ans⟩
 
 /- Generating distributions, concretely arrays of expressions with degrees, by combining -/
 
 /-- returns combinations of expressions with respect to an optional composition of pairs -/
-def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α][ToMessageData β]
+def prodGenArrM{α β D: Type}[NewElem α D][NewElem β D][ToMessageData α][ToMessageData β]
     (compose: α → β → TermElabM (Option Expr))
     (maxDegree : Nat)(card? : Option Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
     (data: D) : TermElabM ExprDist := do 
@@ -221,7 +221,7 @@ def prodGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α
     else return ExprDist.empty
 
 /-- returns combinations of expressions with respect to an optional composition of pairs that may return an array of expressions -/
-def prodPolyGenArrM{α β D: Type}[NewElem α D][nb : NewElem β D][ToMessageData α][ToMessageData β]
+def prodPolyGenArrM{α β D: Type}[NewElem α D][NewElem β D][ToMessageData α][ToMessageData β]
     (compose: α → β → TermElabM (Option (Array Expr)))
     (maxDegree : Nat)(card? : Option Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
     (data: D) : TermElabM ExprDist := do 

@@ -53,7 +53,6 @@ def countsSerial: TermElabM (Array Nat) := do
 def counts: TermElabM (Array Nat) := do
   let arr : Array Nat := #[1, 2, 3, 4, 5, 6]
   let cntsAux := arr.map <| fun i => Task.spawn fun _ => count (ToExpr.toExpr i)
-  let cntsAux2 := cntsAux.map <| fun t => t.get
   let cnts ←  cntsAux.mapM <| fun t => t.get
   return cnts
 
@@ -79,7 +78,7 @@ theorem constFn{α : Type}(f: Nat → α):
     let length := xs.length
     sum / length
 
-example : Unit := Id.run for x in [1, 2, 3, 4, 5] do return ()
+example : Unit := Id.run for _ in [1, 2, 3, 4, 5] do return ()
   
 #check forIn [1, 2] 3 
 #check ForIn
@@ -112,11 +111,11 @@ instance : IterableFamily Array   :=
 def mkArray [it : Iterable l α] (x: l): Array α :=
   it.toArray x
 
-def mkList [it : Iterable l α] (x: l): List α :=
+def mkList [Iterable l α] (x: l): List α :=
   (mkArray x).toList
 
 def mkHashMap 
-  [it : Iterable l  (α × β )][Hashable α][BEq α][BEq β](x: l ): Std.HashMap α β   :=
+  [Iterable l  (α × β )][Hashable α][BEq α][BEq β](x: l ): Std.HashMap α β   :=
     let arr : Array (α × β) := mkArray x
     arr.foldl (fun acc (k, v) => acc.insert k v) Std.HashMap.empty
 
@@ -137,28 +136,28 @@ def arr : Array Nat := mkArray r
 
 open Nat
 
-example (x y w: Nat)(f g: Nat → Nat): x * f y = g w * f z := by
-  apply congr
-  focus
-    exact sorry
-  focus
-    apply congr
-    focus
-      apply Eq.refl
-    exact sorry
+-- example (x y w: Nat)(f g: Nat → Nat): x * f y = g w * f z := by
+--   apply congr
+--   focus
+--     exact sorry
+--   focus
+--     apply congr
+--     focus
+--       apply Eq.refl
+--     exact sorry
 
-#check fun mvar => Meta.apply mvar (mkConst ``congr)
+#check fun mvar : MVarId => mvar.apply (mkConst ``congr)
 
 def tryCloseGoal (mvar: MVarId) : MetaM Bool := do
   let u ← mkFreshLevelMVar
   try 
-    let res ←  Meta.apply mvar (mkConst ``Eq.refl [u])
+    let res ←  mvar.apply (mkConst ``Eq.refl [u])
     unless res.isEmpty do
       throwError "failed to close goal"
     pure true
   catch _ => 
   try 
-    let res ←  Meta.apply mvar (mkConst ``Subsingleton.intro [u])
+    let res ←  mvar.apply (mkConst ``Subsingleton.intro [u])
     unless res.isEmpty do
       throwError "failed to close goal"
     pure true
@@ -171,9 +170,9 @@ def congrStep? (mvar: MVarId) : MetaM (Option (List MVarId)) := do
   let closed  ← tryCloseGoal mvar
   if !closed then 
     try
-      let res ←  Meta.apply mvar (mkConst ``congr [u, v])
+      let res ←  mvar.apply (mkConst ``congr [u, v])
       return some res
-    catch e => 
+    catch _ => 
       pure none
   else 
     pure none
@@ -196,7 +195,7 @@ def Meta.congr(maxDepth? : Option Nat)(mvar : MVarId) : MetaM (List MVarId) := d
   try 
     let u ← mkFreshLevelMVar
     let v ← mkFreshLevelMVar
-    let xs ← Meta.apply mvar (mkConst ``congr [u, v])
+    let xs ← mvar.apply (mkConst ``congr [u, v])
     let groups ← xs.mapM (recCongr maxDepth?)
     return groups.bind id
   catch e =>
@@ -209,17 +208,17 @@ syntax "scowl" (ident)* : term
 macro_rules
 | `(scowl $[$xs]*) => `(sorry)
 
-example : Nat := scowl very scowly  
+-- example : Nat := scowl very scowly  
 
-example : String := scowl on the stealing of pens
+-- example : String := scowl on the stealing of pens
 
 def nn: MetaM Expr := do return ← mkArrow (mkConst ``Nat) (mkConst ``Nat)
 
 open Expr
 
 def target : Expr → Expr
-  | Expr.lam n t b d => target b
-  | Expr.forallE n t b d => target b
+  | Expr.lam _ _ b _ => target b
+  | Expr.forallE _ _ b _ => target b
   | e => e
 
 #check Term.elabTerm
@@ -331,10 +330,10 @@ def simpLemmas : CoreM Nat := do
 #check simp
 def simpCtx := Simp.Context.mkDefault
 
-def simpLemmas2 : MetaM Nat := do
-  let ctx ← simpCtx
-  let simpTheorems := ctx.simpTheorems
-  sorry
+-- def simpLemmas2 : MetaM Nat := do
+--   let ctx ← simpCtx
+--   let simpTheorems := ctx.simpTheorems
+--   sorry
 
 
 -- def simpDef(e: Expr) : MetaM Simp.Result := do simp e (← simpCtx)
@@ -360,7 +359,7 @@ example : Trans (. ≤ . : Nat → Nat → Prop) (. ≤ . : Nat → Nat → Prop
 
 #check Trans Nat.le Nat.le
 
-def transExpr {α : Type}{x y z : Expr}{rel: Expr}: MetaM Expr := do
+def transExpr {x y z : Expr}{rel: Expr}: MetaM Expr := do
         let r1 ←  mkAppM' rel #[x, y]
         let r2 ←  mkAppM' rel #[y, z]
         let l ←
@@ -403,7 +402,7 @@ match stx with
   Term.synthesizeSyntheticMVarsNoPostponing
   logInfo m!"{r}"
   let r' := r.get!
-  let (_, _, _, _, a, b) := r'
+  let (_, _, _, _, a, _) := r'
   return a
 | _ => throwIllFormedSyntax
 

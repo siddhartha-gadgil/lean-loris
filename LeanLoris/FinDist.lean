@@ -76,7 +76,7 @@ number of keys with given value
 -/
 def degreeCount{α : Type}[Hashable α][BEq α] 
     (m: FinDist α) : Std.HashMap Nat Nat := 
-      m.toArray.foldl (fun deg (key, val) =>
+      m.toArray.foldl (fun deg (_, val) =>
         match deg.find? val with
         | some v =>
           deg.insert val (v + 1)
@@ -129,7 +129,7 @@ def bound{α : Type}[Hashable α][BEq α]
     (m: FinDist α) (maxDegree card: Nat)  : FinDist α := Id.run do
   let mut deg := FinDist.empty
   let cumul := cumulDegreeCount m
-  let top := ((cumul maxDegree).toList.map (fun (k, v) => v)).maximum?.getD 1 
+  let top := ((cumul maxDegree).toList.map (fun (_, v) => v)).maximum?.getD 1 
   for (key, val) in m.toArray do
     if val ≤ maxDegree && ((cumul maxDegree).findD val top ≤ card) then
       deg := deg.insert key val
@@ -168,7 +168,7 @@ def fromArray{α : Type}[Hashable α][BEq α] (arr: Array (α × Nat)) : FinDist
 the keys
 -/
 def keys{α : Type}[Hashable α][BEq α] 
-    (m: FinDist α) := m.toList.map (fun (k, v) => k)
+    (m: FinDist α) := m.toList.map (fun (k, _) => k)
 
 /--
 (monadic) find optional degree of given element.
@@ -217,7 +217,7 @@ return map of number of elements with a given degree in an array of pairs.
 -/
 def arrDegreeCount{α : Type}[Hashable α][BEq α] 
     (m: Array (α× Nat)) : Std.HashMap Nat Nat := 
-      m.foldl (fun deg (key, val) =>
+      m.foldl (fun deg (_, val) =>
         match deg.find? val with
         | some v =>
           deg.insert val (v + 1)

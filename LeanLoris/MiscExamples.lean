@@ -23,7 +23,6 @@ elab "gen1!" t:term : term => do
       let x ← elabTerm t none
       let l ← unpackWithDegree x
       let arr := l.toArray
-      let m := FinDist.fromList l
       for (x, deg) in arr do
         logInfo m!"{x} : {deg}" 
       let m1 ← prodGenArrM  apply? 4 (some 100) arr arr ()
@@ -121,7 +120,7 @@ elab (name := prodHead) "prodHead!" t:term : term =>
       let h? ← splitPProd? expr 
       let hp? ← splitProd? expr
       match (h?.orElse (fun _ => hp?)) with
-      | some (h, t) => return h
+      | some (h, _) => return h
       | none => throwAbortTerm    
 
 #eval prodHead! (10, 12, 15, 13)
@@ -178,7 +177,7 @@ def sumEl : TermElabM Expr := do
   let value ← mkAppM ``Nat.add #[mvar1, mvar2]
   let mvar ← mkFreshExprMVar (some (mkConst ``Nat))
   let mvarId := mvar.mvarId!
-  assignExprMVar mvarId value
+  mvarId.assign value
   metaToLambda [mvar1, mvar2] mvar
 
 #eval sumEl

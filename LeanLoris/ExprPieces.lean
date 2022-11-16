@@ -183,11 +183,11 @@ partial def argList : Expr → TermElabM (List Name) :=
               (ftype.binderInfo.isExplicit)
             let expl := expl?.getD true
             if !expl then pure [] else return (← argList f) ++ (← argList a)
-      | Expr.lam _ t b _ => 
+      | Expr.lam _ _ b _ => 
           argList b 
-      | Expr.forallE _ t b _ => do
+      | Expr.forallE _ _ b _ => do
           argList b 
-      | Expr.letE _ t v b _ => 
+      | Expr.letE _ _ _ b _ => 
           argList b
       | _ => return []
     return res
