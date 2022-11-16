@@ -5,13 +5,15 @@ import LeanLoris.Syntax
 namespace CzSlInterp
 
 opaque M : Type
-
 instance : Inhabited (M → M → M) := ⟨fun x _ => x⟩
-
 opaque mul : M → M → M
-
-
 noncomputable instance : Mul M := ⟨mul⟩
+
+-- universe u
+-- variable {M: Type u}[prod: Mul M]
+-- def mul(m n: M) := m * n
+
+example : (@instHMul M prod).1 = prod.1 := by rfl
 
 @[simp] theorem mul_eq(a b : M) : mul a b = a * b := by rfl
 /--
@@ -53,6 +55,7 @@ theorem CzSlOly : (∀ a b : M, (a * b) * b = a) → (∀ a b : M, a * (a * b) =
               assumption 
 set_option maxHeartbeats 100000000
 
+-- set_option pp.all true
 
 def CzSlInterpProof(ax1 : ∀ a b : M, (a * b) * b = a)(ax2 : ∀ a b : M, a * (a * b) = b)
                   (m n: M) := 
