@@ -312,8 +312,7 @@ match stx with
   logResults (some tk) goals finalDist
   match ← finalDist.getProofM? (← getMainTarget) with
   | some (pf, _) => 
-      assignExprMVar (← getMainGoal) pf
-      replaceMainGoal []
+      closeMainGoal pf
   | none => 
       pure () 
   return ()

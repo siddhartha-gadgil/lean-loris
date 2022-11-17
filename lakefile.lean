@@ -1,7 +1,9 @@
 import Lake
 open Lake DSL
 
-package «lean-loris» 
+package «lean-loris»{
+  precompileModules := true
+}
 
 @[default_target]
 lean_lib LeanLoris

@@ -1,17 +1,31 @@
 import LeanLoris.Evolution
 import LeanLoris.Syntax
-
+open Lean Meta Elab Term
 
 namespace CzSlInterp
 
 opaque M : Type
-instance : Inhabited (M → M → M) := ⟨fun x _ => x⟩
-opaque mul : M → M → M
-noncomputable instance : Mul M := ⟨mul⟩
 
--- universe u
--- variable {M: Type u}[prod: Mul M]
--- def mul(m n: M) := m * n
+-- instance : Inhabited (M → M → M) := ⟨fun x _ => x⟩
+-- opaque mul : M → M → M
+-- noncomputable instance : Mul M := ⟨mul⟩
+
+universe u
+variable {M: Type u}[prod: Mul M]
+def mul(m n: M) := m * n
+
+elab "whnf#" e:term : term => do
+  let e ← elabTerm e none
+  logInfo m!"{e}"
+  let e ← whnf e
+  logInfo m!"{e}"
+  Term.synthesizeSyntheticMVarsNoPostponing
+  logInfo m!"{e}"
+  pure e
+
+variable (x y: M)
+
+#check whnf# mul x y
 
 example : (@instHMul M prod).1 = prod.1 := by rfl
 
