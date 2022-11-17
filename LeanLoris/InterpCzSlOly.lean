@@ -6,13 +6,13 @@ namespace CzSlInterp
 
 opaque M : Type
 
--- instance : Inhabited (M → M → M) := ⟨fun x _ => x⟩
--- opaque mul : M → M → M
--- noncomputable instance : Mul M := ⟨mul⟩
+instance : Inhabited (M → M → M) := ⟨fun x _ => x⟩
+opaque mul : M → M → M
+noncomputable instance : Mul M := ⟨mul⟩
 
-universe u
-variable {M: Type u}[prod: Mul M]
-def mul(m n: M) := m * n
+-- universe u
+-- variable {M: Type u}[prod: Mul M]
+-- def mul(m n: M) := m * n
 
 elab "whnf#" e:term : term => do
   let e ← elabTerm e none
