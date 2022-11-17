@@ -1,6 +1,9 @@
 {"version": 2,
  "packages":
- [{"url": "https://github.com/leanprover-community/mathlib4.git",
+ [{"url": "https://github.com/JLimperg/aesop",
+   "rev": "250caf34a3ef1bc0c1a8ff7c73b913fa6404aa08",
+   "name": "aesop"},
+  {"url": "https://github.com/leanprover-community/mathlib4.git",
    "rev": "28bde4b39408d21a8d88d15a9f76acc2c3c6f37d",
    "name": "mathlib"},
   {"url": "https://github.com/leanprover/std4",
