@@ -60,7 +60,7 @@ The following instructions are for linux, and should be appropriately modified f
 
 ```bash
 lake build
-build/bin/lean-loris
+lake env all
 ```
 You will see the following output:
 
