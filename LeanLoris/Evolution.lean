@@ -332,8 +332,8 @@ def applyPairEvolver(D: Type)[NewElem Expr D]: EvolverM D :=
 def simpleApplyEvolver(D: Type)[NewElem Expr D] : EvolverM D := fun degBnd c _ init => 
   do
     let mut doms : Array Expr := #[]
-    let mut funcsWithDom : DiscrTree (Expr× Nat) := DiscrTree.empty
-    let mut termsWithTypes : DiscrTree (Expr× Nat) := DiscrTree.empty
+    let mut funcsWithDom : DiscrTree (Expr× Nat) true := DiscrTree.empty
+    let mut termsWithTypes : DiscrTree (Expr× Nat) true := DiscrTree.empty
     for (x, deg) in init.allTermsArray do
       let type ← whnf <| ← inferType x
       match type with
@@ -423,8 +423,8 @@ def eqSymmTransEvolver (D: Type)(goalterms: Array Expr := #[]) : EvolverM D
     -- DiscrTree code
     let mut newEquations : Array (Expr × Expr × Nat) := #[]
     let mut sideKeys : Array Expr := #[]
-    let mut withLHS : DiscrTree (Expr × Expr × Expr × Nat) := DiscrTree.empty
-    let mut withRHS : DiscrTree (Expr × Expr × Expr × Nat) := DiscrTree.empty
+    let mut withLHS : DiscrTree (Expr × Expr × Expr × Nat) true:= DiscrTree.empty
+    let mut withRHS : DiscrTree (Expr × Expr × Expr × Nat) true := DiscrTree.empty
 
     for (l, pf, deg) in init.proofsArray do
       match l.eq? with

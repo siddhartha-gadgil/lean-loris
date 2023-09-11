@@ -450,3 +450,55 @@ syntax (name:= hello) "hello" : tactic
 def n: Nat := by
     hello
     exact 3
+
+open Server Lsp
+
+-- @[codeActionProvider]
+-- def helloProvider : CodeActionProvider := fun params _snap => do
+--   let td := params.textDocument
+--   let edit : TextEdit := {
+--       range := params.range,
+--       newText := "hello!!!"
+--     }
+--   let ca : CodeAction := {
+--     title := "hello world",
+--     kind? := "quickfix",
+--     edit? := WorkspaceEdit.ofTextEdit td.uri edit
+--   }
+--   let longRunner : CodeAction := {
+--     title := "a long-running action",
+--     kind? := "refactor",
+--   }
+--   let lazyResult : IO CodeAction := do
+--     let v? ← IO.getEnv "PWD"
+--     let v := v?.getD "none"
+--     return { longRunner with
+--       edit? := WorkspaceEdit.ofTextEdit td.uri { range := params.range, newText := v}
+--     }
+--   return #[ca, {eager := longRunner, lazy? := lazyResult}]
+
+open RequestM in
+@[code_action_provider]
+def readFile : CodeActionProvider := fun params _snap => do
+  let doc ← readDoc
+  let text := doc.meta.text
+  let source := text.source
+  let pos : String.Pos := text.lspPosToUtf8Pos params.range.end
+  let edit : TextEdit := {
+    range := params.range
+    newText :=
+      let comments := source.splitOn "/-" |>.reverse
+      let comment := comments.head!.dropRight 2
+      let tail := Substring.mk source pos source.endPos
+      let comment := "/-!" ++ tail.toString ++ "-/"
+      comment
+  }
+  let ca : CodeAction := {title := "Translate comment to a Lean theorem", kind? := "quickfix"}
+  return #[{eager := ca, lazy? := some $ return { ca with edit? := WorkspaceEdit.ofTextEdit params.textDocument.uri edit}}]
+ 
+/- catch the tail-/
+
+example : 1 = 1 := by
+  rfl
+
+#check RequestM

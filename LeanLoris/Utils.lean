@@ -142,3 +142,6 @@ def negate (p: Expr) : MetaM Expr := do
                 return (mkOr (mkAnd l (mkNot r)) (mkAnd r (mkNot l)))
             | none =>
                 return (mkNot p)
+
+initialize
+  registerTraceClass `Lorris

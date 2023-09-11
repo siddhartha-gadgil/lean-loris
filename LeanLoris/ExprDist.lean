@@ -27,8 +27,8 @@ All the operations use `exprHash`, which is a hacky hash associated to expressio
 structure ExprDist where
   termsArray : Array (Expr × Nat)
   proofsArray: Array (Expr × Expr × Nat)  
-  termsTree : DiscrTree Nat
-  proofsTree: DiscrTree (Expr × Nat)
+  termsTree : DiscrTree Nat true
+  proofsTree: DiscrTree (Expr × Nat) true
 namespace ExprDist
 /--
 The empty expression distribution.

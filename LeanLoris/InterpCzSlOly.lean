@@ -70,7 +70,7 @@ theorem CzSlOly : (∀ a b : M, (a * b) * b = a) → (∀ a b : M, a * (a * b) =
 set_option maxHeartbeats 100000000
 
 -- set_option pp.all true
-
+/-
 def CzSlInterpProof(ax1 : ∀ a b : M, (a * b) * b = a)(ax2 : ∀ a b : M, a * (a * b) = b)
                   (m n: M) := 
       let lem1! := (m * n) * n = m 
@@ -93,5 +93,5 @@ def CzSlInterpProof(ax1 : ∀ a b : M, (a * b) * b = a)(ax2 : ∀ a b : M, a * (
       thm
 
 #check @CzSlInterpProof
-
+-/
 end CzSlInterp
