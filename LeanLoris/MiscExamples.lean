@@ -69,13 +69,13 @@ open Nat
 def one := succ zero
 def two := succ one
 
--- #check evolve! ev![app] expr![one, two] expr!{(succ, 0), (zero, 1)} name!{} 5 100
--- #check evolve! ev![app] expr![one, two] expr!{(succ, 0), (zero, 1)} 5 100 
--- #check evolve! ev![app] expr!{(succ, 0), (zero, 1)}  5 100 
+#check evolve! ev![app] expr![one, two] expr!{(succ, 0), (zero, 1)} name!{} 5 100
+#check evolve! ev![app] expr![one, two] expr!{(succ, 0), (zero, 1)} 5 100 
+#check evolve! ev![app] expr!{(succ, 0), (zero, 1)}  5 100 
 
--- def eveg(α : Type):= fun (f g: α →  α) (a: α) => 
---           evolve! ev![app] expr![f, f a, f (f a)] expr!{(a, 1), (f, 0), (g, 1)} 5 100
--- #reduce eveg
+def eveg(α : Type):= fun (f g: α →  α) (a: α) => 
+          evolve! ev![app] expr![f, f a, f (f a)] expr!{(a, 1), (f, 0), (g, 1)} 5 100
+#reduce eveg
 
 
 /- Using syntax and elaborators mixed with regular code -/

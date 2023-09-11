@@ -155,7 +155,7 @@ syntax "Σ" evolver_list : evolver
 def parseEvolverTransformer : Syntax → TermElabM (ExprDist → TermElabM ExprDist)
   | `(evolve_transformer|by-type) => return degreeByType 1
   | `(evolve_transformer|by-type $n) => do
-        let n ← parseNat n
+        let n := n.getNat
         return degreeByType n
   | stx => throwError m!"Evolver transformer not implemented for {stx}"
 
@@ -229,7 +229,7 @@ match s with
     match stx with  
     | `(save_target|=:$x) => some x.getId
     | _ => none
-  let degBnd ← parseNat degBnd
+  let degBnd := degBnd.getNat
   let card := card?.map <| fun card => (Syntax.isNatLit? card).get!
   let finalDist ← ev degBnd card initData initDist 
   match saveTo? with
@@ -303,7 +303,7 @@ match stx with
     match stx with  
     | `(save_target|=:$x) => some x.getId
     | _ => none
-  let degBnd ← parseNat degBnd
+  let degBnd := degBnd.getNat
   let card := card?.map <| fun card => (Syntax.isNatLit? card).get!
   let finalDist ← ev degBnd card initData initDist 
   match saveTo? with
