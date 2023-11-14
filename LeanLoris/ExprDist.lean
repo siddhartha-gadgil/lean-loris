@@ -3,7 +3,7 @@ import LeanLoris.ExprPieces
 import LeanLoris.Utils
 import Lean.Meta
 import Lean.Elab
-import Std
+-- import Std
 import Lean
 open Lean
 open PrettyPrinter
@@ -184,28 +184,28 @@ def updatedExprM?
 Groups an array of terms by the expression hash.
 -/
 def groupTermsByHash(terms : Array (Expr × Nat)) : 
-      TermElabM ( Std.HashMap (UInt64) (Array (Expr × Nat))) := do
+      TermElabM ( HashMap (UInt64) (Array (Expr × Nat))) := do
       terms.foldlM (fun m (e, deg) => 
         do
           let key ← exprHash e
           return m.insert key ((m.findD key #[]).push (e, deg))
-          )  Std.HashMap.empty
+          )  HashMap.empty
 
 /--
 Groups an array of proof triples by the expression hash of the proposition.
 -/
 def groupProofsByHash(proofs : Array (Expr × Expr × Nat)) : 
-      TermElabM ( Std.HashMap (UInt64) (Array (Expr × Expr × Nat))) := do
+      TermElabM ( HashMap (UInt64) (Array (Expr × Expr × Nat))) := do
       proofs.foldlM (fun m (l, pf, deg) => 
         do
           let key ← exprHash l
           return m.insert key ((m.findD key #[]).push (l, pf, deg))
-          )  Std.HashMap.empty
+          )  HashMap.empty
 
 /--
 Groups terms and proofs in a distribution by the appropriate hash.
 -/
-def groupDistByHash(arr: Array (Expr × Nat)) : TermElabM ( Std.HashMap (UInt64) ExprDist) := do
+def groupDistByHash(arr: Array (Expr × Nat)) : TermElabM ( HashMap (UInt64) ExprDist) := do
   arr.foldlM (fun m (e, deg) => do       
       if ← isProof e then
         let l ← inferType e
@@ -214,12 +214,12 @@ def groupDistByHash(arr: Array (Expr × Nat)) : TermElabM ( Std.HashMap (UInt64)
         else 
         let key ← exprHash e
         return m.insert key (← (m.findD key ExprDist.empty).pushTermM e deg)
-      )  Std.HashMap.empty
+      )  HashMap.empty
 
 /--
 Given grouped distributions by hash merge to a single one; it is assumed that the distributions are disjoint.
 -/
-def flattenDists(m:  Std.HashMap (UInt64) ExprDist) : TermElabM ExprDist := do
+def flattenDists(m:  HashMap (UInt64) ExprDist) : TermElabM ExprDist := do
   let termArray := (m.toArray.map (fun (_, d) => d.termsArray)).foldl (fun a b => a.append b) Array.empty
   let pfArray := (m.toArray.map (fun (_, d) => d.proofsArray)).foldl (fun a b => a.append b) Array.empty
   buildM termArray pfArray
@@ -254,7 +254,7 @@ def mergeGroupedM(fst snd: ExprDist) : TermElabM ExprDist := do
            sndTerms := sndTerms.push (x, d)
       | none => 
           sndTerms := sndTerms.push (x, d)
-    let mut gpdDists :  Std.HashMap (UInt64) ExprDist :=  Std.HashMap.empty
+    let mut gpdDists :  HashMap (UInt64) ExprDist :=  HashMap.empty
     for (key, termarr) in gpFstTerms.toArray do
       for (x, deg) in termarr do
         gpdDists :=  
@@ -333,7 +333,7 @@ def fromArrayM(arr: Array (Expr× Nat)): TermElabM ExprDist := do
       pfs := pfs.push (l, e, n)
   let gpTerms ←  groupTermsByHash terms
   let gpPfs ←  groupProofsByHash pfs
-  let mut gpdDists :  Std.HashMap (UInt64) ExprDist :=  Std.HashMap.empty
+  let mut gpdDists :  HashMap (UInt64) ExprDist :=  HashMap.empty
   for (key, termarr) in gpTerms.toArray do
     for (x, deg) in termarr do
       gpdDists :=  
@@ -361,7 +361,7 @@ def mergeArrayM(fst: ExprDist)(arr: Array (Expr× Nat)): TermElabM ExprDist := d
   let ⟨fstTerms, fstProofs, _, _⟩ := fst
     let mut gpFstTerms ←  groupTermsByHash fstTerms
     let mut gpFstPfs ←  groupProofsByHash fstProofs
-  let mut gpdDists :  Std.HashMap (UInt64) ExprDist :=  Std.HashMap.empty
+  let mut gpdDists :  HashMap (UInt64) ExprDist :=  HashMap.empty
   for (key, termarr) in gpFstTerms.toArray do
     let d ← buildM termarr #[]
     gpdDists := gpdDists.insert key d
@@ -424,7 +424,7 @@ def allSortsArray(dist: ExprDist) : TermElabM (Array (Expr × Nat)) := do
 Cutoff a distribution at a given degree with given bound on cardinality.
 -/
 def boundM(dist: ExprDist)(degBnd: Nat)(cb: Option Nat) : TermElabM ExprDist := Id.run do
-  let mut cumCount :  Std.HashMap Nat Nat :=  Std.HashMap.empty
+  let mut cumCount :  HashMap Nat Nat :=  HashMap.empty
   for (_, deg) in dist.termsArray do
       for j in [deg:degBnd + 1] do
         cumCount := cumCount.insert j (cumCount.findD j 0 + 1)

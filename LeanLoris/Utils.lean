@@ -1,6 +1,6 @@
 import Lean.Meta
 import Lean.Elab
-import Std
+-- -- import Std
 import Lean
 open Lean Meta Elab Nat Term Std
 
@@ -23,12 +23,12 @@ def getContext : MetaM Simp.Context := do
     pure ctx
   | some c => pure c
 
-initialize simplifyCache : IO.Ref (Std.HashMap Expr Expr) ← IO.mkRef Std.HashMap.empty
+initialize simplifyCache : IO.Ref (HashMap Expr Expr) ← IO.mkRef HashMap.empty
 
-def Lean.Expr.simplify(e: Expr) : MetaM Expr := do 
+def Lean.Expr.simplify(e: Expr) : MetaM Expr := do
   let cache ← simplifyCache.get
   match cache.find? e with
-  | none => 
+  | none =>
     let (r, _) ← simp e (← Simp.Context.mkDefault)
     simplifyCache.set (cache.insert e r.expr)
     return r.expr
@@ -48,7 +48,7 @@ def isAux (declName : Name) : MetaM  Bool := do
   let env ← getEnv
   return (isAuxRecursor env declName
           || isNoConfusion env declName)
-  
+
 def isNotAux  (declName : Name) : MetaM  Bool := do
   let nAux ← isAux declName
   return (not nAux)
@@ -58,7 +58,7 @@ def isWhiteListed (declName : Name) : MetaM Bool := do
   return !bl
 
 /-- natural number from expression built from `Nat.zero` and `Nat.succ` -/
-partial def exprNat : Expr → TermElabM Nat := fun expr => 
+partial def exprNat : Expr → TermElabM Nat := fun expr =>
   do
     let mvar ←  mkFreshExprMVar (some (mkConst ``Nat))
     let sExp := mkApp (mkConst ``Nat.succ) mvar
@@ -66,7 +66,7 @@ partial def exprNat : Expr → TermElabM Nat := fun expr =>
       Term.synthesizeSyntheticMVarsNoPostponing
       let prev ← exprNat (← whnf mvar)
       return succ prev
-    else 
+    else
     if ← isDefEq (mkConst `Nat.zero) expr then
       return zero
     else
@@ -88,7 +88,7 @@ def inferType?(e: Expr) : MetaM (Option Expr) := do
 /- Matching some patterns of expressions; using this to negate -/
 
 def existsTypeExpr? (eType: Expr) : MetaM (Option (Expr × Expr)) :=
-  do 
+  do
     let eType ← whnf eType
     let u ← mkFreshLevelMVar
     let v := levelZero
@@ -99,7 +99,7 @@ def existsTypeExpr? (eType: Expr) : MetaM (Option (Expr × Expr)) :=
     if ← isDefEq m eType
       then
         return some (← whnf α , ← whnf β)
-      else 
+      else
         return none
 
 @[inline] def or? (p : Expr) : Option (Expr × Expr) :=
@@ -110,35 +110,35 @@ def negate (p: Expr) : MetaM Expr := do
   let p ← whnf p
   match p.not? with
   | some q => return q
-  | none => 
+  | none =>
     match p with
-    | Expr.app a b  => return (mkAnd a (mkNot b)) 
-    | Expr.forallE _ x b _ => 
+    | Expr.app a b  => return (mkAnd a (mkNot b))
+    | Expr.forallE _ x b _ =>
       let type ← inferType x
-      let family ← 
+      let family ←
         withLocalDecl Name.anonymous BinderInfo.default type <| fun x =>
         do
           mkLambdaFVars #[x] (mkNot b)
       mkAppM ``Exists #[family]
-    | _ => 
+    | _ =>
       match p.and? with
-      | some (l, r) => 
-        return (mkOr (mkNot l) (mkNot r)) 
-      | none => 
+      | some (l, r) =>
+        return (mkOr (mkNot l) (mkNot r))
+      | none =>
         match or? p with
-        | some (l, r) => 
+        | some (l, r) =>
           return (mkAnd (mkNot l) (mkNot r))
-        | none => 
+        | none =>
           match ← existsTypeExpr? p with
           | some (α, β) =>
             withLocalDecl Name.anonymous BinderInfo.default α  <| fun x =>
-              do 
+              do
                 let y := mkNot (mkApp β x)
                 let y ← whnf y
                 mkForallFVars #[x] y
-          | none => 
+          | none =>
             match p.iff? with
-            | some (l, r) => 
+            | some (l, r) =>
                 return (mkOr (mkAnd l (mkNot r)) (mkAnd r (mkNot l)))
             | none =>
                 return (mkNot p)

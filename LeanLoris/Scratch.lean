@@ -1,6 +1,6 @@
 import Lean.Meta
 import Lean.Elab
-import Std
+-- import Std
 import LeanLoris.Utils
 open Lean Meta Elab 
 open Nat Std
@@ -115,9 +115,9 @@ def mkList [Iterable l α] (x: l): List α :=
   (mkArray x).toList
 
 def mkHashMap 
-  [Iterable l  (α × β )][Hashable α][BEq α][BEq β](x: l ): Std.HashMap α β   :=
+  [Iterable l  (α × β )][Hashable α][BEq α][BEq β](x: l ): HashMap α β   :=
     let arr : Array (α × β) := mkArray x
-    arr.foldl (fun acc (k, v) => acc.insert k v) Std.HashMap.empty
+    arr.foldl (fun acc (k, v) => acc.insert k v) HashMap.empty
 
 def ForIn.toArray [ForIn Id l α](x : l): (Array α) := Id.run
   do

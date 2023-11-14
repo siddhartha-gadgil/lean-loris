@@ -2,7 +2,7 @@ import LeanLoris.FinDist
 import LeanLoris.ExprDist
 import Lean.Meta
 import Lean.Elab
-import Std
+-- import Std
 open Lean
 open Meta
 open Elab
@@ -189,8 +189,8 @@ def prodGenArrM{α β D: Type}[NewElem α D][NewElem β D][ToMessageData α][ToM
     (maxDegree : Nat)(card? : Option Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
     (data: D) : TermElabM ExprDist := do 
     if maxDegree > 0 then
-      let mut fstTagGrouped:  Std.HashMap Nat (Array (α × Bool × Bool)) :=  Std.HashMap.empty
-      let mut sndTagGrouped:  Std.HashMap Nat (Array (β × Bool × Bool)) :=  Std.HashMap.empty
+      let mut fstTagGrouped:  HashMap Nat (Array (α × Bool × Bool)) :=  HashMap.empty
+      let mut sndTagGrouped:  HashMap Nat (Array (β × Bool × Bool)) :=  HashMap.empty
       for (a, deg1) in fst do
         let prev := fstTagGrouped.findD deg1 #[]
         fstTagGrouped := fstTagGrouped.insert deg1 <| prev.push (a, ← newElem data a deg1)
@@ -226,8 +226,8 @@ def prodPolyGenArrM{α β D: Type}[NewElem α D][NewElem β D][ToMessageData α]
     (maxDegree : Nat)(card? : Option Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
     (data: D) : TermElabM ExprDist := do 
     if maxDegree > 0 then
-      let mut fstTagGrouped:  Std.HashMap Nat (Array (α × Bool × Bool)) :=  Std.HashMap.empty
-      let mut sndTagGrouped:  Std.HashMap Nat (Array (β × Bool × Bool)) :=  Std.HashMap.empty
+      let mut fstTagGrouped:  HashMap Nat (Array (α × Bool × Bool)) :=  HashMap.empty
+      let mut sndTagGrouped:  HashMap Nat (Array (β × Bool × Bool)) :=  HashMap.empty
       for (a, deg1) in fst do
         let prev := fstTagGrouped.findD deg1 #[]
         fstTagGrouped := fstTagGrouped.insert deg1 <| prev.push (a, ← newElem data a deg1)
@@ -265,9 +265,9 @@ def tripleProdGenArrM{α β γ  D: Type}[NewElem α D][NewElem β D][NewElem γ 
     (maxDegree : Nat)(card? : Option Nat)(fst: Array (α × Nat))(snd: Array (β × Nat))
     (third : Array (γ × Nat))(data: D) : TermElabM ExprDist := do 
     if maxDegree > 0 then
-      let mut fstTagGrouped:  Std.HashMap Nat (Array (α × Bool × Bool)) :=  Std.HashMap.empty
-      let mut sndTagGrouped:  Std.HashMap Nat (Array (β × Bool × Bool)) :=  Std.HashMap.empty
-      let mut thirdTagGrouped:  Std.HashMap Nat (Array (γ × Bool × Bool)) :=  Std.HashMap.empty
+      let mut fstTagGrouped:  HashMap Nat (Array (α × Bool × Bool)) :=  HashMap.empty
+      let mut sndTagGrouped:  HashMap Nat (Array (β × Bool × Bool)) :=  HashMap.empty
+      let mut thirdTagGrouped:  HashMap Nat (Array (γ × Bool × Bool)) :=  HashMap.empty
       for (a, deg1) in fst do
         let prev := fstTagGrouped.findD deg1 #[]
         fstTagGrouped := fstTagGrouped.insert deg1 <| prev.push (a, ← newElem data a deg1)

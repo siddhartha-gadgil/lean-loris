@@ -6,7 +6,7 @@ import LeanLoris.ProdSeq
 import LeanLoris.Syntax
 import Lean.Meta
 import Lean.Elab
-import Std
+-- import Std
 open Lean
 open Meta
 open Elab

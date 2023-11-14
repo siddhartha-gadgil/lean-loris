@@ -6,13 +6,13 @@ import LeanLoris.ProdSeq
 import LeanLoris.Syntax
 import Lean.Meta
 import Lean.Elab
-import Std
+-- import Std
 open Lean
 open Meta
 open Elab
 open Lean.Elab.Term
 open Std
-open Std.HashMap
+open HashMap
 open Nat
 open ProdSeq
 open RecEvolverM

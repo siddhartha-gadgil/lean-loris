@@ -5,7 +5,7 @@ import LeanLoris.ProdSeq
 import LeanLoris.Evolution
 import LeanLoris.Syntax
 import LeanLoris.TacticEvolution
-import Std
+-- import Std
 open Std
 open Lean Meta Elab Term
 open ProdSeq

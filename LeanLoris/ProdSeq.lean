@@ -1,6 +1,6 @@
 import Lean.Meta
 import Lean.Elab
-import Std
+-- import Std
 import LeanLoris.Core
 open Lean Meta Elab Term Std
 
@@ -181,8 +181,8 @@ infixr:65 ":::" => PProd.mk
 end ProdSeq
 
 /- Saving and loading an `ExprDist` -/
-initialize exprDistCache : IO.Ref (Std.HashMap Name (Expr × ExprDist)) 
-                          ← IO.mkRef (Std.HashMap.empty)
+initialize exprDistCache : IO.Ref (HashMap Name (Expr × ExprDist)) 
+                          ← IO.mkRef (HashMap.empty)
 
 /-- save an `ExprDist` after serializing at the given name -/
 def ExprDist.save (name: Name)(es: ExprDist) : TermElabM (Unit) := do

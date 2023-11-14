@@ -4,7 +4,7 @@ import LeanLoris.CompiledCzSl
 import LeanLoris.CompiledLclCnst
 import LeanLoris.ExprDist
 import LeanLoris.ConstDeps
-import Mathlib
+-- import Mathlib
 open CzSl ExprDist Lean
 
 /-
@@ -23,12 +23,12 @@ def mathDepFullData(mathenv: Environment) : IO Unit := do
   IO.println "\n# Dependencies for data for machine learning.\n"
   IO.println "We consider dependencies in MathLib4 and generate various forms of data for machine learning. As of now these are for basic experiments.\n"
   let offCore := offSpringTripleCore
-  let ei := offCore.run' 
+  let ei := offCore.run'
       {fileName := "", fileMap := ⟨"", #[], #[]⟩, maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
   match ←  ei.toIO' with
-  | Except.ok triples => 
+  | Except.ok triples =>
       IO.println "\nData obtained"
-      IO.println s!"Using {triples.size} definitions" 
+      IO.println s!"Using {triples.size} definitions"
       let data ← FrequencyData.get triples
       let terms ← data.termFreqData
       let types ← data.typeFreqData
@@ -39,7 +39,7 @@ def mathDepFullData(mathenv: Environment) : IO Unit := do
       IO.FS.writeFile file typeTerm
       let file := System.mkFilePath ["data/frequencies.json"]
       let freqJsonC : CoreM Json := data.asJson
-      let (freqJson, _) ←   freqJsonC.toIO 
+      let (freqJson, _) ←   freqJsonC.toIO
           {fileName := "", fileMap := ⟨"", #[], #[]⟩, maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
       let freqs := freqJson.pretty
       IO.FS.writeFile file freqs
@@ -56,16 +56,16 @@ def mathDepData(mathenv: Environment) : IO Unit := do
   IO.println "\n# Dependencies for data for machine learning.\n"
   IO.println "We consider dependencies in MathLib4 and generate various forms of data for machine learning. As of now these are for basic experiments.\n"
   let offCore := offSpringShallowTripleCore
-  let ei := offCore.run' 
+  let ei := offCore.run'
       {fileName := "", fileMap := ⟨"", #[], #[]⟩, maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
   match ←  ei.toIO' with
-  | Except.ok triples => 
+  | Except.ok triples =>
       IO.println "\nData obtained"
-      IO.println s!"Using {triples.size} definitions" 
+      IO.println s!"Using {triples.size} definitions"
       let data ← FrequencyData.withMultiplicity triples
       let file := System.mkFilePath ["data/shallow-frequencies.json"]
       let freqJsonC : CoreM Json := data.asJson
-      let (freqJson, _) ←   freqJsonC.toIO 
+      let (freqJson, _) ←   freqJsonC.toIO
           {fileName := "", fileMap := ⟨"", #[], #[]⟩, maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
       let freqs := freqJson.pretty
       IO.FS.writeFile file freqs
@@ -79,10 +79,10 @@ def mathPrompt(mathenv: Environment) : IO Unit := do
   IO.println "\n# Propmpts for premises for machine learning.\n"
   IO.println "We consider dependencies in MathLib4 and generate data for simple prompts. As of now these are for basic experiments.\n"
   let promptCore := prompCoreJs
-  let ei := promptCore.run'   
+  let ei := promptCore.run'
       {fileName := "", fileMap := ⟨"", #[], #[]⟩, maxHeartbeats := 100000000000, maxRecDepth := 1000000} {env := mathenv}
   match ←  ei.toIO' with
-  | Except.ok view => 
+  | Except.ok view =>
       IO.println "\nData obtained"
       let file := System.mkFilePath ["data/simple-prompts.json"]
       IO.FS.writeFile file view
@@ -99,11 +99,11 @@ def runLclConst(env: Environment) : IO Unit := do
   IO.println s!"\n# Induction: locally constant functions\n\n{lclConstDocs}"
   let c := coreView LclConst.view3
   let ei := c.run' {fileName := "", fileMap := ⟨"", #[], #[]⟩, maxHeartbeats := 100000000000} {env := env}
-  let view := ei.toIO <| fun e => IO.Error.userError $ "Error while running" 
+  let view := ei.toIO <| fun e => IO.Error.userError $ "Error while running"
   match ←  ei.toIO' with
-  | Except.ok view => 
+  | Except.ok view =>
       IO.println "\n# Run completed\n"
-      IO.println view 
+      IO.println view
   | Except.error e =>
     do
           let msg ← e.toMessageData.toString
@@ -114,29 +114,29 @@ def runCzSl(env: Environment) : IO Unit := do
   let c := coreView view4
   let ei := c.run' {fileName := "", fileMap := ⟨"", #[], #[]⟩, maxHeartbeats := 100000000000} {env := env}
   match ←  ei.toIO' with
-  | Except.ok view => 
+  | Except.ok view =>
       IO.println "\n# Run completed\n"
-      IO.println view 
+      IO.println view
   | Except.error e =>
     do
           let msg ← e.toMessageData.toString
           IO.println msg
 
 def main (args: List String) : IO Unit := do
-  initSearchPath (← Lean.findSysroot) ["build/lib", "lean_packages/mathlib/build/lib/"]
-  let env ← 
+  initSearchPath (← Lean.findSysroot) ["build/lib"]
+  let env ←
     importModules [{module := `LeanLoris.CompiledCzSl}, {module := `LeanLoris.CompiledLclCnst}] {}
-  let mathenv ← 
-    importModules [{module := `Mathlib}] {}
+  -- let mathenv ←
+  --   importModules [{module := `Mathlib}] {}
   IO.println "Choose one or more of the following:"
   IO.println "1. Czech-Slovak Olympiad example"
   IO.println "2. Induction: locally constant functions"
-  IO.println "3. Dependency generation"
-  IO.println "4. Shallow dependency generation"
-  IO.println "5. Dependency prompt generation"
+  -- IO.println "3. Dependency generation"
+  -- IO.println "4. Shallow dependency generation"
+  -- IO.println "5. Dependency prompt generation"
   if args.contains "2" then runLclConst env
   if args.contains "1" then runCzSl env
-  if args.contains "3" then mathDepFullData mathenv
-  if args.contains "4" then mathDepData mathenv
-  if args.contains "5" then mathPrompt mathenv
+  -- if args.contains "3" then mathDepFullData env -- mathenv
+  -- if args.contains "4" then mathDepData env -- mathenv
+  -- if args.contains "5" then mathPrompt env -- mathenv
   return ()
