@@ -125,7 +125,7 @@ def runCzSl(env: Environment) : IO Unit := do
 def main (args: List String) : IO Unit := do
   initSearchPath (← Lean.findSysroot) ["build/lib"]
   let env ←
-    importModules [{module := `LeanLoris.CompiledCzSl}, {module := `LeanLoris.CompiledLclCnst}] {}
+    importModules #[{module := `LeanLoris.CompiledCzSl}, {module := `LeanLoris.CompiledLclCnst}] {}
   -- let mathenv ←
   --   importModules [{module := `Mathlib}] {}
   IO.println "Choose one or more of the following:"
