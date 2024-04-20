@@ -2,7 +2,7 @@ import Lean.Meta
 import Lean.Elab
 -- import Std
 import LeanLoris.Utils
-open Lean Meta Elab 
+open Lean Meta Elab
 open Nat Std
 
 /-
@@ -14,7 +14,7 @@ def slowFib (id : Nat) : Nat → Nat
   | 1   => 1
   | n+2 => dbgTrace s!"fib {id}" fun _ => slowFib id n + slowFib id (n+1)
 
--- def conc : Nat := 
+-- def conc : Nat :=
 --   let t1 := Task.spawn fun _ => slowFib 1 32
 --   let t2 := Task.spawn fun _ => slowFib 2 32
 --   let t3 := Task.spawn fun _ => slowFib 3 33
@@ -40,7 +40,7 @@ def exprSeq : TermElabM (Array Expr) := do
 
 def count (e: Expr) : TermElabM Nat := do
   let arr ← exprSeq
-  let farr ← arr.filterM <| fun exp => isDefEq exp e 
+  let farr ← arr.filterM <| fun exp => isDefEq exp e
   return farr.size
 
 def countsSerial: TermElabM (Array Nat) := do
@@ -65,10 +65,10 @@ theorem constFn{α : Type}(f: Nat → α):
       intro hyp n
       induction n with
       | zero => rfl
-      | succ k ih => 
+      | succ k ih =>
         rw [← hyp]
         assumption
-      
+
 @[inline] def averageBy
     [Add α] [HDiv α Nat α] [HAdd α α $ outParam α] [Inhabited α] [OfNat α 0]
     (projection: β → α) : List β  → α
@@ -79,8 +79,8 @@ theorem constFn{α : Type}(f: Nat → α):
     sum / length
 
 example : Unit := Id.run for _ in [1, 2, 3, 4, 5] do return ()
-  
-#check forIn [1, 2] 3 
+
+#check forIn [1, 2] 3
 #check ForIn
 #check @List.forIn
 
@@ -114,7 +114,7 @@ def mkArray [it : Iterable l α] (x: l): Array α :=
 def mkList [Iterable l α] (x: l): List α :=
   (mkArray x).toList
 
-def mkHashMap 
+def mkHashMap
   [Iterable l  (α × β )][Hashable α][BEq α][BEq β](x: l ): HashMap α β   :=
     let arr : Array (α × β) := mkArray x
     arr.foldl (fun acc (k, v) => acc.insert k v) HashMap.empty
@@ -123,7 +123,7 @@ def ForIn.toArray [ForIn Id l α](x : l): (Array α) := Id.run
   do
     let mut arr := Array.mk []
     for a in x do
-      arr := arr.push a 
+      arr := arr.push a
     return arr
 
 instance {l α : Type}[ForIn Id l α] : Iterable l α :=
@@ -150,13 +150,13 @@ open Nat
 
 def tryCloseGoal (mvar: MVarId) : MetaM Bool := do
   let u ← mkFreshLevelMVar
-  try 
+  try
     let res ←  mvar.apply (mkConst ``Eq.refl [u])
     unless res.isEmpty do
       throwError "failed to close goal"
     pure true
-  catch _ => 
-  try 
+  catch _ =>
+  try
     let res ←  mvar.apply (mkConst ``Subsingleton.intro [u])
     unless res.isEmpty do
       throwError "failed to close goal"
@@ -168,13 +168,13 @@ def congrStep? (mvar: MVarId) : MetaM (Option (List MVarId)) := do
   let u ← mkFreshLevelMVar
   let v ← mkFreshLevelMVar
   let closed  ← tryCloseGoal mvar
-  if !closed then 
+  if !closed then
     try
       let res ←  mvar.apply (mkConst ``congr [u, v])
       return some res
-    catch _ => 
+    catch _ =>
       pure none
-  else 
+  else
     pure none
 
 partial def recCongr(maxDepth? : Option Nat)(mvar: MVarId) : MetaM (List MVarId) := do
@@ -192,7 +192,7 @@ partial def recCongr(maxDepth? : Option Nat)(mvar: MVarId) : MetaM (List MVarId)
   | none => return [mvar]
 
 def Meta.congr(maxDepth? : Option Nat)(mvar : MVarId) : MetaM (List MVarId) := do
-  try 
+  try
     let u ← mkFreshLevelMVar
     let v ← mkFreshLevelMVar
     let xs ← mvar.apply (mkConst ``congr [u, v])
@@ -208,7 +208,7 @@ syntax "scowl" (ident)* : term
 macro_rules
 | `(scowl $[$xs]*) => `(sorry)
 
--- example : Nat := scowl very scowly  
+-- example : Nat := scowl very scowly
 
 -- example : String := scowl on the stealing of pens
 
@@ -251,25 +251,25 @@ def one := mkApp (mkConst ``Nat.succ) z
 
 #eval one
 
-def natExp: Nat → Expr 
+def natExp: Nat → Expr
 | 0 => z
 | n + 1 => mkApp (mkConst ``Nat.succ) (natExp n)
 
 #eval natExp 3
 
-def sumExp : Nat → Nat → Expr 
+def sumExp : Nat → Nat → Expr
 | n, m => mkAppN (mkConst ``Nat.add) #[natExp n, natExp m]
 
 #eval sumExp 2 3
 
 
-def constZero : Expr := 
+def constZero : Expr :=
   mkLambda `cz BinderInfo.default  (mkConst ``Nat) (mkConst ``Nat.zero)
 -- meta stuff
 
 def double : MetaM Expr := do
   withLocalDecl `n BinderInfo.default (mkConst ``Nat)  fun n =>
-    mkLambdaFVars #[n] <| mkAppN (mkConst ``Nat.add) #[n, n] 
+    mkLambdaFVars #[n] <| mkAppN (mkConst ``Nat.add) #[n, n]
 
 #eval double
 
@@ -296,7 +296,7 @@ def lenExp (list: Expr) : MetaM Expr := do
 
 def egList := [1, 3, 7, 8]
 
-def egLen : MetaM Expr := 
+def egLen : MetaM Expr :=
   lenExp (mkConst ``egList)
 
 #eval egLen
@@ -311,12 +311,12 @@ def six : TermElabM Nat := do
 def eg: Option Nat := some 3
 
 #eval eg.map (. * 2)
- 
 
-def diff : (n: Nat) → (m: Nat) → m ≤ n → Nat 
+
+def diff : (n: Nat) → (m: Nat) → m ≤ n → Nat
 | n, m, _ => n - m
 
-macro n:term "--" m:term : term => 
+macro n:term "--" m:term : term =>
   `(diff $n $m (by decide))
 
 #eval 4 -- 3
@@ -338,7 +338,7 @@ def simpCtx := Simp.Context.mkDefault
 
 -- def simpDef(e: Expr) : MetaM Simp.Result := do simp e (← simpCtx)
 
--- elab "simp!" t:term: term => do 
+-- elab "simp!" t:term: term => do
 --   let e ← Term.elabTerm t none
 --   let r ← simpDef e
 --   return r.expr
@@ -375,7 +375,7 @@ def transExpr {x y z : Expr}{rel: Expr}: MetaM Expr := do
 
 @[inline] def Lean.Expr.app6? (e : Expr) (fName : Name) : Option (Expr × Expr × Expr × Expr × Expr × Expr) :=
   if e.isAppOfArity fName 6 then
-    some (e.appFn!.appFn!.appFn!.appFn!.appFn!.appArg!, 
+    some (e.appFn!.appFn!.appFn!.appFn!.appFn!.appArg!,
       e.appFn!.appFn!.appFn!.appFn!.appArg!,
       e.appFn!.appFn!.appFn!.appArg!, e.appFn!.appFn!.appArg!, e.appFn!.appArg!, e.appArg!)
   else
@@ -394,7 +394,7 @@ set_option pp.all true
 syntax (name:= mul) "mul!" term : term
 @[term_elab mul]def mulImpl : TermElab := fun stx _ => do
 match stx with
-| `(mul! $s) => do  
+| `(mul! $s) => do
   let e ← Term.elabTerm s none
   let e ← e.simplify
   logInfo m!"{e}"
@@ -421,7 +421,7 @@ def bfst :=  fun x y : Bool => mul! x * y
 
 def goal := ∀  (y n: Nat),  y < n + 1 + y
 
-elab "show!" t:term: term => do 
+elab "show!" t:term: term => do
   let e ← Term.elabTerm t none
   let e ← whnf e
   IO.println e
@@ -436,7 +436,7 @@ declare_syntax_cat mytacseq
 syntax "myby" tacticSeq : term
 
 partial def showSyntax : Syntax → String
-| Syntax.node _ _ args => 
+| Syntax.node _ _ args =>
   (args.map <| fun s => showSyntax s).foldl (fun acc s => acc ++ " " ++ s) ""
 | Lean.Syntax.atom _ val => val
 | Lean.Syntax.ident _ _ val _ => val.toString
@@ -477,28 +477,28 @@ open Server Lsp
 --     }
 --   return #[ca, {eager := longRunner, lazy? := lazyResult}]
 
-open RequestM in
-@[code_action_provider]
-def readFile : CodeActionProvider := fun params _snap => do
-  let doc ← readDoc
-  let text := doc.meta.text
-  let source := text.source
-  let pos : String.Pos := text.lspPosToUtf8Pos params.range.end
-  let edit : TextEdit := {
-    range := params.range
-    newText :=
-      let comments := source.splitOn "/-" |>.reverse
-      let comment := comments.head!.dropRight 2
-      let tail := Substring.mk source pos source.endPos
-      let comment := "/-!" ++ tail.toString ++ "-/"
-      comment
-  }
-  let ca : CodeAction := {title := "Translate comment to a Lean theorem", kind? := "quickfix"}
-  return #[{eager := ca, lazy? := some $ return { ca with edit? := WorkspaceEdit.ofTextEdit params.textDocument.uri edit}}]
- 
-/- catch the tail-/
+-- open RequestM in
+-- @[code_action_provider]
+-- def readFile : CodeActionProvider := fun params _snap => do
+--   let doc ← readDoc
+--   let text := doc.meta.text
+--   let source := text.source
+--   let pos : String.Pos := text.lspPosToUtf8Pos params.range.end
+--   let edit : TextEdit := {
+--     range := params.range
+--     newText :=
+--       let comments := source.splitOn "/-" |>.reverse
+--       let comment := comments.head!.dropRight 2
+--       let tail := Substring.mk source pos source.endPos
+--       let comment := "/-!" ++ tail.toString ++ "-/"
+--       comment
+--   }
+--   let ca : CodeAction := {title := "Translate comment to a Lean theorem", kind? := "quickfix"}
+--   return #[{eager := ca, lazy? := some $ return { ca with edit? := WorkspaceEdit.ofTextEdit params.textDocument.uri edit}}]
 
-example : 1 = 1 := by
-  rfl
+-- /- catch the tail-/
 
-#check RequestM
+-- example : 1 = 1 := by
+--   rfl
+
+-- #check RequestM

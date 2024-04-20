@@ -9,6 +9,9 @@ package «lean-loris»{
 lean_lib LeanLoris
 
 @[default_target]
+lean_lib LorisLang
+
+@[default_target]
 lean_exe all {
   supportInterpreter := true
 }
